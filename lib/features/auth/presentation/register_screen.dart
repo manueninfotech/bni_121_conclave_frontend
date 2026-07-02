@@ -288,7 +288,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       decoration: const InputDecoration(labelText: 'Business Category'),
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       items: bniBusinessCategories.map((c) {
                         return DropdownMenuItem(value: c, child: Text(c));
                       }).toList(),

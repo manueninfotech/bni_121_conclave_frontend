@@ -19,7 +19,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // If authState is loading, wait on splash
       if (authState.isLoading) return '/';
       
-      final isAuth = authState.valueOrNull != null;
+      final isAuth = authState.value != null;
       final isSplash = state.matchedLocation == '/';
       final isLoggingIn = state.matchedLocation == '/login';
       final isRegistering = state.matchedLocation == '/register';
