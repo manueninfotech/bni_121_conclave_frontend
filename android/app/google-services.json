@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "103376964325",
+    "project_id": "conclave-1-2-1",
+    "storage_bucket": "conclave-1-2-1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:103376964325:android:e7480ac546eec36577a20c",
+        "android_client_info": {
+          "package_name": "com.manuen.conclave_1_2_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVa0NfyDulgscgIVu1bcHrX-gBoGNwn2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
