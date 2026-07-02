@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/conclave_repository.dart';
 
 class ConclaveRegisterScreen extends ConsumerStatefulWidget {
@@ -83,16 +85,33 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const Divider(),
-                      const ListTile(
-                        leading: Icon(Icons.person),
-                        title: Text('Samba'), // Mock user name
-                        subtitle: Text('Software Development'), // Mock category
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      const ListTile(
-                        leading: Icon(Icons.business),
-                        title: Text('Manuen Infotech'), // Mock business
-                        contentPadding: EdgeInsets.zero,
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                          }
+                          if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                            return const Text('Failed to load profile.');
+                          }
+                          
+                          final data = snapshot.data!.data() as Map<String, dynamic>;
+                          return Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.person),
+                                title: Text(data['name'] ?? 'Unknown'),
+                                subtitle: Text(data['businessCategory'] ?? 'Unknown Category'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.business),
+                                title: Text(data['businessName'] ?? 'Unknown Business'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
