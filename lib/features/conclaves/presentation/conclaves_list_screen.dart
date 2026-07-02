@@ -40,7 +40,7 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen> with 
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
-              // TODO: Navigate to profile
+              context.push('/profile');
             },
           ),
         ],

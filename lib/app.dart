@@ -6,9 +6,11 @@ import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
 import 'features/auth/data/auth_repository.dart';
+import 'features/profile/presentation/profile_screen.dart';
 import 'features/conclaves/presentation/conclaves_list_screen.dart';
 import 'features/conclaves/presentation/conclave_detail_screen.dart';
 import 'features/conclaves/presentation/conclave_register_screen.dart';
+import 'features/active_conclave/presentation/active_round_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -66,7 +68,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               conclaveId: state.pathParameters['id']!,
             ),
           ),
+          GoRoute(
+            path: ':id/active',
+            builder: (context, state) => ActiveRoundScreen(
+              conclaveId: state.pathParameters['id']!,
+            ),
+          ),
         ],
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
     ],
   );

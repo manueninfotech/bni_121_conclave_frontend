@@ -100,7 +100,7 @@ class _ConclaveDetailScreenState extends ConsumerState<ConclaveDetailScreen> {
             if (_conclave.status == ConclaveStatus.running)
               ElevatedButton(
                 onPressed: () {
-                  // TODO: Navigate to Active Round Screen
+                  context.push('/conclaves/${_conclave.id}/active');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
