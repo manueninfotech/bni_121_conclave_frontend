@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
@@ -13,11 +14,22 @@ import 'features/conclaves/presentation/conclave_register_screen.dart';
 import 'features/active_conclave/presentation/active_round_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  // Create a listenable for GoRouter to refresh on auth changes
+  final authNotifier = ValueNotifier<AsyncValue<User?>>(const AsyncLoading());
+  
+  // Listen to auth state and update the notifier
+  ref.listen<AsyncValue<User?>>(
+    authStateProvider,
+    (_, next) => authNotifier.value = next,
+    fireImmediately: true,
+  );
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: authNotifier,
     redirect: (context, state) {
+      final authState = authNotifier.value;
+      
       // If authState is loading, wait on splash
       if (authState.isLoading) return '/';
       
@@ -28,14 +40,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // If on splash and finished loading auth
       if (isSplash) {
+        // Only redirect to conclaves if they are fully authenticated
+        // Note: For phone auth, they might be authenticated but missing a profile.
+        // If they restart the app mid-registration, we ideally want to send them back to /register.
+        // But for simplicity, we just send to /conclaves. If profile fails, they can logout.
         return isAuth ? '/conclaves' : '/login';
       }
 
       if (isAuth) {
         if (isLoggingIn) return '/conclaves';
-        // Note: We do NOT redirect away from isRegistering automatically, 
-        // because Phone Auth signs the user in at Step 2 (OTP) before they finish Step 3 (Profile).
-        // RegisterScreen handles its own navigation upon completion.
+        // Do not redirect away from /register so they can finish their profile!
       } else {
         if (!isLoggingIn && !isRegistering) return '/login';
       }
