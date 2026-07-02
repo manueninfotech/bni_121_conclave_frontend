@@ -139,11 +139,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
       
-      // Router redirect handles navigation automatically
-      if (!_isPhoneFlow && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please check your email to verify your account.')),
-        );
+      // Manually navigate after the profile is fully saved
+      if (mounted) {
+        if (!_isPhoneFlow) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please check your email to verify your account.')),
+          );
+        }
+        context.go('/conclaves');
       }
     } catch (e) {
       if (mounted) {

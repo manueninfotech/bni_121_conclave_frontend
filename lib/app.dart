@@ -32,7 +32,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isAuth) {
-        if (isLoggingIn || isRegistering) return '/conclaves';
+        if (isLoggingIn) return '/conclaves';
+        // Note: We do NOT redirect away from isRegistering automatically, 
+        // because Phone Auth signs the user in at Step 2 (OTP) before they finish Step 3 (Profile).
+        // RegisterScreen handles its own navigation upon completion.
       } else {
         if (!isLoggingIn && !isRegistering) return '/login';
       }
