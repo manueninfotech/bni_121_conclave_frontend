@@ -7,12 +7,26 @@ enum ConclaveStatus {
   locked,
   running,
   completed,
-  cancelled
+  cancelled;
+
+  static ConclaveStatus fromString(String status) {
+    return ConclaveStatus.values.firstWhere(
+      (e) => e.name == status,
+      orElse: () => ConclaveStatus.draft,
+    );
+  }
 }
 
 enum ConclaveRole {
   member,
-  captain
+  captain;
+
+  static ConclaveRole fromString(String role) {
+    return ConclaveRole.values.firstWhere(
+      (e) => e.name == role,
+      orElse: () => ConclaveRole.member,
+    );
+  }
 }
 
 class Conclave {
@@ -45,37 +59,37 @@ class Conclave {
     this.userRole,
     this.userTableNumber,
   });
-}
+  factory Conclave.fromFirestore(Map<String, dynamic> data, String id) {
+    return Conclave(
+      id: id,
+      name: data['name'] ?? 'Unnamed Conclave',
+      venueLocation: data['venueLocation'] ?? 'Unknown Venue',
+      date: data['date'] != null ? (data['date'] as dynamic).toDate() : DateTime.now(),
+      status: ConclaveStatus.fromString(data['status'] ?? 'draft'),
+      isRegistrationOpen: data['isRegistrationOpen'] ?? false,
+      personsPerTable: data['personsPerTable'] ?? 7,
+      roundCount: data['roundCount'] ?? 6,
+    );
+  }
 
-// Mock Data
-final List<Conclave> mockConclaves = [
-  Conclave(
-    id: 'c1',
-    name: 'Guntur Mega Conclave 2026',
-    venueLocation: 'ITC Grand, Guntur',
-    date: DateTime.now().add(const Duration(days: 2)),
-    status: ConclaveStatus.registrationOpen,
-    isRegistrationOpen: true,
-  ),
-  Conclave(
-    id: 'c2',
-    name: 'Vijayawada Founders Meet',
-    venueLocation: 'Novotel, Vijayawada',
-    date: DateTime.now().add(const Duration(hours: 1)),
-    status: ConclaveStatus.locked,
-    isRegistrationOpen: false,
-    isRegistered: true,
-    userRole: ConclaveRole.member,
-  ),
-  Conclave(
-    id: 'c3',
-    name: 'Annual BNI Connect',
-    venueLocation: 'Hyatt Place, Hyderabad',
-    date: DateTime.now().subtract(const Duration(days: 10)),
-    status: ConclaveStatus.completed,
-    isRegistrationOpen: false,
-    isRegistered: true,
-    userRole: ConclaveRole.captain,
-    userTableNumber: 4,
-  ),
-];
+  // We can copyWith to add user-specific data after fetching
+  Conclave copyWith({
+    bool? isRegistered,
+    ConclaveRole? userRole,
+    int? userTableNumber,
+  }) {
+    return Conclave(
+      id: id,
+      name: name,
+      venueLocation: venueLocation,
+      date: date,
+      status: status,
+      isRegistrationOpen: isRegistrationOpen,
+      personsPerTable: personsPerTable,
+      roundCount: roundCount,
+      isRegistered: isRegistered ?? this.isRegistered,
+      userRole: userRole ?? this.userRole,
+      userTableNumber: userTableNumber ?? this.userTableNumber,
+    );
+  }
+}

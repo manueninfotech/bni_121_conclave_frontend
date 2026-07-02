@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../domain/conclave_model.dart';
+import '../data/conclave_repository.dart';
 
 class ConclaveRegisterScreen extends ConsumerStatefulWidget {
   final String conclaveId;
@@ -12,35 +12,45 @@ class ConclaveRegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen> {
-  late Conclave _conclave;
   bool _isSubmitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _conclave = mockConclaves.firstWhere((c) => c.id == widget.conclaveId, orElse: () => mockConclaves.first);
-  }
 
   void _confirmRegistration() async {
     setState(() => _isSubmitting = true);
     
-    // TODO: Implement actual registration logic via API
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Successfully registered for conclave!')),
-      );
-      // Mock local state update would happen here
-      context.go('/conclaves');
+    try {
+      await ref.read(conclaveRepositoryProvider).registerForConclave(widget.conclaveId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully registered for conclave!')),
+        );
+        context.go('/conclaves');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    final conclavesAsync = ref.watch(conclavesStreamProvider);
+    
+    return conclavesAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (conclaves) {
+        final conclave = conclaves.firstWhere(
+          (c) => c.id == widget.conclaveId, 
+          orElse: () => conclaves.first,
+        );
+
+        return Scaffold(
+          appBar: AppBar(
         title: const Text('Confirm Registration'),
       ),
       body: SafeArea(
@@ -52,18 +62,15 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
               const Icon(Icons.event_available, size: 80, color: Colors.grey),
               const SizedBox(height: 24),
               Text(
-                'Register for',
+                'Register for ${conclave.name}',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.grey),
               ),
               const SizedBox(height: 8),
               Text(
-                _conclave.name,
+                '${conclave.venueLocation} • ${conclave.date.month}/${conclave.date.day}/${conclave.date.year}',
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
               ),
               const SizedBox(height: 32),
               Card(
@@ -102,6 +109,8 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
           ),
         ),
       ),
+    );
+    },
     );
   }
 }

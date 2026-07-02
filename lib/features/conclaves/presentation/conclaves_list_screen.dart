@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../domain/conclave_model.dart';
+import '../data/conclave_repository.dart';
 
 class ConclavesListScreen extends ConsumerStatefulWidget {
   const ConclavesListScreen({super.key});
@@ -13,7 +14,6 @@ class ConclavesListScreen extends ConsumerStatefulWidget {
 
 class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<Conclave> _conclaves = mockConclaves;
 
   @override
   void initState() {
@@ -27,12 +27,10 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen> with 
     super.dispose();
   }
 
-  List<Conclave> _getOngoing() => _conclaves.where((c) => c.status == ConclaveStatus.running || c.status == ConclaveStatus.locked).toList();
-  List<Conclave> _getUpcoming() => _conclaves.where((c) => c.status == ConclaveStatus.registrationOpen || c.status == ConclaveStatus.registrationClosed || c.status == ConclaveStatus.draft || c.status == ConclaveStatus.snapshotted || c.status == ConclaveStatus.scheduled).toList();
-  List<Conclave> _getPast() => _conclaves.where((c) => c.status == ConclaveStatus.completed || c.status == ConclaveStatus.cancelled).toList();
-
   @override
   Widget build(BuildContext context) {
+    final conclavesAsyncValue = ref.watch(conclavesStreamProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Conclaves'),
@@ -56,16 +54,26 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen> with 
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildList(_getOngoing()),
-          _buildList(_getUpcoming()),
-          _buildList(_getPast()),
-        ],
+      body: conclavesAsyncValue.when(
+        data: (conclaves) {
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _buildList(_getOngoing(conclaves)),
+              _buildList(_getUpcoming(conclaves)),
+              _buildList(_getPast(conclaves)),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
       ),
     );
   }
+
+  List<Conclave> _getOngoing(List<Conclave> conclaves) => conclaves.where((c) => c.status == ConclaveStatus.running || c.status == ConclaveStatus.locked).toList();
+  List<Conclave> _getUpcoming(List<Conclave> conclaves) => conclaves.where((c) => c.status == ConclaveStatus.registrationOpen || c.status == ConclaveStatus.registrationClosed || c.status == ConclaveStatus.draft || c.status == ConclaveStatus.snapshotted || c.status == ConclaveStatus.scheduled).toList();
+  List<Conclave> _getPast(List<Conclave> conclaves) => conclaves.where((c) => c.status == ConclaveStatus.completed || c.status == ConclaveStatus.cancelled).toList();
 
   Widget _buildList(List<Conclave> list) {
     if (list.isEmpty) {
