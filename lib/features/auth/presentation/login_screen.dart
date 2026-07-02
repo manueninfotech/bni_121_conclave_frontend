@@ -22,7 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _isLoading = true);
       
       try {
-        await ref.read(authRepositoryProvider).loginWithEmailAndPassword(
+        await ref.read(authRepositoryProvider).login(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
