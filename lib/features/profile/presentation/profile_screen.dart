@@ -16,6 +16,15 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await ref.read(authRepositoryProvider).logout();
+              if (context.mounted) context.go('/login');
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
@@ -23,8 +32,11 @@ class ProfileScreen extends ConsumerWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Error loading profile.'));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('Profile document does not exist in Firestore.'));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -42,20 +54,6 @@ class ProfileScreen extends ConsumerWidget {
               _buildInfoTile('Category', data['businessCategory']),
               _buildInfoTile('Location', data['location']),
               _buildInfoTile('Identifier', data['identifier']),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                icon: const Icon(Icons.logout),
-                label: const Text('Logout'),
-                onPressed: () async {
-                  await ref.read(authRepositoryProvider).logout();
-                  if (context.mounted) context.go('/login');
-                },
-              )
             ],
           );
         },
