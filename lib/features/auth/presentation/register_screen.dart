@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/business_categories.dart';
+import '../data/auth_repository.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -25,6 +26,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _chapterController = TextEditingController();
   final _locationController = TextEditingController();
   String? _selectedCategory;
+  bool _isLoading = false;
 
   void _nextStep() {
     if (_currentStep == 0) {
@@ -45,11 +47,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void _submitRegistration() async {
-    // TODO: Implement actual Firebase Auth registration
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registration successful!')),
-    );
-    context.go('/conclaves');
+    setState(() => _isLoading = true);
+    
+    try {
+      await ref.read(authRepositoryProvider).registerWithEmailAndPassword(
+        email: _emailPhoneController.text.trim(),
+        password: _passwordController.text.trim(),
+        name: _nameController.text.trim(),
+        businessName: _businessNameController.text.trim(),
+        businessCategory: _selectedCategory!,
+        location: _locationController.text.trim(),
+        chapter: _chapterController.text.trim(),
+      );
+      
+      // Router redirect handles navigation on successful auth state change
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -86,8 +108,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: details.onStepContinue,
-                      child: Text(_currentStep == 1 ? 'Complete Registration' : 'Next'),
+                      onPressed: _isLoading ? null : details.onStepContinue,
+                      child: _isLoading && _currentStep == 1
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(_currentStep == 1 ? 'Complete Registration' : 'Next'),
                     ),
                   ),
                 ],

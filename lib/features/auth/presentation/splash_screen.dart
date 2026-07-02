@@ -11,22 +11,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
-  void initState() {
-    super.initState();
-    _navigateToNext();
-  }
-
-  Future<void> _navigateToNext() async {
-    // Wait for a few seconds to show splash
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // For Phase 1, just navigate to login
-    if (mounted) {
-      context.go('/login');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
