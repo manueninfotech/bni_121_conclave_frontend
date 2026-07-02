@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/active_conclave_models.dart';
 import '../data/local_db.dart';
+import '../data/sync_service.dart';
 
 class ActiveRoundScreen extends ConsumerStatefulWidget {
   final String conclaveId;
@@ -29,6 +30,11 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
     _currentRound = mockActiveRound;
     _calculateTimeRemaining();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _calculateTimeRemaining());
+    
+    // Start background sync
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncServiceProvider).startSyncTimer(widget.conclaveId);
+    });
   }
 
   @override
@@ -144,16 +150,21 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text('Round \${_currentRound.roundNumber} - Table \${_currentRound.tableNumber}'),
+        title: Text('Round ${_currentRound.roundNumber} - Table ${_currentRound.tableNumber}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'Manual Sync',
-            onPressed: () {
-              // TODO: Implement manual sync trigger
+            onPressed: () async {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sync triggered...')),
+                const SnackBar(content: Text('Syncing data with backend...')),
               );
+              await ref.read(syncServiceProvider).syncNow(widget.conclaveId);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Sync completed!')),
+                );
+              }
             },
           )
         ],
