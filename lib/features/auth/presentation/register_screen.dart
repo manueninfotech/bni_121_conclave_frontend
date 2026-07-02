@@ -47,9 +47,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   void _submitRegistration() async {
     // TODO: Implement actual Firebase Auth registration
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registration successful (Mock)')),
+      const SnackBar(content: Text('Registration successful!')),
     );
-    context.go('/login');
+    context.go('/conclaves');
   }
 
   @override

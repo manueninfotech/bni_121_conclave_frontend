@@ -25,9 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         // Navigate to home after successful login
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful (Mock)')),
-        );
+        context.go('/conclaves');
       }
     }
   }
