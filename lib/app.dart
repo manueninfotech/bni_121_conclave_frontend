@@ -34,9 +34,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (authState.isLoading) return '/';
       
       final isAuth = authState.value != null;
-      final isSplash = state.matchedLocation == '/';
-      final isLoggingIn = state.matchedLocation == '/login';
-      final isRegistering = state.matchedLocation == '/register';
+      final isSplash = state.uri.path == '/';
+      final isLoggingIn = state.uri.path == '/login';
+      final isRegistering = state.uri.path == '/register';
 
       // If on splash and finished loading auth
       if (isSplash) {
