@@ -130,18 +130,21 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen> with 
                     children: [
                       if (conclave.isRegistered)
                         ElevatedButton(
+                          style: ElevatedButton.styleFrom(minimumSize: const Size(120, 40)),
                           onPressed: () => context.push('/conclaves/${conclave.id}'),
                           child: const Text('View Dashboard'),
                         )
                       else if (conclave.isRegistrationOpen)
                         ElevatedButton(
+                          style: ElevatedButton.styleFrom(minimumSize: const Size(120, 40)),
                           onPressed: () => context.push('/conclaves/${conclave.id}/register'),
                           child: const Text('Register'),
                         )
                       else
-                        const OutlinedButton(
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(120, 40)),
                           onPressed: null,
-                          child: Text('Registration Closed'),
+                          child: const Text('Registration Closed'),
                         ),
                     ],
                   )
