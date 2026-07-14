@@ -1,71 +1,269 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../auth/data/auth_repository.dart';
+import '../data/profile_repository.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Scaffold();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    // Signing out at a live event means re-authenticating in a room with no
+    // signal. Worth one tap of confirmation.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'You will need to sign in again to take part in a conclave.',
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authRepositoryProvider).logout();
-              if (context.mounted) context.go('/login');
-            },
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign out'),
           ),
         ],
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Profile document does not exist in Firestore.'));
-          }
+    );
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+    if (confirmed != true) return;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const CircleAvatar(
-                radius: 50,
-                child: Icon(Icons.person, size: 50),
+    await ref.read(authRepositoryProvider).logout();
+    if (context.mounted) context.go('/login');
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(myProfileProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
+            onPressed: () => _confirmLogout(context, ref),
+          ),
+        ],
+      ),
+      body: profile.when(
+        loading: () => const LoadingView(),
+        error: (e, _) => ErrorView(
+          message: 'Could not load your profile.',
+          detail: e.toString(),
+          onRetry: () => ref.invalidate(myProfileProvider),
+        ),
+        data: (p) {
+          if (p == null) {
+            // The old screen showed users the raw string "Profile document does
+            // not exist in Firestore." — which tells them nothing they can act on.
+            return EmptyView(
+              icon: Icons.person_off_outlined,
+              title: 'Profile not found',
+              message: 'We could not find your details. Try signing out and back '
+                  'in, or contact the admin.',
+              action: FilledButton(
+                onPressed: () => _confirmLogout(context, ref),
+                child: const Text('Sign out'),
               ),
-              const SizedBox(height: 24),
-              _buildInfoTile('Name', data['name']),
-              _buildInfoTile('Business', data['businessName']),
-              _buildInfoTile('Category', data['businessCategory']),
-              _buildInfoTile('Location', data['location']),
-              _buildInfoTile('Identifier', data['identifier']),
-            ],
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(myProfileProvider),
+            child: ContentWidth(
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.all(context.pagePadding),
+                children: [
+                  FadeSlideIn(index: 0, child: _Header(profile: p)),
+                  const SizedBox(height: Gap.xl),
+
+                  FadeSlideIn(
+                    index: 1,
+                    child: _Section(
+                      title: 'Business',
+                      children: [
+                        InfoRow(
+                          icon: Icons.business_outlined,
+                          label: 'Business name',
+                          value: p.businessName.isEmpty ? 'Not set' : p.businessName,
+                        ),
+                        InfoRow(
+                          icon: Icons.category_outlined,
+                          label: 'Business category',
+                          value: p.businessCategory.isEmpty
+                              ? 'Not set'
+                              : p.businessCategory,
+                        ),
+                        if (p.chapter != null && p.chapter!.isNotEmpty)
+                          InfoRow(
+                            icon: Icons.groups_2_outlined,
+                            label: 'Chapter',
+                            value: p.chapter!,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: Gap.md),
+
+                  FadeSlideIn(
+                    index: 2,
+                    child: _Section(
+                      title: 'Contact',
+                      children: [
+                        InfoRow(
+                          icon: Icons.alternate_email,
+                          label: 'Email or phone',
+                          value: p.identifier,
+                        ),
+                        InfoRow(
+                          icon: Icons.place_outlined,
+                          label: 'Location',
+                          value: p.location.isEmpty ? 'Not set' : p.location,
+                        ),
+                        InfoRow(
+                          icon: Icons.public,
+                          label: 'Country',
+                          value: p.country,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: Gap.xl),
+
+                  // Category is the field the engine seats people by, so a mistake
+                  // there used to be permanent — there was no way to change it.
+                  FadeSlideIn(
+                    index: 3,
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(Gap.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Your business category decides who you sit with',
+                              style: context.text.titleSmall,
+                            ),
+                            const SizedBox(height: Gap.xs),
+                            Text(
+                              'No two people of the same category ever share a table. '
+                              'If yours is wrong, fix it here — changes apply to '
+                              'future conclaves.',
+                              style: context.text.bodySmall?.copyWith(
+                                color: context.scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: Gap.lg),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton.icon(
+                                onPressed: () => context.push('/profile/edit'),
+                                icon: const Icon(Icons.edit_outlined),
+                                label: const Text('Edit profile'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
     );
   }
+}
 
-  Widget _buildInfoTile(String title, String? subtitle) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-      subtitle: Text(subtitle ?? 'N/A', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      contentPadding: EdgeInsets.zero,
+class _Header extends StatelessWidget {
+  final UserProfile profile;
+  const _Header({required this.profile});
+
+  String get _initials {
+    final parts = profile.name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Hero(
+          tag: 'profile-avatar',
+          child: CircleAvatar(
+            radius: 44,
+            backgroundColor: context.scheme.primaryContainer,
+            child: Text(
+              _initials,
+              style: context.text.headlineMedium?.copyWith(
+                color: context.scheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+        Text(
+          profile.name.isEmpty ? 'Unnamed' : profile.name,
+          textAlign: TextAlign.center,
+          style: context.text.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        if (profile.businessCategory.isNotEmpty) ...[
+          const SizedBox(height: Gap.sm),
+          StatusBadge(
+            label: profile.businessCategory,
+            tone: StatusTone.info,
+            icon: Icons.category_outlined,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _Section({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title.toUpperCase(),
+              style: context.text.labelSmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
+            ...children,
+          ],
+        ),
+      ),
     );
   }
 }

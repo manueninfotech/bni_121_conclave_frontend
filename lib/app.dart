@@ -11,6 +11,7 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/profile/presentation/profile_screen.dart';
+import 'features/profile/presentation/edit_profile_screen.dart';
 import 'features/conclaves/presentation/conclaves_list_screen.dart';
 import 'features/conclaves/presentation/conclave_detail_screen.dart';
 import 'features/conclaves/presentation/conclave_register_screen.dart';
@@ -106,6 +107,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+        routes: [
+          GoRoute(
+            path: 'edit',
+            builder: (context, state) => const EditProfileScreen(),
+          ),
+        ],
       ),
     ],
   );
@@ -179,9 +186,29 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
 
     return MaterialApp.router(
       title: 'BNI 121 Conclave',
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      // Follow the device. The app previously forced light, ignoring the system
+      // setting entirely — including for anyone who uses dark mode for
+      // readability rather than preference.
+      themeMode: ThemeMode.system,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        // Respect the user's font-size setting, but clamp the extremes: beyond
+        // ~1.6x, layouts that must stay usable at a venue (a live round timer,
+        // a table roster) stop fitting on a phone at all. Users who need more
+        // than that are better served by the system magnifier than by a broken
+        // screen.
+        final scaler = MediaQuery.textScalerOf(context).clamp(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.6,
+        );
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: scaler),
+          child: child!,
+        );
+      },
     );
   }
 }
