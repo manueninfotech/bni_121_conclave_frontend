@@ -28,6 +28,24 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
         );
         context.go('/conclaves');
       }
+    } on RegistrationConflict catch (e) {
+      // A clash is not a failure to explain away in a snackbar — it's a decision
+      // the user needs to understand, and it cannot be undone by unregistering.
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Clashes with another conclave'),
+            content: Text(e.message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

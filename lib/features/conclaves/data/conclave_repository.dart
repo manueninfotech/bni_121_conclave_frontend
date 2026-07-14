@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/config/api_config.dart';
 import '../domain/conclave_model.dart';
 
 final conclaveRepositoryProvider = Provider<ConclaveRepository>((ref) {
@@ -14,6 +16,7 @@ final conclavesStreamProvider = StreamProvider<List<Conclave>>((ref) {
 class ConclaveRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final Dio _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
 
   ConclaveRepository(this._firestore, this._auth);
 
@@ -52,19 +55,50 @@ class ConclaveRepository {
     });
   }
 
+  /// Registers the signed-in member for a conclave.
+  ///
+  /// This goes through the backend rather than writing to Firestore directly,
+  /// because it enforces a rule a single client cannot check: you may not hold
+  /// registrations for two conclaves whose times OVERLAP. Nobody can attend
+  /// both, and registrations cannot be withdrawn — the schedule seats and pairs
+  /// you, so a no-show leaves a hole in other people's tables.
+  ///
+  /// Throws [RegistrationConflict] when it clashes with an existing registration.
   Future<void> registerForConclave(String conclaveId) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception("Must be logged in to register.");
+    if (user == null) throw Exception('Must be logged in to register.');
 
-    await _firestore
-        .collection('conclaves')
-        .doc(conclaveId)
-        .collection('registrations')
-        .doc(user.uid)
-        .set({
-      'registeredAt': FieldValue.serverTimestamp(),
-      'role': 'member', // Default role upon registration
-      'status': 'pending',
-    });
+    final token = await user.getIdToken();
+
+    try {
+      await _dio.post(
+        '${ApiConfig.baseUrl}/conclaves/$conclaveId/register',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (e.response?.statusCode == 409 && data is Map) {
+        throw RegistrationConflict(
+          (data['error'] ?? 'This conclave clashes with another registration.')
+              as String,
+          conflictName: (data['conflictsWith']?['name'] ?? '') as String,
+        );
+      }
+      if (data is Map && data['error'] != null) {
+        throw Exception(data['error']);
+      }
+      throw Exception('Could not reach the server to register. Try again.');
+    }
   }
+}
+
+/// The member is already registered for an overlapping conclave.
+class RegistrationConflict implements Exception {
+  final String message;
+  final String conflictName;
+
+  RegistrationConflict(this.message, {this.conflictName = ''});
+
+  @override
+  String toString() => message;
 }
