@@ -162,6 +162,35 @@ class AuthRepository {
     }
   }
 
+  /// Sends a password reset link.
+  ///
+  /// Only works for accounts registered with a REAL email address. Phone
+  /// registrations are stored against a synthetic address
+  /// (`<digits>@bni121.conclave`) which no mailbox can receive, so there is
+  /// nowhere to send the link — those users have to be reset by an admin.
+  /// Silently "succeeding" for them would be worse than saying so.
+  Future<void> sendPasswordReset(String identifier) async {
+    final id = identifier.trim();
+    if (id.isEmpty) throw Exception('Enter your email address first.');
+
+    final isPhone = RegExp(r'^\+?[0-9]{10,15}$').hasMatch(id);
+    if (isPhone) {
+      throw Exception(
+        'This account was registered with a phone number, so there is no email '
+        'address to send a reset link to. Please contact the admin.',
+      );
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: id);
+    } on FirebaseAuthException catch (e) {
+      // Don't confirm or deny whether an address is registered — that would let
+      // anyone enumerate members' email addresses.
+      if (e.code == 'user-not-found') return;
+      throw Exception(e.message ?? 'Could not send the reset email.');
+    }
+  }
+
   Future<void> logout() async {
     await _session.signOut();
   }
