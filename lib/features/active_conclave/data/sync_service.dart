@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/time/server_clock.dart';
 import 'local_db.dart';
 
@@ -29,13 +30,8 @@ class SyncService {
   Timer? _syncTimer;
   bool _isSyncing = false;
 
-  /// 10.0.2.2 is the Android emulator's alias for the host machine's localhost.
-  ///
-  /// TODO: this needs to become runtime-configurable before a real event — see
-  /// OFFLINE_ATTENDANCE_AND_SYNC.md §5 (venue LAN), currently parked.
-  static String get baseUrl => defaultTargetPlatform == TargetPlatform.android
-      ? 'http://10.0.2.2:3000/api'
-      : 'http://localhost:3000/api';
+  /// Supplied at build time via --dart-define=API_BASE_URL. See [ApiConfig].
+  static String get baseUrl => ApiConfig.baseUrl;
 
   SyncService(this._db, this._auth, this._clock)
       : _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 5)));
