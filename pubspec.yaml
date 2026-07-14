@@ -38,6 +38,9 @@ dependencies:
   firebase_auth: ^6.5.4
   firebase_messaging: ^16.4.1
   cloud_firestore: ^6.6.0
+  # Drives sync-on-reconnect: the venue's network comes and goes, and pending
+  # records must drain the moment it returns, not on the next 30s tick.
+  connectivity_plus: ^7.0.0
   path_provider: ^2.1.6
   flutter_riverpod: ^3.3.2
   shared_preferences: ^2.5.5

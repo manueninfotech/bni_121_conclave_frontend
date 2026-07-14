@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -11,7 +12,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(localDbProvider);
   final service = SyncService(db, FirebaseAuth.instance, ref.watch(serverClockProvider));
 
-  ref.onDispose(service.stopSyncTimer);
+  ref.onDispose(service.dispose);
 
   return service;
 });
@@ -28,7 +29,9 @@ class SyncService {
   final ServerClock _clock;
   final Dio _dio;
   Timer? _syncTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   bool _isSyncing = false;
+  bool _wasOffline = false;
 
   /// Supplied at build time via --dart-define=API_BASE_URL. See [ApiConfig].
   static String get baseUrl => ApiConfig.baseUrl;
@@ -50,6 +53,58 @@ class SyncService {
   void stopSyncTimer() {
     _syncTimer?.cancel();
     _syncTimer = null;
+  }
+
+  /// Drain pending records the moment the network comes back.
+  ///
+  /// The 30-second timer above only runs while the active-round screen is open
+  /// and only knows about ONE conclave. At the venue the network comes and goes,
+  /// and a member who leaves that screen (or backgrounds the app) would otherwise
+  /// sit on unsynced records indefinitely — even with signal restored.
+  ///
+  /// This watches connectivity for the whole app lifetime and flushes everything
+  /// outstanding, for every conclave, whenever we transition offline -> online.
+  void startConnectivityWatch() {
+    if (_connectivitySub != null) return;
+
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      final isOnline =
+          results.isNotEmpty && !results.every((r) => r == ConnectivityResult.none);
+
+      if (isOnline && _wasOffline) {
+        debugPrint('Network is back — flushing pending records.');
+        syncAllPending();
+      }
+      _wasOffline = !isOnline;
+    });
+
+    // Connectivity only reports CHANGES, so an app that starts up already online
+    // with records left over from a previous session would never hear an event.
+    // Flush once at startup too.
+    syncAllPending();
+  }
+
+  /// Push everything still outstanding, across every conclave.
+  ///
+  /// Having connectivity does not mean the SERVER is reachable (captive portal,
+  /// backend down, wrong host). syncNow() already treats failure as "leave it
+  /// unsynced and retry", so a wasted attempt here is harmless.
+  Future<void> syncAllPending() async {
+    if (_auth.currentUser == null) return;
+
+    final pending = await _db.pendingConclaveIds();
+    if (pending.isEmpty) return;
+
+    debugPrint('Flushing ${pending.length} conclave(s) with pending records.');
+    for (final conclaveId in pending) {
+      await syncNow(conclaveId);
+    }
+  }
+
+  void dispose() {
+    stopSyncTimer();
+    _connectivitySub?.cancel();
+    _connectivitySub = null;
   }
 
   Future<void> syncNow(String conclaveId) async {

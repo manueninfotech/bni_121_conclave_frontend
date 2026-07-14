@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/active_conclave/data/sync_service.dart';
 import 'features/auth/data/session_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -134,6 +135,14 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
       const Duration(minutes: 5),
       (_) => _enforceSessionExpiry(),
     );
+
+    // Drain pending records whenever the network returns, from ANY screen.
+    // Started here rather than on the round screen because at the venue signal
+    // comes back at an arbitrary moment — very likely not while the user happens
+    // to be sitting on the one screen that used to own the sync timer.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncServiceProvider).startConnectivityWatch();
+    });
   }
 
   @override
@@ -145,7 +154,14 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _enforceSessionExpiry();
+    if (state != AppLifecycleState.resumed) return;
+
+    _enforceSessionExpiry();
+
+    // Coming back to the foreground is the other moment worth retrying: the
+    // phone may have regained signal while the app was backgrounded, and
+    // connectivity events are not reliably delivered to a suspended app.
+    ref.read(syncServiceProvider).syncAllPending();
   }
 
   Future<void> _enforceSessionExpiry() async {

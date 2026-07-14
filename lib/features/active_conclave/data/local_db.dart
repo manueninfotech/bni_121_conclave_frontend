@@ -331,6 +331,35 @@ class LocalDatabase {
     );
   }
 
+  /// Conclaves that still have records waiting to reach the server.
+  ///
+  /// Sync used to be driven from the active-round screen, which meant it knew
+  /// the conclave id. Draining on reconnect happens app-wide — from any screen,
+  /// or none — so it has to discover what's outstanding for itself.
+  Future<Set<String>> pendingConclaveIds() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT DISTINCT conclaveId FROM attendance WHERE synced = 0
+      UNION
+      SELECT DISTINCT conclaveId FROM referrals  WHERE synced = 0
+    ''');
+    return rows.map((r) => r['conclaveId'] as String).toSet();
+  }
+
+  /// How many records are still waiting, across every conclave.
+  Future<int> pendingRecordCount() async {
+    final db = await database;
+    final a = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM attendance WHERE synced = 0'),
+        ) ??
+        0;
+    final r = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM referrals WHERE synced = 0'),
+        ) ??
+        0;
+    return a + r;
+  }
+
   // --- Attendance history (post-conclave view) -----------------------------
 
   /// This user's own attendance across every round, with sync state.
