@@ -49,13 +49,40 @@ class _ConclaveDetailScreenState extends ConsumerState<ConclaveDetailScreen> {
                 const SizedBox(height: 16),
                 _buildInfoRow(Icons.location_on, 'Venue', conclave.venueLocation),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.calendar_today, 'Date', DateFormat('MMM dd, yyyy - hh:mm a').format(conclave.date)),
+                _buildInfoRow(Icons.calendar_today, 'Date',
+                    DateFormat('MMM dd, yyyy').format(conclave.date)),
+
+                // Start and end are optional — show each only if it's set.
+                if (conclave.startTime != null) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow(Icons.play_arrow, 'Starts',
+                      DateFormat('MMM dd, yyyy - hh:mm a').format(conclave.startTime!)),
+                ],
+                if (conclave.endTime != null) ...[
+                  const SizedBox(height: 8),
+                  _buildInfoRow(Icons.stop, 'Ends',
+                      DateFormat('MMM dd, yyyy - hh:mm a').format(conclave.endTime!)),
+                ],
+
                 const SizedBox(height: 8),
                 _buildInfoRow(
-                  Icons.people, 
-                  'Status', 
+                  Icons.people,
+                  'Status',
                   conclave.status.name.toUpperCase(),
                 ),
+
+                if (conclave.chiefGuests.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Chief Guests',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  for (final guest in conclave.chiefGuests)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: _buildInfoRow(Icons.star, 'Guest', guest),
+                    ),
+                ],
+
                 const SizedBox(height: 24),
                 if (conclave.isRegistered) ...[
                   const Divider(),
@@ -92,6 +119,20 @@ class _ConclaveDetailScreenState extends ConsumerState<ConclaveDetailScreen> {
                       minimumSize: const Size(double.infinity, 50),
                     ),
                     child: const Text('Enter Active Round', style: TextStyle(fontSize: 18)),
+                  ),
+
+                // Once it's over, the user needs to see what they recorded and
+                // whether it actually reached the server.
+                if (conclave.status == ConclaveStatus.completed && conclave.isRegistered)
+                  ElevatedButton(
+                    onPressed: () {
+                      context.push('/conclaves/${conclave.id}/summary');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: const Text('View My Summary', style: TextStyle(fontSize: 18)),
                   ),
               ],
             ),

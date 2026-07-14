@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Round alerts. Required from Android 13 (API 33): without it the system
+         silently drops every notification, and the members are never told a new
+         round has started. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Captains scan members' QR codes to record attendance. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="conclave_1_2_1"
         android:name="${applicationName}"

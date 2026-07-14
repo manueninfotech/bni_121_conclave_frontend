@@ -71,9 +71,29 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen> with 
     );
   }
 
-  List<Conclave> _getOngoing(List<Conclave> conclaves) => conclaves.where((c) => c.status == ConclaveStatus.running || c.status == ConclaveStatus.locked).toList();
-  List<Conclave> _getUpcoming(List<Conclave> conclaves) => conclaves.where((c) => c.status == ConclaveStatus.registrationOpen || c.status == ConclaveStatus.registrationClosed || c.status == ConclaveStatus.draft || c.status == ConclaveStatus.snapshotted || c.status == ConclaveStatus.scheduled).toList();
-  List<Conclave> _getPast(List<Conclave> conclaves) => conclaves.where((c) => c.status == ConclaveStatus.completed || c.status == ConclaveStatus.cancelled).toList();
+  static const _ongoingStatuses = {
+    ConclaveStatus.running,
+    ConclaveStatus.locked,
+  };
+
+  static const _pastStatuses = {
+    ConclaveStatus.completed,
+    ConclaveStatus.cancelled,
+  };
+
+  List<Conclave> _getOngoing(List<Conclave> conclaves) =>
+      conclaves.where((c) => _ongoingStatuses.contains(c.status)).toList();
+
+  /// Everything that has not started and has not finished. Defined as the
+  /// complement of the other two tabs so a newly added status can never fall
+  /// through the cracks and become invisible in the app.
+  List<Conclave> _getUpcoming(List<Conclave> conclaves) => conclaves
+      .where((c) =>
+          !_ongoingStatuses.contains(c.status) && !_pastStatuses.contains(c.status))
+      .toList();
+
+  List<Conclave> _getPast(List<Conclave> conclaves) =>
+      conclaves.where((c) => _pastStatuses.contains(c.status)).toList();
 
   Widget _buildList(List<Conclave> list) {
     if (list.isEmpty) {

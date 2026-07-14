@@ -1,11 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'session_service.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     FirebaseAuth.instance,
     FirebaseFirestore.instance,
+    ref.watch(sessionServiceProvider),
   );
 });
 
@@ -16,8 +18,9 @@ final authStateProvider = StreamProvider<User?>((ref) {
 class AuthRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final SessionService _session;
 
-  AuthRepository(this._auth, this._firestore);
+  AuthRepository(this._auth, this._firestore, this._session);
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -49,6 +52,9 @@ class AuthRepository {
       await _saveProfileToFirestore(
         user.uid, email, name, businessName, businessCategory, location, chapter,
       );
+
+      // Registering signs you in, so the auto-logout clock starts here too.
+      await _session.recordLogin();
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Authentication failed');
     } catch (e) {
@@ -76,6 +82,8 @@ class AuthRepository {
       await _saveProfileToFirestore(
         user.uid, phone, name, businessName, businessCategory, location, chapter,
       );
+
+      await _session.recordLogin();
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Failed to set password');
     }
@@ -113,6 +121,10 @@ class AuthRepository {
         await _auth.signOut();
         throw Exception("Please verify your email before logging in. Check your inbox.");
       }
+
+      // Starts the auto-logout clock, and marks the user active for the admin's
+      // snapshot.
+      await _session.recordLogin();
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Login failed');
     }
@@ -151,6 +163,6 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
-    await _auth.signOut();
+    await _session.signOut();
   }
 }

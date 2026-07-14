@@ -1,5 +1,10 @@
 enum ConclaveStatus {
   draft,
+
+  /// The default for a newly created conclave: it exists, but the admin has not
+  /// opened the doors yet.
+  registrationNotOpen,
+
   registrationOpen,
   registrationClosed,
   snapshotted,
@@ -37,6 +42,12 @@ class Conclave {
   final ConclaveStatus status;
   final bool isRegistrationOpen;
 
+  /// Start and end are deliberately flexible — either may be unset.
+  final DateTime? startTime;
+  final DateTime? endTime;
+
+  final List<String> chiefGuests;
+
   // Additional details
   final int personsPerTable;
   final int roundCount;
@@ -53,18 +64,34 @@ class Conclave {
     required this.date,
     required this.status,
     required this.isRegistrationOpen,
+    this.startTime,
+    this.endTime,
+    this.chiefGuests = const [],
     this.personsPerTable = 7,
     this.roundCount = 6,
     this.isRegistered = false,
     this.userRole,
     this.userTableNumber,
   });
+
+  static DateTime? _toDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    // Firestore Timestamp
+    return (v as dynamic).toDate() as DateTime?;
+  }
+
   factory Conclave.fromFirestore(Map<String, dynamic> data, String id) {
     return Conclave(
       id: id,
       name: data['name'] ?? 'Unnamed Conclave',
       venueLocation: data['venueLocation'] ?? 'Unknown Venue',
-      date: data['date'] != null ? (data['date'] as dynamic).toDate() : DateTime.now(),
+      date: _toDate(data['date']) ?? DateTime.now(),
+      startTime: _toDate(data['startTime']),
+      endTime: _toDate(data['endTime']),
+      chiefGuests: ((data['chiefGuests'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
       status: ConclaveStatus.fromString(data['status'] ?? 'draft'),
       isRegistrationOpen: data['isRegistrationOpen'] ?? false,
       personsPerTable: data['personsPerTable'] ?? 7,
@@ -83,6 +110,9 @@ class Conclave {
       name: name,
       venueLocation: venueLocation,
       date: date,
+      startTime: startTime,
+      endTime: endTime,
+      chiefGuests: chiefGuests,
       status: status,
       isRegistrationOpen: isRegistrationOpen,
       personsPerTable: personsPerTable,

@@ -19,7 +19,11 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFC41230),
           foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 50),
+          // Height only. A global `double.infinity` width here makes every
+          // ElevatedButton demand infinite width, which throws
+          // "BoxConstraints forces an infinite width" the moment one is placed
+          // in a Row. Screens that want a full-width button say so themselves.
+          minimumSize: const Size(0, 50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),

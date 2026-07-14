@@ -21,6 +21,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
     
     try {
       await ref.read(conclaveRepositoryProvider).registerForConclave(widget.conclaveId);
+      ref.invalidate(conclavesStreamProvider); // Force re-fetch so isRegistered updates
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Successfully registered for conclave!')),
@@ -118,11 +119,14 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                 ),
               ),
               const Spacer(),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _confirmRegistration,
-                child: _isSubmitting 
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Confirm Registration', style: TextStyle(fontSize: 16)),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _confirmRegistration,
+                  child: _isSubmitting
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Confirm Registration', style: TextStyle(fontSize: 16)),
+                ),
               ),
             ],
           ),

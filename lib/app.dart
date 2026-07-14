@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/data/session_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
@@ -12,6 +14,7 @@ import 'features/conclaves/presentation/conclaves_list_screen.dart';
 import 'features/conclaves/presentation/conclave_detail_screen.dart';
 import 'features/conclaves/presentation/conclave_register_screen.dart';
 import 'features/active_conclave/presentation/active_round_screen.dart';
+import 'features/active_conclave/presentation/conclave_summary_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Create a listenable for GoRouter to refresh on auth changes
@@ -91,6 +94,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               conclaveId: state.pathParameters['id']!,
             ),
           ),
+          GoRoute(
+            path: ':id/summary',
+            builder: (context, state) => ConclaveSummaryScreen(
+              conclaveId: state.pathParameters['id']!,
+            ),
+          ),
         ],
       ),
       GoRoute(
@@ -101,13 +110,57 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class ConclaveApp extends ConsumerWidget {
+class ConclaveApp extends ConsumerStatefulWidget {
   const ConclaveApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConclaveApp> createState() => _ConclaveAppState();
+}
+
+class _ConclaveAppState extends ConsumerState<ConclaveApp>
+    with WidgetsBindingObserver {
+  Timer? _sessionTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Auto-logout after autoLogoutHours (default 5). Checked on resume — which
+    // is when a phone that sat in a pocket all day comes back — and on a slow
+    // timer to catch a session expiring while the app is open.
+    _enforceSessionExpiry();
+    _sessionTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _enforceSessionExpiry(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _sessionTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _enforceSessionExpiry();
+  }
+
+  Future<void> _enforceSessionExpiry() async {
+    final expired = await ref.read(sessionServiceProvider).enforceExpiry();
+    if (expired) {
+      // The router's redirect watches auth state, so signing out lands the user
+      // back on /login by itself.
+      debugPrint('Session expired — signed out.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    
+
     return MaterialApp.router(
       title: 'BNI 121 Conclave',
       theme: AppTheme.lightTheme,
