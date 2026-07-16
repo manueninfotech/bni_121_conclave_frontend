@@ -43,6 +43,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _chapter = TextEditingController();
   final _location = TextEditingController();
 
+  /// The contact they did NOT sign up with. The spec asks for both
+  /// ("phonenumber/email (autofilled) and ask leftover"), and it is the only way
+  /// the admin can reach a member: a phone account's sign-in address is
+  /// synthetic and no mailbox receives it.
+  final _altEmail = TextEditingController();
+  final _altPhone = TextEditingController();
+  Country _altCountry = defaultCountry;
+
   String? _verificationId;
   String? _category;
   bool _isLoading = false;
@@ -67,6 +75,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _businessName.dispose();
     _chapter.dispose();
     _location.dispose();
+    _altEmail.dispose();
+    _altPhone.dispose();
     super.dispose();
   }
 
@@ -172,6 +182,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         await repo.registerProfileForPhoneUser(
           user: FirebaseAuth.instance.currentUser!,
           phone: _e164,
+          email: _altEmail.text.trim(),
           password: _password.text.trim(),
           name: _name.text.trim(),
           businessName: _businessName.text.trim(),
@@ -182,6 +193,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       } else {
         await repo.registerWithEmailAndPassword(
           email: _identifier.text.trim(),
+          phone: Phone.toE164(_altCountry, _altPhone.text),
           password: _password.text.trim(),
           name: _name.text.trim(),
           businessName: _businessName.text.trim(),
@@ -400,9 +412,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _Heading(
-            title: 'About your business',
+            title: 'About you',
             subtitle: 'This is how other members will know you.',
           ),
+
+          // The leftover contact. Asked here rather than at the credentials step
+          // so signing up stays two fields — this is the "tell us about
+          // yourself" part, and it belongs with the rest of the profile.
+          if (_isPhoneFlow)
+            TextFormField(
+              controller: _altEmail,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(
+                labelText: 'Email address',
+                prefixIcon: Icon(Icons.alternate_email_rounded),
+                helperText: 'So the admin can reach you about the conclave',
+                helperMaxLines: 2,
+              ),
+              validator: (v) {
+                final s = v?.trim() ?? '';
+                if (s.isEmpty) return 'Enter your email address';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
+                  return 'That does not look like an email address';
+                }
+                return null;
+              },
+            )
+          else
+            PhoneField(
+              controller: _altPhone,
+              country: _altCountry,
+              onCountryChanged: (c) => setState(() => _altCountry = c),
+              label: 'Phone number',
+            ),
+          const SizedBox(height: Gap.md),
+
           TextFormField(
             controller: _name,
             textCapitalization: TextCapitalization.words,

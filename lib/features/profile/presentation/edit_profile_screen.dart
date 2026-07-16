@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/business_categories.dart';
+import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/profile_repository.dart';
@@ -21,7 +23,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _businessName = TextEditingController();
   final _location = TextEditingController();
   final _chapter = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
   String? _category;
+  Country _country = defaultCountry;
 
   bool _seeded = false;
   bool _saving = false;
@@ -32,6 +37,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _businessName.dispose();
     _location.dispose();
     _chapter.dispose();
+    _email.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
@@ -44,9 +51,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _businessName.text = p.businessName;
     _location.text = p.location;
     _chapter.text = p.chapter ?? '';
+    _email.text = p.email;
     _category = bniBusinessCategories.contains(p.businessCategory)
         ? p.businessCategory
         : null;
+
+    // Split the stored E.164 number back into a country and a national part, so
+    // the picker shows the right flag rather than resetting everyone to India.
+    if (p.phone.isNotEmpty) {
+      final (country, national) = Phone.parseE164(p.phone);
+      _country = country;
+      _phone.text = national;
+    }
   }
 
   Future<void> _save() async {
@@ -59,6 +75,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             businessName: _businessName.text,
             businessCategory: _category!,
             location: _location.text,
+            email: _email.text,
+            phone: _phone.text.trim().isEmpty
+                ? ''
+                : Phone.toE164(_country, _phone.text),
             chapter: _chapter.text,
           );
 
@@ -118,6 +138,31 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     ),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                  ),
+                  const SizedBox(height: Gap.lg),
+
+                  PhoneField(
+                    controller: _phone,
+                    country: _country,
+                    onCountryChanged: (c) => setState(() => _country = c),
+                  ),
+                  const SizedBox(height: Gap.lg),
+
+                  TextFormField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                      prefixIcon: Icon(Icons.alternate_email_rounded),
+                    ),
+                    validator: (v) {
+                      final s = v?.trim() ?? '';
+                      if (s.isEmpty) return 'Enter your email address';
+                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
+                        return 'That does not look like an email address';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: Gap.lg),
 

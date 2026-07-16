@@ -11,10 +11,14 @@ import '../data/auth_repository.dart';
 
 /// Sign in.
 ///
-/// The first thing a returning member sees, so it is deliberately quiet: a
-/// wordmark, two fields, one primary action. No hero illustration, no 80px
-/// padlock — a lock icon tells a user nothing they don't know and eats the space
-/// where the form should be.
+/// A returning member opens this in a car park, two minutes before a conclave
+/// starts. So: the brand establishes itself once at the top and then gets out of
+/// the way, the form is two fields, and the primary action sits under the thumb.
+///
+/// The dark hero panel is doing real work. A form floating on flat paper reads
+/// as a wireframe; anchoring it under a deep plum header gives the screen a
+/// horizon, and it is the one place the brand can be loud without shouting over
+/// the content.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -22,17 +26,23 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _identifier = TextEditingController();
   final _password = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _passwordFocus = FocusNode();
 
+  late final AnimationController _intro = AnimationController(
+    vsync: this,
+    duration: Motion.slow,
+  )..forward();
+
   bool _isLoading = false;
   bool _obscure = true;
   String? _error;
 
-  /// Phone first: this is a BNI chapter app, and almost everyone registers with
+  /// Phone first — this is a BNI chapter app and almost everyone registers with
   /// a number.
   LoginMethod _method = LoginMethod.phone;
   Country _country = defaultCountry;
@@ -42,6 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _identifier.dispose();
     _password.dispose();
     _passwordFocus.dispose();
+    _intro.dispose();
     super.dispose();
   }
 
@@ -61,26 +72,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ? Phone.toE164(_country, _identifier.text)
           : _identifier.text.trim();
 
-      await ref.read(authRepositoryProvider).login(
-            identifier,
-            _password.text.trim(),
-          );
+      await ref.read(authRepositoryProvider).login(identifier, _password.text.trim());
       // The router's redirect handles navigation once auth state changes.
     } catch (e) {
       HapticFeedback.heavyImpact();
-      // Inline, next to the form, rather than a snackbar that slides away before
-      // it has been read. A failed sign-in is something you act on.
-      if (mounted) {
-        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
-      }
+      if (mounted) setState(() => _error = _humanise(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _forgotPassword() async {
-    final controller = TextEditingController(text: _identifier.text.trim());
+  /// Firebase's messages are written for developers.
+  ///
+  /// "The supplied auth credential is incorrect, malformed or has expired" is
+  /// what a member sees for a mistyped password. It tells them nothing they can
+  /// act on, and it reads like the app is broken.
+  String _humanise(Object e) {
+    final raw = e.toString().replaceFirst('Exception: ', '');
+    final s = raw.toLowerCase();
 
+    if (s.contains('verify your email')) return raw;
+    if (s.contains('credential') ||
+        s.contains('password') ||
+        s.contains('user-not-found') ||
+        s.contains('no user record')) {
+      return _method == LoginMethod.phone
+          ? "We couldn't sign you in. Check the number and password — and that the country code is right."
+          : "We couldn't sign you in. Check your email and password.";
+    }
+    if (s.contains('network')) return 'No connection. Check your signal and try again.';
+    if (s.contains('too many')) return 'Too many attempts. Wait a moment, then try again.';
+    return raw;
+  }
+
+  Future<void> _forgotPassword() async {
+    // A phone account has no mailbox to send to. Say so here, rather than
+    // letting them type an address and silently doing nothing.
+    if (_method == LoginMethod.phone) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: Icon(Icons.lock_reset_rounded, color: ctx.scheme.primary),
+          title: const Text('Reset by phone'),
+          content: const Text(
+            'Your account is registered to a phone number, so there is no email '
+            'address we can send a reset link to. Ask your conclave admin to '
+            'reset it for you.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Got it'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final controller = TextEditingController(text: _identifier.text.trim());
     final email = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -102,9 +152,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: Gap.xs),
             Text(
-              'We\'ll email you a link to set a new one.',
-              style: ctx.text.bodyMedium
-                  ?.copyWith(color: ctx.scheme.onSurfaceVariant),
+              "We'll email you a link to set a new one.",
+              style: ctx.text.bodyMedium?.copyWith(color: ctx.scheme.onSurfaceVariant),
             ),
             const SizedBox(height: Gap.lg),
             TextField(
@@ -113,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Email address',
-                prefixIcon: Icon(Icons.alternate_email),
+                prefixIcon: Icon(Icons.alternate_email_rounded),
               ),
               onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
             ),
@@ -141,9 +190,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _toast('If that address has an account, a reset link is on its way.');
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
-      }
+      if (mounted) setState(() => _error = _humanise(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -159,190 +206,230 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // A crimson bloom top-left. Costs nothing, and it is the difference
-      // between "warm canvas" and "dead beige".
-      body: DecoratedBox(
-        decoration: BoxDecoration(gradient: AppGradients.bloom(AppColors.crimson)),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(context.pagePadding),
-            child: ContentWidth(
-              max: 440,
-              // Genuinely centred: a sign-in form is one of the few layouts that
-              // SHOULD sit in the middle of the viewport.
-              centerVertically: true,
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const _Wordmark(),
-                    const SizedBox(height: Gap.xxl),
-
-                    Text(
-                      'Welcome back',
-                      style: context.text.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: Gap.xs),
-                    Text(
-                      'Sign in to see your conclaves and your table.',
-                      style: context.text.bodyMedium
-                          ?.copyWith(color: context.scheme.onSurfaceVariant),
-                    ),
-                    const SizedBox(height: Gap.xl),
-
-                    MethodToggle(
-                      value: _method,
-                      onChanged: (m) => setState(() {
-                        _method = m;
-                        _identifier.clear();
-                        _error = null;
-                      }),
-                    ),
-                    const SizedBox(height: Gap.md),
-
-                    // Asking which, rather than sniffing it from one field, is
-                    // what lets the phone path carry a country code — and it
-                    // removes the guess that broke sign-in in the first place.
-                    if (_method == LoginMethod.phone)
-                      PhoneField(
-                        controller: _identifier,
-                        country: _country,
-                        onCountryChanged: (c) => setState(() => _country = c),
-                        onSubmitted: _passwordFocus.requestFocus,
-                      )
-                    else
-                      TextFormField(
-                        controller: _identifier,
-                        autofillHints: const [AutofillHints.email],
-                        textInputAction: TextInputAction.next,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email address',
-                          prefixIcon: Icon(Icons.alternate_email_rounded),
-                        ),
-                        onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Enter your email address'
-                            : null,
-                      ),
-                    const SizedBox(height: Gap.md),
-
-                    TextFormField(
-                      controller: _password,
-                      focusNode: _passwordFocus,
-                      obscureText: _obscure,
-                      autofillHints: const [AutofillHints.password],
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        // Nearly every modern sign-in has this, and typing a
-                        // password blind on a phone is how people lock
-                        // themselves out.
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined),
-                          tooltip: _obscure ? 'Show password' : 'Hide password',
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                      ),
-                      onFieldSubmitted: (_) => _login(),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Enter your password'
-                          : null,
-                    ),
-
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _isLoading ? null : _forgotPassword,
-                        child: const Text('Forgot password?'),
-                      ),
-                    ),
-
-                    if (_error != null) ...[
-                      const SizedBox(height: Gap.sm),
-                      _ErrorNote(message: _error!),
-                    ],
-
-                    const SizedBox(height: Gap.lg),
-                    PrimaryButton(
-                      label: 'Sign in',
-                      loading: _isLoading,
-                      onPressed: _isLoading ? null : _login,
-                    ),
-
-                    const SizedBox(height: Gap.xl),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+      // The keyboard slides OVER the hero rather than squashing it — the form
+      // scrolls, the brand stays put.
+      resizeToAvoidBottomInset: false,
+      body: Column(
+        children: [
+          _Hero(animation: _intro),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                context.pagePadding,
+                Gap.xl,
+                context.pagePadding,
+                MediaQuery.viewInsetsOf(context).bottom + Gap.xl,
+              ),
+              child: ContentWidth(
+                max: 440,
+                child: FadeTransition(
+                  opacity: CurvedAnimation(
+                    parent: _intro,
+                    curve: const Interval(0.3, 1, curve: Curves.easeOut),
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          "Don't have an account?",
-                          style: context.text.bodyMedium
-                              ?.copyWith(color: context.scheme.onSurfaceVariant),
+                        MethodToggle(
+                          value: _method,
+                          onChanged: (m) => setState(() {
+                            _method = m;
+                            _identifier.clear();
+                            _error = null;
+                          }),
                         ),
-                        TextButton(
-                          onPressed: () => context.go('/register'),
-                          child: const Text('Register'),
+                        const SizedBox(height: Gap.md),
+
+                        // Asking which, rather than sniffing it from one field,
+                        // is what lets the phone path carry a country code — and
+                        // it removes the guess that broke sign-in.
+                        if (_method == LoginMethod.phone)
+                          PhoneField(
+                            controller: _identifier,
+                            country: _country,
+                            onCountryChanged: (c) => setState(() => _country = c),
+                            onSubmitted: _passwordFocus.requestFocus,
+                          )
+                        else
+                          TextFormField(
+                            controller: _identifier,
+                            autofillHints: const [AutofillHints.email],
+                            textInputAction: TextInputAction.next,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              labelText: 'Email address',
+                              prefixIcon: Icon(Icons.alternate_email_rounded),
+                            ),
+                            onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Enter your email address'
+                                : null,
+                          ),
+                        const SizedBox(height: Gap.md),
+
+                        TextFormField(
+                          controller: _password,
+                          focusNode: _passwordFocus,
+                          obscureText: _obscure,
+                          autofillHints: const [AutofillHints.password],
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined),
+                              tooltip: _obscure ? 'Show password' : 'Hide password',
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                          onFieldSubmitted: (_) => _login(),
+                          validator: (v) =>
+                              (v == null || v.isEmpty) ? 'Enter your password' : null,
+                        ),
+
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _isLoading ? null : _forgotPassword,
+                            child: const Text('Forgot password?'),
+                          ),
+                        ),
+
+                        if (_error != null) ...[
+                          _ErrorNote(message: _error!),
+                          const SizedBox(height: Gap.md),
+                        ],
+
+                        PrimaryButton(
+                          label: 'Sign in',
+                          loading: _isLoading,
+                          onPressed: _isLoading ? null : _login,
+                        ),
+
+                        const SizedBox(height: Gap.lg),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'New here?',
+                              style: context.text.bodyMedium
+                                  ?.copyWith(color: context.scheme.onSurfaceVariant),
+                            ),
+                            TextButton(
+                              onPressed: () => context.go('/register'),
+                              child: const Text('Create an account'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The brand moment.
+///
+/// One deep panel at the top, so the form below has something to sit against.
+/// The alternative — a small logo floating on paper — is what made the screen
+/// read as a placeholder.
+class _Hero extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _Hero({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(Radii.xl)),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(Gap.xl, top + Gap.xl, Gap.xl, Gap.xxl),
+        decoration: const BoxDecoration(gradient: AppGradients.hero),
+        child: Stack(
+          children: [
+            // A crimson bloom inside the panel, so the plum isn't a flat slab.
+            Positioned(
+              right: -70,
+              top: -80,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.crimson.withValues(alpha: 0.25),
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ScaleTransition(
+                  scale: CurvedAnimation(
+                    parent: animation,
+                    curve: const Interval(0, 0.7, curve: Motion.spring),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(Radii.md),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                    ),
+                    child: const Icon(Icons.groups_rounded, size: 28, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: Gap.xl),
+                FadeTransition(
+                  opacity: CurvedAnimation(
+                    parent: animation,
+                    curve: const Interval(0.2, 1, curve: Curves.easeOut),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome back',
+                        style: context.text.displaySmall?.copyWith(color: Colors.white),
+                      ),
+                      const SizedBox(height: Gap.xs),
+                      Text(
+                        'Sign in to see your table and your rounds.',
+                        style: context.text.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.62),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: context.scheme.primaryContainer,
-            borderRadius: BorderRadius.circular(Radii.md),
-          ),
-          child: Icon(Icons.groups_rounded,
-              size: 24, color: context.scheme.onPrimaryContainer),
-        ),
-        const SizedBox(width: Gap.md),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'BNI 121 Conclave',
-              style: context.text.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
-            ),
-            Text(
-              'Structured 1-to-1 networking',
-              style: context.text.bodySmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
 /// An inline error that stays put until it's dealt with.
+///
+/// A snackbar slides away before a failed sign-in has been read, and a failed
+/// sign-in is something you act on.
 class _ErrorNote extends StatelessWidget {
   final String message;
   const _ErrorNote({required this.message});
@@ -365,6 +452,7 @@ class _ErrorNote extends StatelessWidget {
         decoration: BoxDecoration(
           color: c.dangerContainer,
           borderRadius: BorderRadius.circular(Radii.md),
+          border: Border.all(color: c.danger.withValues(alpha: 0.25)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,8 +462,7 @@ class _ErrorNote extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: context.text.bodySmall
-                    ?.copyWith(color: c.onDangerContainer),
+                style: context.text.bodySmall?.copyWith(color: c.onDangerContainer),
               ),
             ),
           ],

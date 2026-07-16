@@ -18,7 +18,16 @@ final myProfileProvider = StreamProvider<UserProfile?>((ref) {
 class UserProfile {
   final String uid;
   final String name;
-  final String identifier; // email or phone, chosen at registration
+
+  /// How they sign in. For a phone account this is a SYNTHETIC address
+  /// (919515409973@bni121.conclave) — never show it to a human.
+  final String identifier;
+
+  /// Real, reachable contacts. Both are collected at registration regardless of
+  /// which one was used to sign up.
+  final String email;
+  final String phone;
+
   final String businessName;
   final String businessCategory;
   final String location;
@@ -29,6 +38,8 @@ class UserProfile {
     required this.uid,
     required this.name,
     required this.identifier,
+    required this.email,
+    required this.phone,
     required this.businessName,
     required this.businessCategory,
     required this.location,
@@ -41,6 +52,9 @@ class UserProfile {
       uid: uid,
       name: (m['name'] ?? '') as String,
       identifier: (m['identifier'] ?? '') as String,
+      // Fall back to identifier for accounts created before both were collected.
+      email: (m['email'] ?? '') as String,
+      phone: (m['phone'] ?? '') as String,
       businessName: (m['businessName'] ?? '') as String,
       businessCategory: (m['businessCategory'] ?? '') as String,
       location: (m['location'] ?? '') as String,
@@ -82,6 +96,11 @@ class ProfileRepository {
     required String businessName,
     required String businessCategory,
     required String location,
+    /// Contact details. Editable because they change — people move numbers and
+    /// mailboxes — and because the admin's ability to reach someone depends on
+    /// them being current.
+    required String email,
+    required String phone,
     String? chapter,
   }) async {
     final uid = _auth.currentUser?.uid;
@@ -94,6 +113,8 @@ class ProfileRepository {
 
     await _firestore.collection('users').doc(uid).update({
       'name': name.trim(),
+      'email': email.trim().toLowerCase(),
+      'phone': phone.trim(),
       'businessName': businessName.trim(),
       'businessCategory': businessCategory,
       // Same normalisation as registration: "Guntur", "guntur" and "  GUNTUR  "

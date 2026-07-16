@@ -34,6 +34,9 @@ class AuthRepository {
     required String businessName,
     required String businessCategory,
     required String location,
+    /// The number we ask for even though they signed up by email — the admin
+    /// needs to be able to call people on the day.
+    required String phone,
     String? chapter,
   }) async {
     try {
@@ -52,6 +55,8 @@ class AuthRepository {
       // 2. Save additional profile data in Firestore
       await _saveProfileToFirestore(
         user.uid, email, name, businessName, businessCategory, location, chapter,
+        email: email,
+        phone: phone,
       );
 
       // Registering signs you in, so the auto-logout clock starts here too.
@@ -71,6 +76,9 @@ class AuthRepository {
     required String businessName,
     required String businessCategory,
     required String location,
+    /// The address we ask for even though they signed up by phone — without it
+    /// there is no way to reach them, and no way to ever reset their password.
+    required String email,
     String? chapter,
   }) async {
     try {
@@ -83,9 +91,12 @@ class AuthRepository {
       final credential = EmailAuthProvider.credential(email: pseudoEmail, password: password);
       await user.linkWithCredential(credential);
 
-      // Save profile
+      // Save profile. `identifier` stays the synthetic address (that IS how they
+      // sign in); the real email is stored separately.
       await _saveProfileToFirestore(
-        user.uid, phone, name, businessName, businessCategory, location, chapter,
+        user.uid, pseudoEmail, name, businessName, businessCategory, location, chapter,
+        email: email,
+        phone: phone,
       );
 
       await _session.recordLogin();
@@ -94,13 +105,36 @@ class AuthRepository {
     }
   }
 
+  /// Saves the profile.
+  ///
+  /// BOTH contacts are stored, always — whichever one you signed up with, we ask
+  /// for the other. That is in the original spec ("phonenumber/email (autofilled)
+  /// and ask leftover") and it matters:
+  ///
+  ///  - A phone registration's `identifier` is a SYNTHETIC address
+  ///    (919515409973@bni121.conclave) that no mailbox can receive. Without a
+  ///    real email, the admin's registration list shows that string where a
+  ///    contact should be, and nobody can reach the member.
+  ///  - An email registration with no phone leaves the admin unable to call
+  ///    anyone at the venue, which is what actually happens on the day.
   Future<void> _saveProfileToFirestore(
-    String uid, String identifier, String name, String businessName, 
-    String businessCategory, String location, String? chapter
-  ) async {
+    String uid,
+    String identifier,
+    String name,
+    String businessName,
+    String businessCategory,
+    String location,
+    String? chapter, {
+    required String email,
+    required String phone,
+  }) async {
     await _firestore.collection('users').doc(uid).set({
       'id': uid,
+      // How they sign in. Synthetic for phone accounts — never show it to a human.
       'identifier': identifier,
+      // Real, reachable contacts.
+      'email': email.trim().toLowerCase(),
+      'phone': phone.trim(),
       'name': name,
       'businessName': businessName,
       'businessCategory': businessCategory,

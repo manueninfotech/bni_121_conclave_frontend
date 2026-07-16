@@ -122,9 +122,15 @@ class ProfileScreen extends ConsumerWidget {
                       title: 'Contact',
                       children: [
                         InfoRow(
-                          icon: Icons.alternate_email,
-                          label: 'Email or phone',
-                          value: p.identifier,
+                          icon: Icons.phone_iphone_rounded,
+                          label: 'Phone',
+                          value: p.phone.isEmpty ? 'Not set' : p.phone,
+                        ),
+                        InfoRow(
+                          icon: Icons.alternate_email_rounded,
+                          label: 'Email',
+                          // Never surface the synthetic sign-in address.
+                          value: p.email.isEmpty ? 'Not set' : p.email,
                         ),
                         InfoRow(
                           icon: Icons.place_outlined,
