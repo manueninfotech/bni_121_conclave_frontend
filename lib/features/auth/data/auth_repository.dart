@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/domain/phone.dart';
 import 'session_service.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -73,8 +74,12 @@ class AuthRepository {
     String? chapter,
   }) async {
     try {
-      // Link a pseudo-email to allow password login later
-      final pseudoEmail = '${phone.replaceAll('+', '')}@bni121.conclave';
+      // Firebase has no "phone + password" sign-in, so the account is keyed by a
+      // synthetic address built from the E.164 number. Phone.toAuthEmail is the
+      // ONLY place that mapping exists — login and registration each deriving it
+      // separately is exactly how "9515409973" and "+919515409973" became two
+      // different accounts.
+      final pseudoEmail = Phone.toAuthEmail(phone);
       final credential = EmailAuthProvider.credential(email: pseudoEmail, password: password);
       await user.linkWithCredential(credential);
 
@@ -107,11 +112,16 @@ class AuthRepository {
     }, SetOptions(merge: true));
   }
 
+  /// Signs in.
+  ///
+  /// [identifier] is either a real email address or an E.164 phone number
+  /// (`+919515409973`) — the caller resolves the country code, because a bare
+  /// ten digits is ambiguous and this app is going international.
   Future<void> login(String identifier, String password) async {
     try {
-      // Determine if it's an email or phone number
-      final isPhone = RegExp(r'^\+?[0-9]{10,15}$').hasMatch(identifier);
-      final loginEmail = isPhone ? '${identifier.replaceAll('+', '')}@bni121.conclave' : identifier;
+      final isPhone = identifier.startsWith('+') || Phone.looksLikePhone(identifier);
+      final loginEmail =
+          isPhone ? Phone.toAuthEmail(identifier) : identifier;
 
       final userCred = await _auth.signInWithEmailAndPassword(email: loginEmail, password: password);
       final user = userCred.user;

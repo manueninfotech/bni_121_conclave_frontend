@@ -5,7 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/business_categories.dart';
+import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
 
@@ -43,9 +45,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   String? _verificationId;
   String? _category;
-  bool _isPhoneFlow = false;
   bool _isLoading = false;
   bool _obscure = true;
+
+  /// Chosen explicitly rather than sniffed from what was typed.
+  LoginMethod _method = LoginMethod.phone;
+  Country _country = defaultCountry;
+
+  bool get _isPhoneFlow => _method == LoginMethod.phone;
+
+  /// The full E.164 number, e.g. +919515409973. Built once, here, so the OTP,
+  /// the account identity and the stored profile can never disagree.
+  String get _e164 => Phone.toE164(_country, _identifier.text);
 
   @override
   void dispose() {
@@ -102,9 +113,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submitCredentials() async {
     if (!(_credsKey.currentState?.validate() ?? false)) return;
 
-    final identifier = _identifier.text.trim();
-    _isPhoneFlow = RegExp(r'^\+?[0-9]{10,15}$').hasMatch(identifier);
-
     // Email: nothing to verify up front, straight to the profile.
     if (!_isPhoneFlow) {
       _goTo(2);
@@ -114,7 +122,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _isLoading = true);
     try {
       await ref.read(authRepositoryProvider).verifyPhone(
-            phone: identifier,
+            phone: _e164,
             onCodeSent: (verId) {
               if (!mounted) return;
               setState(() {
@@ -163,7 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         // Already signed in via OTP — just set the password and save the profile.
         await repo.registerProfileForPhoneUser(
           user: FirebaseAuth.instance.currentUser!,
-          phone: _identifier.text.trim(),
+          phone: _e164,
           password: _password.text.trim(),
           name: _name.text.trim(),
           businessName: _businessName.text.trim(),
@@ -282,29 +290,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           const _Heading(
             title: 'Create your account',
-            subtitle: 'Use an email address or a phone number with country code.',
+            subtitle: 'We\'ll use this to sign you in.',
           ),
-          TextFormField(
-            controller: _identifier,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.username],
-            decoration: const InputDecoration(
-              labelText: 'Email or phone',
-              hintText: 'you@example.com or +919876543210',
-              prefixIcon: Icon(Icons.person_outline),
+          MethodToggle(
+            value: _method,
+            onChanged: (m) => setState(() {
+              _method = m;
+              _identifier.clear();
+            }),
+          ),
+          const SizedBox(height: Gap.md),
+
+          if (_isPhoneFlow)
+            PhoneField(
+              controller: _identifier,
+              country: _country,
+              onCountryChanged: (c) => setState(() => _country = c),
+            )
+          else
+            TextFormField(
+              controller: _identifier,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              decoration: const InputDecoration(
+                labelText: 'Email address',
+                hintText: 'you@example.com',
+                prefixIcon: Icon(Icons.alternate_email_rounded),
+              ),
+              validator: (v) {
+                final s = v?.trim() ?? '';
+                if (s.isEmpty) return 'Enter your email address';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
+                  return 'That does not look like an email address';
+                }
+                return null;
+              },
             ),
-            validator: (v) {
-              final s = v?.trim() ?? '';
-              if (s.isEmpty) return 'Enter an email or phone number';
-              final isPhone = RegExp(r'^\+?[0-9]{10,15}$').hasMatch(s);
-              final isEmail = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s);
-              if (!isPhone && !isEmail) {
-                return 'Enter a valid email, or a phone with country code';
-              }
-              return null;
-            },
-          ),
           const SizedBox(height: Gap.md),
           TextFormField(
             controller: _password,
@@ -339,7 +361,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         children: [
           _Heading(
             title: 'Verify your phone',
-            subtitle: 'We sent a code to ${_identifier.text.trim()}.',
+            subtitle: 'We sent a 6-digit code to $_e164.',
           ),
           TextFormField(
             controller: _otp,

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
 
@@ -30,6 +32,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   String? _error;
 
+  /// Phone first: this is a BNI chapter app, and almost everyone registers with
+  /// a number.
+  LoginMethod _method = LoginMethod.phone;
+  Country _country = defaultCountry;
+
   @override
   void dispose() {
     _identifier.dispose();
@@ -48,8 +55,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
+      // Resolve to an unambiguous identity BEFORE it reaches the repository: a
+      // real email, or a full E.164 number built from the chosen country.
+      final identifier = _method == LoginMethod.phone
+          ? Phone.toE164(_country, _identifier.text)
+          : _identifier.text.trim();
+
       await ref.read(authRepositoryProvider).login(
-            _identifier.text.trim(),
+            identifier,
             _password.text.trim(),
           );
       // The router's redirect handles navigation once auth state changes.
@@ -179,20 +192,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: Gap.xl),
 
-                    TextFormField(
-                      controller: _identifier,
-                      autofillHints: const [AutofillHints.username],
-                      textInputAction: TextInputAction.next,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email or phone',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Enter your email or phone'
-                          : null,
+                    MethodToggle(
+                      value: _method,
+                      onChanged: (m) => setState(() {
+                        _method = m;
+                        _identifier.clear();
+                        _error = null;
+                      }),
                     ),
+                    const SizedBox(height: Gap.md),
+
+                    // Asking which, rather than sniffing it from one field, is
+                    // what lets the phone path carry a country code — and it
+                    // removes the guess that broke sign-in in the first place.
+                    if (_method == LoginMethod.phone)
+                      PhoneField(
+                        controller: _identifier,
+                        country: _country,
+                        onCountryChanged: (c) => setState(() => _country = c),
+                        onSubmitted: _passwordFocus.requestFocus,
+                      )
+                    else
+                      TextFormField(
+                        controller: _identifier,
+                        autofillHints: const [AutofillHints.email],
+                        textInputAction: TextInputAction.next,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email address',
+                          prefixIcon: Icon(Icons.alternate_email_rounded),
+                        ),
+                        onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Enter your email address'
+                            : null,
+                      ),
                     const SizedBox(height: Gap.md),
 
                     TextFormField(
