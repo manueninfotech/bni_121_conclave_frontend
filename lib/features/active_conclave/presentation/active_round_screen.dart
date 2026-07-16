@@ -122,58 +122,13 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
     await _loadLocal(round);
   }
 
+  /// Gives a referral immediately — one tap, no dialog.
+  ///
+  /// The note is optional and offered afterwards. A confirmation dialog with a
+  /// text field put a form between the user and the single action the whole
+  /// event exists for.
   Future<void> _giveReferral(ActiveRound round, TableSeat seat) async {
     if (!round.canRecordAt(_serverNow())) return;
-
-    final notes = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.handshake_outlined),
-        title: Text('Refer ${seat.name}?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You are promising to send business to ${seat.name}. '
-              'This cannot be undone.',
-              style: ctx.text.bodyMedium,
-            ),
-            const SizedBox(height: Gap.lg),
-            TextField(
-              controller: notes,
-              autofocus: true,
-              maxLines: 3,
-              minLines: 1,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                hintText: 'e.g. Call my friend John at 555-1234',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Give referral'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Re-check the clock: the dialog may have been open when the round closed.
-    if (!round.canRecordAt(_serverNow())) {
-      _toast('Round closed — referral not recorded.');
-      return;
-    }
 
     final written = await ref.read(localDbProvider).addReferral(
           conclaveId: round.conclaveId,
@@ -182,13 +137,103 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
           toUserId: seat.userId,
           toName: seat.name,
           toBusinessName: seat.businessName,
-          notes: notes.text,
         );
 
     await _loadLocal(round);
-    _toast(written
-        ? 'Referral to ${seat.name} saved.'
-        : 'You have already referred ${seat.name} this round.');
+    if (!mounted) return;
+
+    if (!written) {
+      _toast('You have already referred ${seat.name} this round.');
+      return;
+    }
+
+    // The undo lives here rather than in a confirmation up front: it costs the
+    // 95% who meant it nothing, and still protects the mis-tap.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Referred ${seat.name}'),
+          action: SnackBarAction(
+            label: 'Add note',
+            onPressed: () => _editNote(round, seat),
+          ),
+        ),
+      );
+  }
+
+  /// Annotates a referral that has already been given.
+  Future<void> _editNote(ActiveRound round, TableSeat seat) async {
+    final existing = await ref.read(localDbProvider).getReferralNote(
+          conclaveId: round.conclaveId,
+          roundNumber: round.roundNumber,
+          fromUserId: round.currentUserId,
+          toUserId: seat.userId,
+        );
+    if (!mounted) return;
+
+    final controller = TextEditingController(text: existing ?? '');
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true, // sheet must ride above the keyboard
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: Gap.xl,
+          right: Gap.xl,
+          top: Gap.sm,
+          bottom: MediaQuery.viewInsetsOf(ctx).bottom + Gap.xl,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Note for ${seat.name}',
+              style: ctx.text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Only you can see this. It syncs with the referral.',
+              style: ctx.text.bodySmall
+                  ?.copyWith(color: ctx.scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: Gap.lg),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 4,
+              minLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Call my friend John at 555-1234',
+              ),
+            ),
+            const SizedBox(height: Gap.lg),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Save note'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (saved != true) return;
+
+    await ref.read(localDbProvider).updateReferralNote(
+          conclaveId: round.conclaveId,
+          roundNumber: round.roundNumber,
+          fromUserId: round.currentUserId,
+          toUserId: seat.userId,
+          notes: controller.text,
+        );
+    await _loadLocal(round);
+    _toast('Note saved.');
   }
 
   Future<void> _openScanner(ActiveRound round) async {
@@ -253,6 +298,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
             referred: _referred,
             onAttendance: (seat, present) => _setAttendance(round, seat, present),
             onRefer: (seat) => _giveReferral(round, seat),
+            onAddNote: (seat) => _editNote(round, seat),
             onScan: () => _openScanner(round),
           );
         },
@@ -270,6 +316,7 @@ class _RoundView extends StatelessWidget {
   final Set<String> referred;
   final void Function(TableSeat, bool) onAttendance;
   final void Function(TableSeat) onRefer;
+  final void Function(TableSeat) onAddNote;
   final VoidCallback onScan;
 
   const _RoundView({
@@ -279,6 +326,7 @@ class _RoundView extends StatelessWidget {
     required this.referred,
     required this.onAttendance,
     required this.onRefer,
+    required this.onAddNote,
     required this.onScan,
   });
 
@@ -354,6 +402,7 @@ class _RoundView extends StatelessWidget {
                         alreadyReferred: referred.contains(round.seats[i].userId),
                         onAttendance: (p) => onAttendance(round.seats[i], p),
                         onRefer: () => onRefer(round.seats[i]),
+                        onAddNote: () => onAddNote(round.seats[i]),
                       ),
                     ),
                   ),
@@ -740,6 +789,7 @@ class _SeatCard extends StatelessWidget {
   final bool alreadyReferred;
   final ValueChanged<bool> onAttendance;
   final VoidCallback onRefer;
+  final VoidCallback onAddNote;
 
   const _SeatCard({
     required this.seat,
@@ -749,6 +799,7 @@ class _SeatCard extends StatelessWidget {
     required this.alreadyReferred,
     required this.onAttendance,
     required this.onRefer,
+    required this.onAddNote,
   });
 
   @override
@@ -835,7 +886,7 @@ class _SeatCard extends StatelessWidget {
               ],
             ),
 
-            if (canMark) ...[
+            if (canMark && attendance != true) ...[
               const SizedBox(height: Gap.lg),
               _AttendanceToggle(
                 value: attendance,
@@ -844,18 +895,18 @@ class _SeatCard extends StatelessWidget {
               ),
             ],
 
-            // A referral is a promise of business — a real commitment, and the
-            // point of the whole event. It gets its own full-width row rather
-            // than being a third button squeezed beside attendance.
-            if (!seat.isSelf && !alreadyReferred) ...[
+            // A referral is a promise of business — the point of the whole
+            // event — so giving one is a single tap. The note is optional and
+            // comes after; making people fill in a dialog first put a form
+            // between them and the thing they actually came to do.
+            if (!seat.isSelf) ...[
               const SizedBox(height: Gap.sm),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: canRefer ? onRefer : null,
-                  icon: const Icon(Icons.handshake_outlined, size: 18),
-                  label: Text('Refer ${seat.isSelf ? '' : seat.name.split(' ').first}'),
-                ),
+              _ReferralAction(
+                seat: seat,
+                given: alreadyReferred,
+                enabled: canRefer,
+                onRefer: onRefer,
+                onAddNote: onAddNote,
               ),
             ],
           ],
@@ -938,12 +989,19 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-/// Attendance as a segmented toggle rather than two stateless buttons.
+/// Attendance.
 ///
-/// The old pair of buttons never showed what you had already chosen — you tapped
-/// "I'm here" and got back two identical buttons, so the control looked like it
-/// had ignored you. Attendance is STATE, and a control for state has to render
-/// its value.
+/// The rule: **Present is final; Absent is not.**
+///
+/// Being seen at the table is a fact — once recorded it is not up for revision,
+/// and a control that invites you to un-see someone is nonsense. Absent is
+/// different: it means "not seen YET". The real pattern at a venue is a captain
+/// marking their table absent early and people trickling in over the next
+/// minute, so absent must stay changeable or the roll is wrong by design.
+///
+/// So this widget only renders while the answer is still open. Once someone is
+/// Present, the card shows the settled state instead (avatar badge + hairline)
+/// and the control disappears — there is nothing left to decide.
 class _AttendanceToggle extends StatelessWidget {
   final bool? value;
   final bool isSelf;
@@ -958,43 +1016,124 @@ class _AttendanceToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final markedAbsent = value == false;
 
     return Semantics(
       label: isSelf ? 'Your attendance' : 'Attendance',
-      value: switch (value) {
-        true => 'Present',
-        false => 'Absent',
-        null => 'Not marked',
-      },
-      child: Container(
-        padding: const EdgeInsets.all(3),
+      value: markedAbsent ? 'Absent' : 'Not marked',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: context.scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(Radii.md),
+              border: Border.all(color: c.hairline),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _Segment(
+                    label: isSelf ? "I'm here" : 'Present',
+                    icon: Icons.check_rounded,
+                    selected: false,
+                    color: c.success,
+                    onTap: () => onChanged(true),
+                  ),
+                ),
+                Expanded(
+                  child: _Segment(
+                    label: 'Absent',
+                    icon: Icons.close_rounded,
+                    selected: markedAbsent,
+                    color: c.danger,
+                    onTap: () => onChanged(false),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (markedAbsent) ...[
+            const SizedBox(height: Gap.sm),
+            Text(
+              isSelf
+                  ? 'Tap "I\'m here" if you join the table.'
+                  : 'Still changeable — tap Present if they arrive.',
+              textAlign: TextAlign.center,
+              style: context.text.labelSmall
+                  ?.copyWith(color: context.scheme.onSurfaceVariant),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Giving a referral, and optionally annotating it.
+///
+/// One tap gives the referral. The note is optional and comes AFTER, in a sheet.
+/// The previous flow opened a confirmation dialog with a text field before
+/// anything was recorded — a form standing between the user and the single thing
+/// the event exists for. Dialogs are for decisions with consequences; this is an
+/// action, so it just happens, and the note is there for whoever wants it.
+class _ReferralAction extends StatelessWidget {
+  final TableSeat seat;
+  final bool given;
+  final bool enabled;
+  final VoidCallback onRefer;
+  final VoidCallback onAddNote;
+
+  const _ReferralAction({
+    required this.seat,
+    required this.given,
+    required this.enabled,
+    required this.onRefer,
+    required this.onAddNote,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+
+    if (given) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
         decoration: BoxDecoration(
-          color: context.scheme.surfaceContainerHigh,
+          color: c.successContainer,
           borderRadius: BorderRadius.circular(Radii.md),
-          border: Border.all(color: c.hairline),
         ),
         child: Row(
           children: [
+            Icon(Icons.check_circle_rounded, size: 16, color: c.onSuccessContainer),
+            const SizedBox(width: Gap.sm),
             Expanded(
-              child: _Segment(
-                label: isSelf ? "I'm here" : 'Present',
-                icon: Icons.check_rounded,
-                selected: value == true,
-                color: c.success,
-                onTap: () => onChanged(true),
+              child: Text(
+                'Referral given',
+                style: context.text.labelLarge?.copyWith(
+                  color: c.onSuccessContainer,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            Expanded(
-              child: _Segment(
-                label: 'Absent',
-                icon: Icons.close_rounded,
-                selected: value == false,
-                color: c.danger,
-                onTap: () => onChanged(false),
-              ),
+            TextButton.icon(
+              onPressed: onAddNote,
+              icon: const Icon(Icons.edit_note_rounded, size: 18),
+              label: const Text('Note'),
+              style: TextButton.styleFrom(foregroundColor: c.onSuccessContainer),
             ),
           ],
         ),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: enabled ? onRefer : null,
+        icon: const Icon(Icons.handshake_outlined, size: 18),
+        label: Text('Refer ${seat.name.split(' ').first}'),
       ),
     );
   }

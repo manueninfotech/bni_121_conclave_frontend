@@ -224,6 +224,47 @@ class LocalDatabase {
     return true;
   }
 
+  /// The note on a referral already given, or null if there isn't one.
+  Future<String?> getReferralNote({
+    required String conclaveId,
+    required int roundNumber,
+    required String fromUserId,
+    required String toUserId,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'referrals',
+      columns: ['notes'],
+      where:
+          'conclaveId = ? AND roundNumber = ? AND fromUserId = ? AND toUserId = ?',
+      whereArgs: [conclaveId, roundNumber, fromUserId, toUserId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first['notes'] as String?;
+  }
+
+  /// Annotates a referral after the fact.
+  ///
+  /// The referral ITSELF stays immutable — you cannot un-promise business, and
+  /// the (round, from, to) triple never changes. Only the note is editable, and
+  /// editing it marks the row unsynced so the server picks up the new text.
+  Future<void> updateReferralNote({
+    required String conclaveId,
+    required int roundNumber,
+    required String fromUserId,
+    required String toUserId,
+    required String notes,
+  }) async {
+    final db = await database;
+    await db.update(
+      'referrals',
+      {'notes': notes, 'synced': 0},
+      where:
+          'conclaveId = ? AND roundNumber = ? AND fromUserId = ? AND toUserId = ?',
+      whereArgs: [conclaveId, roundNumber, fromUserId, toUserId],
+    );
+  }
+
   Future<bool> hasReferred({
     required String conclaveId,
     required int roundNumber,
