@@ -283,7 +283,7 @@ class _Feedback extends StatelessWidget {
         key: ValueKey(message),
         tween: Tween(begin: 0, end: 1),
         duration: Motion.normal,
-        curve: Motion.emphasized,
+        curve: Motion.spring,
         builder: (context, t, child) => Transform.scale(
           scale: 0.94 + (0.06 * t),
           child: Opacity(opacity: t.clamp(0, 1), child: child),

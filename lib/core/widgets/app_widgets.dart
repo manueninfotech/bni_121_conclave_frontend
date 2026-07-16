@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
+import 'illustrations.dart';
 
 /// The three states every async screen has, in one place.
 ///
@@ -54,8 +55,8 @@ class ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: context.colors.danger),
-            const SizedBox(height: Gap.lg),
+            const OfflineIllustration(size: 120),
+            const SizedBox(height: Gap.xl),
             Text(
               message,
               textAlign: TextAlign.center,
@@ -101,12 +102,17 @@ class EmptyView extends StatelessWidget {
   final String? message;
   final Widget? action;
 
+  /// A drawn illustration. Strongly preferred over [icon]: a greyed-out 48px
+  /// Material glyph is the loudest "unfinished" signal an app can send.
+  final Widget? art;
+
   const EmptyView({
     super.key,
     required this.icon,
     required this.title,
     this.message,
     this.action,
+    this.art,
   });
 
   @override
@@ -117,8 +123,9 @@ class EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: context.scheme.onSurfaceVariant),
-            const SizedBox(height: Gap.lg),
+            art ??
+                Icon(icon, size: 48, color: context.scheme.onSurfaceVariant),
+            const SizedBox(height: Gap.xl),
             Text(title, textAlign: TextAlign.center, style: context.text.titleMedium),
             if (message != null) ...[
               const SizedBox(height: Gap.sm),

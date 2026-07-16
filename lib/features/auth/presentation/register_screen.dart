@@ -209,7 +209,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
         title: Text('Step ${_displayStep + 1} of $_totalSteps'),
       ),
-      body: SafeArea(
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: AppGradients.bloom(AppColors.crimson)),
+        child: SafeArea(
         child: Column(
           children: [
             _Progress(step: _displayStep, total: _totalSteps),
@@ -217,7 +219,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: ContentWidth(
                 max: 440,
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.all(context.pagePadding),
+                  padding: EdgeInsets.fromLTRB(
+                    context.pagePadding,
+                    Gap.xl,
+                    context.pagePadding,
+                    context.pagePadding,
+                  ),
                   child: AnimatedSwitcher(
                     duration: Motion.normal,
                     switchInCurve: Motion.curve,
@@ -252,22 +259,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               child: ContentWidth(
                 max: 440,
-                child: SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _isLoading ? null : _next,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_step == 2 ? 'Create account' : 'Continue'),
-                  ),
+                child: PrimaryButton(
+                  label: _step == 2 ? 'Create account' : 'Continue',
+                  icon: _step == 2 ? Icons.check_rounded : Icons.arrow_forward_rounded,
+                  loading: _isLoading,
+                  onPressed: _isLoading ? null : _next,
                 ),
               ),
             ),
           ],
+        ),
         ),
       ),
     );

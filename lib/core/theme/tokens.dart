@@ -2,86 +2,115 @@ import 'package:flutter/material.dart';
 
 /// Design tokens.
 ///
-/// The palette philosophy: **brand colour is punctuation, not paint.**
+/// The brief: BNI's crimson, but a product that looks like it belongs next to
+/// Linear or Revolut rather than an internal admin tool.
 ///
-/// BNI red is a loud, saturated crimson. Flooding it across app bars, buttons
-/// and surfaces (as the first pass did) reads heavy and dated, and it destroys
-/// hierarchy — when everything is emphasised, nothing is. The apps people
-/// actually admire do the opposite: a calm, warm neutral canvas, hairline
-/// borders instead of heavy shadows, generous whitespace, and the brand colour
-/// held back for the ONE decisive action on a screen.
+/// The two failure modes this navigates between:
 ///
-/// So: the canvas is warm paper (light) / warm charcoal (dark), never pure white
-/// or pure black — pure #FFF glares under venue lighting and pure #000 crushes
-/// depth. Red appears on the primary call to action and nowhere else. BNI blue
-/// carries informational weight. Status colours are muted rather than saturated,
-/// because a live event screen with three neon chips on it looks like an alarm.
+///  - Flooding the brand red across app bars and surfaces. Loud, dated, and it
+///    destroys hierarchy — when everything is emphasised, nothing is.
+///  - Draining all colour out in reaction, which is how you get beige-on-beige
+///    with 1px boxes: technically clean, completely lifeless.
+///
+/// What it does instead: a warm INK canvas with real depth (layered surfaces,
+/// soft shadows, tinted glass), crimson as a confident accent on the one thing
+/// that matters per screen, and a deep plum "hero" surface for moments that
+/// deserve to feel like an occasion — the live round, the splash.
 class AppColors {
   AppColors._();
 
   // --- Brand -------------------------------------------------------------
-  /// The BNI crimson. Used sparingly, on purpose.
   static const brandRed = Color(0xFFC41230);
   static const brandBlue = Color(0xFF003058);
 
-  /// Lifted for dark surfaces — the raw crimson fails contrast on charcoal.
-  static const brandRedDark = Color(0xFFFF7A88);
-  static const brandBlueDark = Color(0xFF8FBEEB);
+  /// A hair brighter than the raw brand for interactive fills — the flat
+  /// crimson goes muddy against a warm canvas.
+  static const crimson = Color(0xFFD81E3F);
+  static const crimsonDeep = Color(0xFF8E0C22);
 
-  // --- Light canvas: warm paper, not clinical white ----------------------
-  static const paper = Color(0xFFFBF9F8);
+  /// Lifted for dark surfaces, where the raw crimson fails contrast.
+  static const crimsonDark = Color(0xFFFF6B7E);
+
+  /// The hero surface. Deep plum rather than black: it carries the crimson
+  /// family into the dark without going neutral, and gradients over it read as
+  /// intentional instead of muddy.
+  static const plum = Color(0xFF1B0A10);
+  static const plumRaised = Color(0xFF2A1119);
+
+  // --- Light canvas: warm, low-glare -------------------------------------
+  static const paper = Color(0xFFFAF7F6);
   static const paperRaised = Color(0xFFFFFFFF);
-  static const paperSunken = Color(0xFFF3F0EE);
-  static const inkLight = Color(0xFF1A1614);
-  static const inkMutedLight = Color(0xFF6E6663);
-  static const hairlineLight = Color(0xFFE7E2DF);
+  static const inkLight = Color(0xFF17110F);
+  static const inkMutedLight = Color(0xFF6B615D);
+  static const hairlineLight = Color(0xFFEAE3E0);
 
-  // --- Dark canvas: warm charcoal, not black ----------------------------
-  static const charcoal = Color(0xFF121110);
-  static const charcoalRaised = Color(0xFF1C1A19);
-  static const charcoalSunken = Color(0xFF0C0B0B);
-  static const inkDark = Color(0xFFF3F0EE);
-  static const inkMutedDark = Color(0xFFA49C98);
-  static const hairlineDark = Color(0xFF2F2B29);
+  // --- Dark canvas: warm charcoal, never black ---------------------------
+  static const charcoal = Color(0xFF131011);
+  static const charcoalRaised = Color(0xFF1D1819);
+  static const inkDark = Color(0xFFF6F2F1);
+  static const inkMutedDark = Color(0xFFA79D99);
+  static const hairlineDark = Color(0xFF302A2B);
 
-  // --- Status: muted, adult, legible ------------------------------------
-  static const successLight = Color(0xFF2E7D5B);
-  static const successDark = Color(0xFF6DDBA4);
-
-  static const warningLight = Color(0xFF9A6100);
-  static const warningDark = Color(0xFFE9B563);
-
-  static const dangerLight = Color(0xFFB3382B);
-  static const dangerDark = Color(0xFFF08C82);
-
-  static const infoLight = Color(0xFF1F5C8B);
-  static const infoDark = Color(0xFF8FBEEB);
+  // --- Status: rich but adult -------------------------------------------
+  static const successLight = Color(0xFF12734B);
+  static const successDark = Color(0xFF4ADE9B);
+  static const warningLight = Color(0xFF9A5B00);
+  static const warningDark = Color(0xFFF0B457);
+  static const dangerLight = Color(0xFFC0271B);
+  static const dangerDark = Color(0xFFFF8A7D);
+  static const infoLight = Color(0xFF1B5E9B);
+  static const infoDark = Color(0xFF7FBEF5);
 }
 
-/// Status colours that adapt to brightness, reached via `context.colors`.
-///
-/// A ThemeExtension rather than globals, so dark mode isn't an `if (isDark)`
-/// check at every call site.
+/// Gradients. Used on hero surfaces and the primary action only — a gradient on
+/// every card is how 2014 looked.
+class AppGradients {
+  AppGradients._();
+
+  static const primary = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.crimson, AppColors.crimsonDeep],
+  );
+
+  static const hero = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2A1119), AppColors.plum],
+  );
+
+  /// A soft crimson bloom for backgrounds — the thing that stops a warm canvas
+  /// reading as dead beige.
+  static RadialGradient bloom(Color c) => RadialGradient(
+        center: const Alignment(-0.7, -0.9),
+        radius: 1.4,
+        colors: [c.withValues(alpha: 0.10), c.withValues(alpha: 0.0)],
+      );
+}
+
 @immutable
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color success;
   final Color onSuccessContainer;
   final Color successContainer;
-
   final Color warning;
   final Color onWarningContainer;
   final Color warningContainer;
-
   final Color danger;
   final Color onDangerContainer;
   final Color dangerContainer;
-
   final Color info;
   final Color onInfoContainer;
   final Color infoContainer;
 
-  /// Hairline borders. Modern surfaces are separated by a 1px line, not a shadow.
+  /// Hairline borders. Depth comes from a line plus a soft shadow, not a slab.
   final Color hairline;
+
+  /// Shadows for raised surfaces. Warm-tinted — a neutral grey shadow on a warm
+  /// canvas looks like dirt.
+  final List<BoxShadow> shadowSm;
+  final List<BoxShadow> shadowMd;
+  final List<BoxShadow> shadowLg;
 
   const AppSemanticColors({
     required this.success,
@@ -97,38 +126,79 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.onInfoContainer,
     required this.infoContainer,
     required this.hairline,
+    required this.shadowSm,
+    required this.shadowMd,
+    required this.shadowLg,
   });
 
-  factory AppSemanticColors.light() => const AppSemanticColors(
+  factory AppSemanticColors.light() => AppSemanticColors(
         success: AppColors.successLight,
-        successContainer: Color(0xFFE7F3ED),
-        onSuccessContainer: Color(0xFF14503A),
+        successContainer: const Color(0xFFE3F4EB),
+        onSuccessContainer: const Color(0xFF0A4A30),
         warning: AppColors.warningLight,
-        warningContainer: Color(0xFFFBF0DF),
-        onWarningContainer: Color(0xFF6B4300),
+        warningContainer: const Color(0xFFFCEFDC),
+        onWarningContainer: const Color(0xFF6B3E00),
         danger: AppColors.dangerLight,
-        dangerContainer: Color(0xFFFBEAE8),
-        onDangerContainer: Color(0xFF7E241B),
+        dangerContainer: const Color(0xFFFCE8E6),
+        onDangerContainer: const Color(0xFF861A11),
         info: AppColors.infoLight,
-        infoContainer: Color(0xFFE6EEF5),
-        onInfoContainer: Color(0xFF163F60),
+        infoContainer: const Color(0xFFE4EFF9),
+        onInfoContainer: const Color(0xFF10416C),
         hairline: AppColors.hairlineLight,
+        shadowSm: [
+          BoxShadow(
+            color: const Color(0xFF3D2B26).withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        shadowMd: [
+          BoxShadow(
+            color: const Color(0xFF3D2B26).withValues(alpha: 0.07),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        shadowLg: [
+          BoxShadow(
+            color: const Color(0xFF3D2B26).withValues(alpha: 0.12),
+            blurRadius: 36,
+            offset: const Offset(0, 14),
+          ),
+        ],
       );
 
-  factory AppSemanticColors.dark() => const AppSemanticColors(
+  factory AppSemanticColors.dark() => AppSemanticColors(
         success: AppColors.successDark,
-        successContainer: Color(0xFF19332A),
-        onSuccessContainer: Color(0xFFA9E9C8),
+        successContainer: const Color(0xFF14352A),
+        onSuccessContainer: const Color(0xFFA6EDC8),
         warning: AppColors.warningDark,
-        warningContainer: Color(0xFF352A17),
-        onWarningContainer: Color(0xFFF2D5A4),
+        warningContainer: const Color(0xFF362818),
+        onWarningContainer: const Color(0xFFF6D9A6),
         danger: AppColors.dangerDark,
-        dangerContainer: Color(0xFF3A2320),
-        onDangerContainer: Color(0xFFF6BDB6),
+        dangerContainer: const Color(0xFF3B211E),
+        onDangerContainer: const Color(0xFFFFC2BA),
         info: AppColors.infoDark,
-        infoContainer: Color(0xFF1B2C3A),
-        onInfoContainer: Color(0xFFC3DCF1),
+        infoContainer: const Color(0xFF17293A),
+        onInfoContainer: const Color(0xFFC4DEF7),
         hairline: AppColors.hairlineDark,
+        // Shadows barely read on a dark canvas; depth there comes from the
+        // surface step and the hairline instead.
+        shadowSm: const [],
+        shadowMd: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        shadowLg: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 36,
+            offset: const Offset(0, 14),
+          ),
+        ],
       );
 
   @override
@@ -146,6 +216,9 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? onInfoContainer,
     Color? infoContainer,
     Color? hairline,
+    List<BoxShadow>? shadowSm,
+    List<BoxShadow>? shadowMd,
+    List<BoxShadow>? shadowLg,
   }) {
     return AppSemanticColors(
       success: success ?? this.success,
@@ -161,6 +234,9 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       onInfoContainer: onInfoContainer ?? this.onInfoContainer,
       infoContainer: infoContainer ?? this.infoContainer,
       hairline: hairline ?? this.hairline,
+      shadowSm: shadowSm ?? this.shadowSm,
+      shadowMd: shadowMd ?? this.shadowMd,
+      shadowLg: shadowLg ?? this.shadowLg,
     );
   }
 
@@ -181,11 +257,13 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       onInfoContainer: Color.lerp(onInfoContainer, other.onInfoContainer, t)!,
       infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
       hairline: Color.lerp(hairline, other.hairline, t)!,
+      shadowSm: t < 0.5 ? shadowSm : other.shadowSm,
+      shadowMd: t < 0.5 ? shadowMd : other.shadowMd,
+      shadowLg: t < 0.5 ? shadowLg : other.shadowLg,
     );
   }
 }
 
-/// Spacing scale.
 class Gap {
   Gap._();
   static const double xs = 4;
@@ -194,6 +272,7 @@ class Gap {
   static const double lg = 16;
   static const double xl = 24;
   static const double xxl = 32;
+  static const double huge = 48;
 }
 
 class Radii {
@@ -205,16 +284,22 @@ class Radii {
   static const double pill = 999;
 }
 
-/// Motion. Short and purposeful — this is used standing up, under time pressure,
-/// in a noisy room. Animation is for orientation (what changed, where from),
-/// never decoration.
+/// Motion.
+///
+/// This app is used standing up, in a noisy room, under a countdown. Animation
+/// is for orientation — what changed, where it came from — never decoration.
+/// Everything is under 400ms; anything slower is something you WAIT for.
 class Motion {
   Motion._();
-  static const Duration fast = Duration(milliseconds: 150);
-  static const Duration normal = Duration(milliseconds: 260);
+  static const Duration instant = Duration(milliseconds: 100);
+  static const Duration fast = Duration(milliseconds: 180);
+  static const Duration normal = Duration(milliseconds: 280);
   static const Duration slow = Duration(milliseconds: 420);
-  static const Curve curve = Curves.easeOutCubic;
-  static const Curve emphasized = Curves.easeOutBack;
+
+  /// The house curve. Decelerating — things arrive and settle, they don't
+  /// coast to a linear stop.
+  static const Curve curve = Cubic(0.2, 0, 0, 1);
+  static const Curve spring = Cubic(0.34, 1.56, 0.64, 1); // slight overshoot
 }
 
 extension AppThemeX on BuildContext {

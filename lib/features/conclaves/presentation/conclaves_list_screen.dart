@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/illustrations.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/shimmer.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
 
@@ -65,7 +67,9 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
         ),
       ),
       body: conclaves.when(
-        loading: () => const LoadingView(label: 'Loading conclaves…'),
+        // A skeleton, not a spinner: it says what is coming and how much of it,
+        // and the layout doesn't jump when the data lands.
+        loading: () => const ConclaveListSkeleton(),
         error: (e, _) => ErrorView(
           message: 'Could not load conclaves.',
           detail: e.toString(),
@@ -112,11 +116,11 @@ class _ConclaveList extends StatelessWidget {
           children: [
             SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
             EmptyView(
-              icon: switch (tab) {
-                0 => Icons.play_circle_outline,
-                2 => Icons.history,
-                _ => Icons.event_outlined,
+              art: switch (tab) {
+                0 => const TablesIllustration(size: 150),
+                _ => const EmptyCalendarIllustration(size: 120),
               },
+              icon: Icons.event_outlined,
               title: switch (tab) {
                 0 => 'Nothing running right now',
                 2 => 'No past conclaves',

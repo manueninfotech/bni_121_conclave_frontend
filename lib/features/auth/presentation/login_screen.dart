@@ -146,12 +146,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
+      // A crimson bloom top-left. Costs nothing, and it is the difference
+      // between "warm canvas" and "dead beige".
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: AppGradients.bloom(AppColors.crimson)),
+        child: SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.all(context.pagePadding),
             child: ContentWidth(
               max: 440,
+              // Genuinely centred: a sign-in form is one of the few layouts that
+              // SHOULD sit in the middle of the viewport.
+              centerVertically: true,
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -229,18 +235,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
 
                     const SizedBox(height: Gap.lg),
-                    SizedBox(
-                      height: 52,
-                      child: FilledButton(
-                        onPressed: _isLoading ? null : _login,
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Sign in'),
-                      ),
+                    PrimaryButton(
+                      label: 'Sign in',
+                      loading: _isLoading,
+                      onPressed: _isLoading ? null : _login,
                     ),
 
                     const SizedBox(height: Gap.xl),

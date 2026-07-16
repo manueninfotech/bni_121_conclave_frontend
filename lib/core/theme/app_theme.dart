@@ -4,20 +4,22 @@ import 'tokens.dart';
 
 /// The app's themes.
 ///
-/// The ColorScheme is written out explicitly rather than derived from
-/// `ColorScheme.fromSeed(brandRed)`. Seeding from a saturated crimson tints
-/// EVERY surface pink — cards, sheets, app bars, backgrounds — which is exactly
-/// the heavy, dated look we're getting away from. Here the canvas is a warm
-/// neutral and red exists only where it is asked for.
+/// Notes on the decisions that matter:
 ///
-/// Two other rules the theme enforces:
-///
-///  - No `fontSize` anywhere. Sizes come from the type scale, which honours the
-///    user's system font-size setting. Hardcoding sizes silently ignores it.
-///  - No width constraint on buttons. A global `double.infinity` minimumSize
-///    makes every button demand infinite width and throw inside a Row.
+///  - **Plus Jakarta Sans, bundled.** Roboto is why an app reads as "default
+///    Flutter". A variable font gives 200-800 in one file, and bundling it means
+///    the typeface is right at a venue with no signal.
+///  - **No `fontSize` outside this file.** Sizes come from the scale below,
+///    which honours the user's system font-size setting.
+///  - **No width constraint on buttons.** A global `double.infinity`
+///    minimumSize makes every button demand infinite width and throw inside a
+///    Row. Screens that want full-width say so.
+///  - **The ColorScheme is explicit**, not seeded. Seeding from a saturated
+///    crimson tints every surface pink.
 class AppTheme {
   AppTheme._();
+
+  static const _font = 'PlusJakartaSans';
 
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
@@ -28,31 +30,31 @@ class AppTheme {
 
     final scheme = isDark
         ? const ColorScheme.dark(
-            primary: AppColors.brandRedDark,
-            onPrimary: Color(0xFF3B0710),
-            primaryContainer: Color(0xFF3A1218),
-            onPrimaryContainer: Color(0xFFFFD9DD),
-            secondary: AppColors.brandBlueDark,
+            primary: AppColors.crimsonDark,
+            onPrimary: Color(0xFF40040F),
+            primaryContainer: Color(0xFF3D141C),
+            onPrimaryContainer: Color(0xFFFFD9DE),
+            secondary: Color(0xFF9EC5FF),
             onSecondary: Color(0xFF0B1D2B),
             secondaryContainer: Color(0xFF17303F),
             onSecondaryContainer: Color(0xFFCFE4F5),
             surface: AppColors.charcoal,
             onSurface: AppColors.inkDark,
-            surfaceContainerLowest: AppColors.charcoalSunken,
+            surfaceContainerLowest: Color(0xFF0D0B0C),
             surfaceContainerLow: AppColors.charcoalRaised,
-            surfaceContainer: Color(0xFF201E1D),
-            surfaceContainerHigh: Color(0xFF262322),
-            surfaceContainerHighest: Color(0xFF2C2928),
+            surfaceContainer: Color(0xFF221D1E),
+            surfaceContainerHigh: Color(0xFF282223),
+            surfaceContainerHighest: Color(0xFF2F2829),
             onSurfaceVariant: AppColors.inkMutedDark,
-            outline: Color(0xFF4A4644),
+            outline: Color(0xFF4C4445),
             outlineVariant: AppColors.hairlineDark,
             error: AppColors.dangerDark,
             onError: Color(0xFF3A1210),
           )
         : const ColorScheme.light(
-            primary: AppColors.brandRed,
+            primary: AppColors.crimson,
             onPrimary: Colors.white,
-            primaryContainer: Color(0xFFFCE7EA),
+            primaryContainer: Color(0xFFFDE8EB),
             onPrimaryContainer: Color(0xFF6E0A1B),
             secondary: AppColors.brandBlue,
             onSecondary: Colors.white,
@@ -62,11 +64,11 @@ class AppTheme {
             onSurface: AppColors.inkLight,
             surfaceContainerLowest: Colors.white,
             surfaceContainerLow: AppColors.paperRaised,
-            surfaceContainer: Color(0xFFF7F4F2),
-            surfaceContainerHigh: AppColors.paperSunken,
-            surfaceContainerHighest: Color(0xFFEDE9E6),
+            surfaceContainer: Color(0xFFF6F2F0),
+            surfaceContainerHigh: Color(0xFFF1ECEA),
+            surfaceContainerHighest: Color(0xFFEBE5E2),
             onSurfaceVariant: AppColors.inkMutedLight,
-            outline: Color(0xFFB9B2AE),
+            outline: Color(0xFFB5ACA8),
             outlineVariant: AppColors.hairlineLight,
             error: AppColors.dangerLight,
             onError: Colors.white,
@@ -76,32 +78,18 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       brightness: brightness,
+      fontFamily: _font,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       splashFactory: InkSparkle.splashFactory,
-    );
-
-    final text = base.textTheme.apply(
-      bodyColor: scheme.onSurface,
-      displayColor: scheme.onSurface,
     );
 
     return base.copyWith(
       extensions: [semantic],
       scaffoldBackgroundColor: scheme.surface,
+      textTheme: _textTheme(scheme),
 
-      textTheme: text.copyWith(
-        // Tighter tracking on large type — loose headlines look amateur.
-        displaySmall: text.displaySmall?.copyWith(letterSpacing: -1.0),
-        headlineMedium: text.headlineMedium?.copyWith(letterSpacing: -0.5),
-        headlineSmall: text.headlineSmall?.copyWith(letterSpacing: -0.3),
-        titleLarge: text.titleLarge?.copyWith(
-          letterSpacing: -0.2,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-
-      // A flat app bar that sits ON the canvas. A coloured bar is the single
-      // biggest thing that dates an app.
+      // Flat, sits on the canvas. A coloured app bar is the single biggest thing
+      // that dates an app.
       appBarTheme: AppBarTheme(
         centerTitle: false,
         backgroundColor: scheme.surface,
@@ -111,14 +99,15 @@ class AppTheme {
         scrolledUnderElevation: 0,
         systemOverlayStyle:
             isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
-        titleTextStyle: text.titleLarge?.copyWith(
+        titleTextStyle: TextStyle(
+          fontFamily: _font,
+          fontSize: 19,
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
+          letterSpacing: -0.3,
           color: scheme.onSurface,
         ),
       ),
 
-      // Hairline borders, no shadows. Depth comes from the line, not a blur.
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -130,40 +119,53 @@ class AppTheme {
         ),
       ),
 
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 54),
+          padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.md),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: _font,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
+        ),
+      ),
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
-          minimumSize: const Size(0, 52),
+          minimumSize: const Size(0, 54),
           padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.md),
           ),
-          textStyle: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ),
-
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 52),
-          padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.md),
+          textStyle: const TextStyle(
+            fontFamily: _font,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
-          textStyle: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, 50),
           foregroundColor: scheme.onSurface,
-          side: BorderSide(color: semantic.hairline),
+          side: BorderSide(color: semantic.hairline, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.md),
           ),
-          textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontFamily: _font,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
@@ -171,44 +173,52 @@ class AppTheme {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 44),
           foregroundColor: scheme.primary,
-          textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ),
-
-      segmentedButtonTheme: SegmentedButtonThemeData(
-        style: SegmentedButton.styleFrom(
-          backgroundColor: scheme.surfaceContainerHigh,
-          foregroundColor: scheme.onSurfaceVariant,
-          selectedBackgroundColor: scheme.onSurface,
-          selectedForegroundColor: scheme.surface,
-          side: BorderSide(color: semantic.hairline),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.sm),
+          textStyle: const TextStyle(
+            fontFamily: _font,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
           ),
-          textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHigh,
+        fillColor: isDark ? scheme.surfaceContainer : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Radii.md),
-          borderSide: BorderSide(color: semantic.hairline),
+          borderSide: BorderSide(color: semantic.hairline, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Radii.md),
-          borderSide: BorderSide(color: semantic.hairline),
+          borderSide: BorderSide(color: semantic.hairline, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Radii.md),
-          borderSide: BorderSide(color: scheme.onSurface, width: 1.6),
+          borderSide: BorderSide(color: scheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.md),
+          borderSide: BorderSide(color: scheme.error, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.md),
+          borderSide: BorderSide(color: scheme.error, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: Gap.lg,
           vertical: Gap.lg,
         ),
-        labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+        labelStyle: TextStyle(
+          fontFamily: _font,
+          color: scheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+        floatingLabelStyle: TextStyle(
+          fontFamily: _font,
+          color: scheme.primary,
+          fontWeight: FontWeight.w600,
+        ),
+        prefixIconColor: scheme.onSurfaceVariant,
       ),
 
       chipTheme: ChipThemeData(
@@ -223,18 +233,33 @@ class AppTheme {
 
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: scheme.onSurface,
-        contentTextStyle: text.bodyMedium?.copyWith(color: scheme.surface),
+        backgroundColor: isDark ? scheme.surfaceContainerHighest : scheme.onSurface,
+        contentTextStyle: TextStyle(
+          fontFamily: _font,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: isDark ? scheme.onSurface : scheme.surface,
+        ),
+        actionTextColor: scheme.primary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.md),
         ),
+        insetPadding: const EdgeInsets.all(Gap.lg),
       ),
 
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.lg),
+          borderRadius: BorderRadius.circular(Radii.xl),
+        ),
+      ),
+
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.xl)),
         ),
       ),
 
@@ -244,12 +269,27 @@ class AppTheme {
         labelColor: scheme.onSurface,
         unselectedLabelColor: scheme.onSurfaceVariant,
         indicatorColor: scheme.primary,
-        labelStyle: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        unselectedLabelStyle: text.titleSmall,
+        overlayColor: WidgetStatePropertyAll(scheme.primary.withValues(alpha: 0.05)),
+        labelStyle: const TextStyle(
+          fontFamily: _font,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: _font,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
       ),
 
       listTileTheme: const ListTileThemeData(
         contentPadding: EdgeInsets.symmetric(horizontal: Gap.lg),
+      ),
+
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.primary,
+        linearTrackColor: semantic.hairline,
+        circularTrackColor: semantic.hairline,
       ),
 
       pageTransitionsTheme: const PageTransitionsTheme(
@@ -258,6 +298,43 @@ class AppTheme {
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         },
       ),
+    );
+  }
+
+  /// The type scale.
+  ///
+  /// Tight tracking on display sizes, looser on small text — the opposite of
+  /// Material's defaults, and the single change that most separates a designed
+  /// app from a default one. Large type set at normal tracking always looks
+  /// slack.
+  static TextTheme _textTheme(ColorScheme s) {
+    TextStyle t(double size, FontWeight w, double spacing, {double? height}) =>
+        TextStyle(
+          fontFamily: _font,
+          fontSize: size,
+          fontWeight: w,
+          letterSpacing: spacing,
+          height: height,
+          color: s.onSurface,
+        );
+
+    return TextTheme(
+      displayLarge: t(54, FontWeight.w800, -2.0, height: 1.05),
+      displayMedium: t(44, FontWeight.w800, -1.6, height: 1.08),
+      displaySmall: t(34, FontWeight.w800, -1.2, height: 1.1),
+      headlineLarge: t(30, FontWeight.w700, -0.9, height: 1.15),
+      headlineMedium: t(25, FontWeight.w700, -0.7, height: 1.2),
+      headlineSmall: t(21, FontWeight.w700, -0.5, height: 1.25),
+      titleLarge: t(18, FontWeight.w700, -0.3, height: 1.3),
+      titleMedium: t(16, FontWeight.w600, -0.2, height: 1.35),
+      titleSmall: t(14.5, FontWeight.w600, -0.1, height: 1.4),
+      bodyLarge: t(16, FontWeight.w400, 0, height: 1.5),
+      bodyMedium: t(14, FontWeight.w400, 0.05, height: 1.5),
+      bodySmall: t(12.5, FontWeight.w400, 0.1, height: 1.45)
+          .copyWith(color: s.onSurfaceVariant),
+      labelLarge: t(14, FontWeight.w600, 0.1),
+      labelMedium: t(12.5, FontWeight.w600, 0.2),
+      labelSmall: t(11.5, FontWeight.w600, 0.4),
     );
   }
 }

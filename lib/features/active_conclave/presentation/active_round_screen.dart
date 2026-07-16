@@ -961,7 +961,7 @@ class _Avatar extends StatelessWidget {
               child: AnimatedScale(
                 scale: 1,
                 duration: Motion.normal,
-                curve: Motion.emphasized,
+                curve: Motion.spring,
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
