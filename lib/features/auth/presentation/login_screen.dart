@@ -205,7 +205,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // The hero is dark, so the status bar icons must be light — otherwise the
+    // clock is near-invisible against it. Scoped to this screen; the rest of the
+    // app follows the theme.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark, // iOS
+      ),
+      child: Scaffold(
       // The keyboard slides OVER the hero rather than squashing it — the form
       // scrolls, the brand stays put.
       resizeToAvoidBottomInset: false,
@@ -213,25 +222,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         children: [
           _Hero(animation: _intro),
           Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                context.pagePadding,
-                Gap.xl,
-                context.pagePadding,
-                MediaQuery.viewInsetsOf(context).bottom + Gap.xl,
-              ),
-              child: ContentWidth(
-                max: 440,
-                child: FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: _intro,
-                    curve: const Interval(0.3, 1, curve: Curves.easeOut),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  context.pagePadding,
+                  Gap.xl,
+                  context.pagePadding,
+                  MediaQuery.viewInsetsOf(context).bottom + Gap.lg,
+                ),
+                child: ConstrainedBox(
+                  // Fill the space below the hero so the form can push "New
+                  // here?" to the bottom instead of leaving a dead half-screen.
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - Gap.xl - Gap.lg,
                   ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
+                  child: ContentWidth(
+                    max: 440,
+                    child: FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: _intro,
+                        curve: const Interval(0.3, 1, curve: Curves.easeOut),
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                         MethodToggle(
                           value: _method,
                           onChanged: (m) => setState(() {
@@ -310,6 +326,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           onPressed: _isLoading ? null : _login,
                         ),
 
+                        // Fills the space rather than leaving a dead half-screen
+                        // below the form.
+                        const Spacer(),
                         const SizedBox(height: Gap.lg),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -325,7 +344,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                           ],
                         ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -333,6 +354,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -360,16 +382,23 @@ class _Hero extends StatelessWidget {
         decoration: const BoxDecoration(gradient: AppGradients.hero),
         child: Stack(
           children: [
-            // A crimson bloom inside the panel, so the plum isn't a flat slab.
-            Positioned(
-              right: -70,
-              top: -80,
-              child: Container(
-                width: 200,
-                height: 200,
+            // A crimson bloom, so the plum isn't a flat slab.
+            //
+            // A radial gradient, NOT a solid circle: a circle clipped by the
+            // panel's rounded corners leaves a hard-edged disc that reads as a
+            // rendering glitch. A gradient has already faded to nothing by the
+            // time it reaches an edge, so there is nothing to cut.
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.crimson.withValues(alpha: 0.25),
+                  gradient: RadialGradient(
+                    center: const Alignment(1.1, -1.1),
+                    radius: 1.3,
+                    colors: [
+                      AppColors.crimson.withValues(alpha: 0.42),
+                      AppColors.crimson.withValues(alpha: 0.0),
+                    ],
+                  ),
                 ),
               ),
             ),
