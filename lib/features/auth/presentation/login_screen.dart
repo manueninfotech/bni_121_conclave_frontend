@@ -219,6 +219,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       // scrolls, the brand stays put.
       resizeToAvoidBottomInset: false,
       body: Column(
+        // stretch, not the default centre: without it the hero shrink-wraps to
+        // its text and leaves pale margins down both sides of a panel that is
+        // meant to be full-bleed.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Hero(animation: _intro),
           Expanded(
@@ -233,10 +237,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 child: ConstrainedBox(
                   // Fill the space below the hero so the form can push "New
                   // here?" to the bottom instead of leaving a dead half-screen.
+                  //
+                  // minHeight alone is not enough: a SingleChildScrollView hands
+                  // its child an UNBOUNDED max height, so the Column would
+                  // shrink-wrap and the Spacer inside it (an Expanded) would
+                  // throw "non-zero flex but incoming height constraints are
+                  // unbounded". IntrinsicHeight is what actually bounds it.
+                  // Cheap here — the subtree is a short form.
                   constraints: BoxConstraints(
                     minHeight: constraints.maxHeight - Gap.xl - Gap.lg,
                   ),
-                  child: ContentWidth(
+                  child: IntrinsicHeight(
+                    child: ContentWidth(
                     max: 440,
                     child: FadeTransition(
                       opacity: CurvedAnimation(
@@ -349,6 +361,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
                   ),
+                  ),
                 ),
               ),
             ),
@@ -376,33 +389,36 @@ class _Hero extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(bottom: Radius.circular(Radii.xl)),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.fromLTRB(Gap.xl, top + Gap.xl, Gap.xl, Gap.xxl),
-        decoration: const BoxDecoration(gradient: AppGradients.hero),
-        child: Stack(
-          children: [
-            // A crimson bloom, so the plum isn't a flat slab.
-            //
-            // A radial gradient, NOT a solid circle: a circle clipped by the
-            // panel's rounded corners leaves a hard-edged disc that reads as a
-            // rendering glitch. A gradient has already faded to nothing by the
-            // time it reaches an edge, so there is nothing to cut.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(1.1, -1.1),
-                    radius: 1.3,
-                    colors: [
-                      AppColors.crimson.withValues(alpha: 0.42),
-                      AppColors.crimson.withValues(alpha: 0.0),
-                    ],
-                  ),
+      child: Stack(
+        children: [
+          // Both gradients fill the WHOLE panel, outside the padding.
+          //
+          // Previously the bloom lived inside the padded child, so it filled only
+          // the content box — and the radial hadn't faded to zero by that box's
+          // edge, leaving hard rectangular seams inside the panel that looked
+          // like a rendering fault.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(gradient: AppGradients.hero),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.9, -0.8),
+                  radius: 1.1,
+                  colors: [
+                    AppColors.crimson.withValues(alpha: 0.38),
+                    AppColors.crimson.withValues(alpha: 0.0),
+                  ],
                 ),
               ),
             ),
-            Column(
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(Gap.xl, top + Gap.xl, Gap.xl, Gap.xxl),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -448,8 +464,8 @@ class _Hero extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
