@@ -112,11 +112,21 @@ class SyncService {
     _isSyncing = true;
 
     try {
-      final uid = _auth.currentUser?.uid;
-      if (uid == null) return;
+      final user = _auth.currentUser;
+      if (user == null) return;
 
-      final unsyncedAttendance = await _db.getUnsyncedAttendance();
-      final unsyncedReferrals = await _db.getUnsyncedReferrals();
+      // /sync is authenticated: the server takes the caller's identity from this
+      // token and ignores anything in the body, because a uid in a request body
+      // is just a string the caller typed. Without it every sync 401s and the
+      // records retry forever.
+      final token = await user.getIdToken();
+
+      // Only THIS conclave's rows. The endpoint is per-conclave and validates
+      // every record against that conclave's schedule, so a row belonging to a
+      // different event would be rejected as "not at your table" — and then
+      // acknowledged as unfixable, quietly destroying it.
+      final unsyncedAttendance = await _db.getUnsyncedAttendance(conclaveId: conclaveId);
+      final unsyncedReferrals = await _db.getUnsyncedReferrals(conclaveId: conclaveId);
 
       // Even with nothing to push we still call: this is also how referrals
       // given to us on other people's phones come DOWN, and how we correct our
@@ -124,8 +134,13 @@ class SyncService {
       final sentAt = DateTime.now(); // t0
       final response = await _dio.post(
         '$baseUrl/conclaves/$conclaveId/sync',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          // Read 4xx rather than throwing, so a rejection can be logged instead
+          // of vanishing into the catch as an unexplained "sync error".
+          validateStatus: (s) => s != null && s < 500,
+        ),
         data: {
-          'userId': uid,
           'attendance': unsyncedAttendance,
           'referrals': unsyncedReferrals,
         },
@@ -133,7 +148,11 @@ class SyncService {
       final receivedAt = DateTime.now(); // t3
 
       if (response.statusCode != 200) {
-        debugPrint('Sync failed with status: ${response.statusCode}');
+        final body = response.data;
+        debugPrint(
+          'Sync rejected (${response.statusCode}): '
+          '${body is Map ? body['error'] : body}',
+        );
         return;
       }
 

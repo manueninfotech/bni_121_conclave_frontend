@@ -162,9 +162,21 @@ class LocalDatabase {
     };
   }
 
-  Future<List<Map<String, dynamic>>> getUnsyncedAttendance() async {
+  /// Unsynced attendance for ONE conclave.
+  ///
+  /// Scoped deliberately: /sync is a per-conclave endpoint that checks each row
+  /// against that conclave's schedule. A row from a different event gets
+  /// rejected as "not at your table" — and rejected rows are acknowledged so
+  /// they stop retrying, which would silently destroy it.
+  Future<List<Map<String, dynamic>>> getUnsyncedAttendance({
+    required String conclaveId,
+  }) async {
     final db = await database;
-    return await db.query('attendance', where: 'synced = ?', whereArgs: [0]);
+    return await db.query(
+      'attendance',
+      where: 'synced = ? AND conclaveId = ?',
+      whereArgs: [0, conclaveId],
+    );
   }
 
   Future<void> markAttendanceSynced(List<String> ids) async {
@@ -299,9 +311,16 @@ class LocalDatabase {
     return rows.map((r) => r['toUserId'] as String).toSet();
   }
 
-  Future<List<Map<String, dynamic>>> getUnsyncedReferrals() async {
+  /// Unsynced referrals for ONE conclave. See [getUnsyncedAttendance].
+  Future<List<Map<String, dynamic>>> getUnsyncedReferrals({
+    required String conclaveId,
+  }) async {
     final db = await database;
-    return await db.query('referrals', where: 'synced = ?', whereArgs: [0]);
+    return await db.query(
+      'referrals',
+      where: 'synced = ? AND conclaveId = ?',
+      whereArgs: [0, conclaveId],
+    );
   }
 
   Future<void> markReferralsSynced(List<String> ids) async {

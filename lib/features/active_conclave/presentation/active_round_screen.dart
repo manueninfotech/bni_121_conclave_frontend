@@ -1268,6 +1268,12 @@ class _Unavailable extends StatelessWidget {
           'This conclave has finished',
           'Open your summary to see your referrals and check your data has synced.',
         ),
+      ActiveRoundUnavailable.cancelled => (
+          Icons.event_busy_outlined,
+          'This conclave was cancelled',
+          'The admin called it off. Anything you recorded is still saved on your '
+              'phone and will sync, but there are no more rounds.',
+        ),
     };
 
     return EmptyView(icon: icon, title: title, message: message);

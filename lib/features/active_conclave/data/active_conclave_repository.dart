@@ -27,6 +27,10 @@ enum ActiveRoundUnavailable {
 
   /// Conclave has finished all rounds.
   completed,
+
+  /// The admin called it off. Distinct from [completed]: nothing was finished,
+  /// and there is no summary to look at.
+  cancelled,
 }
 
 /// Either a resolved [ActiveRound] or the reason there isn't one.
@@ -87,6 +91,21 @@ class ActiveConclaveRepository {
     final status = (data['status'] ?? '') as String;
     if (status == 'completed') {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
+    }
+
+    // A cancelled conclave was falling straight through this check: its
+    // currentRound is still 1, so the round screen kept running and members
+    // carried on marking attendance and giving referrals at an event that no
+    // longer exists. The screen has to stop the moment the admin pulls the plug.
+    if (status == 'cancelled') {
+      return const ActiveRoundState.unavailable(ActiveRoundUnavailable.cancelled);
+    }
+
+    // Anything that is not actively running has no round to show. Listing the
+    // states we accept, rather than the ones we reject, means a status added
+    // later fails closed instead of silently rendering a stale round.
+    if (status != 'running') {
+      return const ActiveRoundState.unavailable(ActiveRoundUnavailable.notStarted);
     }
 
     final currentRound = (data['currentRound'] as num?)?.toInt() ?? 0;
