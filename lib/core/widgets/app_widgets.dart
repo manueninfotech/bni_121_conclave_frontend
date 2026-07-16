@@ -178,25 +178,25 @@ class StatusBadge extends StatelessWidget {
     return Semantics(
       label: 'Status: $label',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 5),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(Radii.pill),
-          border: Border.all(color: fg.withValues(alpha: 0.25)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon ?? defaultIcon, size: 14, color: fg),
+            Icon(icon ?? defaultIcon, size: 13, color: fg),
             const SizedBox(width: Gap.xs),
-            // Flexible so a long label wraps rather than overflowing when the
-            // user's font size is turned up.
+            // Flexible so a long label ellipsizes rather than overflowing when
+            // the user's font size is turned up.
             Flexible(
               child: Text(
                 label,
                 style: context.text.labelSmall?.copyWith(
                   color: fg,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),

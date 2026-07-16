@@ -2,39 +2,66 @@ import 'package:flutter/material.dart';
 
 /// Design tokens.
 ///
-/// Everything visual comes from here, so a change lands everywhere at once. The
-/// app previously had 50 hardcoded `Colors.grey`/`Colors.white` calls scattered
-/// through the screens, which meant the theme was decorative — changing it moved
-/// almost nothing.
+/// The palette philosophy: **brand colour is punctuation, not paint.**
+///
+/// BNI red is a loud, saturated crimson. Flooding it across app bars, buttons
+/// and surfaces (as the first pass did) reads heavy and dated, and it destroys
+/// hierarchy — when everything is emphasised, nothing is. The apps people
+/// actually admire do the opposite: a calm, warm neutral canvas, hairline
+/// borders instead of heavy shadows, generous whitespace, and the brand colour
+/// held back for the ONE decisive action on a screen.
+///
+/// So: the canvas is warm paper (light) / warm charcoal (dark), never pure white
+/// or pure black — pure #FFF glares under venue lighting and pure #000 crushes
+/// depth. Red appears on the primary call to action and nowhere else. BNI blue
+/// carries informational weight. Status colours are muted rather than saturated,
+/// because a live event screen with three neon chips on it looks like an alarm.
 class AppColors {
   AppColors._();
 
-  /// BNI brand.
+  // --- Brand -------------------------------------------------------------
+  /// The BNI crimson. Used sparingly, on purpose.
   static const brandRed = Color(0xFFC41230);
   static const brandBlue = Color(0xFF003058);
 
-  /// Semantic roles, resolved per-brightness by [AppSemanticColors].
-  ///
-  /// Status must never be conveyed by colour ALONE (colour-blind users, and
-  /// anyone glancing at a phone in sunlight), so every use of these is paired
-  /// with an icon and a text label.
-  static const successLight = Color(0xFF1B7F3B);
-  static const successDark = Color(0xFF4ADE80);
+  /// Lifted for dark surfaces — the raw crimson fails contrast on charcoal.
+  static const brandRedDark = Color(0xFFFF7A88);
+  static const brandBlueDark = Color(0xFF8FBEEB);
 
-  static const warningLight = Color(0xFF9A5B00);
-  static const warningDark = Color(0xFFFBBF24);
+  // --- Light canvas: warm paper, not clinical white ----------------------
+  static const paper = Color(0xFFFBF9F8);
+  static const paperRaised = Color(0xFFFFFFFF);
+  static const paperSunken = Color(0xFFF3F0EE);
+  static const inkLight = Color(0xFF1A1614);
+  static const inkMutedLight = Color(0xFF6E6663);
+  static const hairlineLight = Color(0xFFE7E2DF);
 
-  static const dangerLight = Color(0xFFB3261E);
-  static const dangerDark = Color(0xFFF87171);
+  // --- Dark canvas: warm charcoal, not black ----------------------------
+  static const charcoal = Color(0xFF121110);
+  static const charcoalRaised = Color(0xFF1C1A19);
+  static const charcoalSunken = Color(0xFF0C0B0B);
+  static const inkDark = Color(0xFFF3F0EE);
+  static const inkMutedDark = Color(0xFFA49C98);
+  static const hairlineDark = Color(0xFF2F2B29);
 
-  static const infoLight = Color(0xFF1D4ED8);
-  static const infoDark = Color(0xFF93C5FD);
+  // --- Status: muted, adult, legible ------------------------------------
+  static const successLight = Color(0xFF2E7D5B);
+  static const successDark = Color(0xFF6DDBA4);
+
+  static const warningLight = Color(0xFF9A6100);
+  static const warningDark = Color(0xFFE9B563);
+
+  static const dangerLight = Color(0xFFB3382B);
+  static const dangerDark = Color(0xFFF08C82);
+
+  static const infoLight = Color(0xFF1F5C8B);
+  static const infoDark = Color(0xFF8FBEEB);
 }
 
-/// Status colours that adapt to light/dark, reached via `context.colors`.
+/// Status colours that adapt to brightness, reached via `context.colors`.
 ///
-/// A ThemeExtension rather than a global constant, so dark mode is not an
-/// afterthought bolted on with `if (isDark)` checks at every call site.
+/// A ThemeExtension rather than globals, so dark mode isn't an `if (isDark)`
+/// check at every call site.
 @immutable
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color success;
@@ -53,6 +80,9 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color onInfoContainer;
   final Color infoContainer;
 
+  /// Hairline borders. Modern surfaces are separated by a 1px line, not a shadow.
+  final Color hairline;
+
   const AppSemanticColors({
     required this.success,
     required this.onSuccessContainer,
@@ -66,36 +96,39 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.info,
     required this.onInfoContainer,
     required this.infoContainer,
+    required this.hairline,
   });
 
-  factory AppSemanticColors.light() => AppSemanticColors(
+  factory AppSemanticColors.light() => const AppSemanticColors(
         success: AppColors.successLight,
-        successContainer: AppColors.successLight.withValues(alpha: 0.10),
-        onSuccessContainer: const Color(0xFF0B4A21),
+        successContainer: Color(0xFFE7F3ED),
+        onSuccessContainer: Color(0xFF14503A),
         warning: AppColors.warningLight,
-        warningContainer: AppColors.warningLight.withValues(alpha: 0.12),
-        onWarningContainer: const Color(0xFF5C3600),
+        warningContainer: Color(0xFFFBF0DF),
+        onWarningContainer: Color(0xFF6B4300),
         danger: AppColors.dangerLight,
-        dangerContainer: AppColors.dangerLight.withValues(alpha: 0.10),
-        onDangerContainer: const Color(0xFF7A1710),
+        dangerContainer: Color(0xFFFBEAE8),
+        onDangerContainer: Color(0xFF7E241B),
         info: AppColors.infoLight,
-        infoContainer: AppColors.infoLight.withValues(alpha: 0.10),
-        onInfoContainer: const Color(0xFF14307D),
+        infoContainer: Color(0xFFE6EEF5),
+        onInfoContainer: Color(0xFF163F60),
+        hairline: AppColors.hairlineLight,
       );
 
-  factory AppSemanticColors.dark() => AppSemanticColors(
+  factory AppSemanticColors.dark() => const AppSemanticColors(
         success: AppColors.successDark,
-        successContainer: AppColors.successDark.withValues(alpha: 0.16),
-        onSuccessContainer: const Color(0xFFBBF7D0),
+        successContainer: Color(0xFF19332A),
+        onSuccessContainer: Color(0xFFA9E9C8),
         warning: AppColors.warningDark,
-        warningContainer: AppColors.warningDark.withValues(alpha: 0.16),
-        onWarningContainer: const Color(0xFFFDE68A),
+        warningContainer: Color(0xFF352A17),
+        onWarningContainer: Color(0xFFF2D5A4),
         danger: AppColors.dangerDark,
-        dangerContainer: AppColors.dangerDark.withValues(alpha: 0.16),
-        onDangerContainer: const Color(0xFFFECACA),
+        dangerContainer: Color(0xFF3A2320),
+        onDangerContainer: Color(0xFFF6BDB6),
         info: AppColors.infoDark,
-        infoContainer: AppColors.infoDark.withValues(alpha: 0.16),
-        onInfoContainer: const Color(0xFFDBEAFE),
+        infoContainer: Color(0xFF1B2C3A),
+        onInfoContainer: Color(0xFFC3DCF1),
+        hairline: AppColors.hairlineDark,
       );
 
   @override
@@ -112,6 +145,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? info,
     Color? onInfoContainer,
     Color? infoContainer,
+    Color? hairline,
   }) {
     return AppSemanticColors(
       success: success ?? this.success,
@@ -126,6 +160,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       info: info ?? this.info,
       onInfoContainer: onInfoContainer ?? this.onInfoContainer,
       infoContainer: infoContainer ?? this.infoContainer,
+      hairline: hairline ?? this.hairline,
     );
   }
 
@@ -145,12 +180,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       info: Color.lerp(info, other.info, t)!,
       onInfoContainer: Color.lerp(onInfoContainer, other.onInfoContainer, t)!,
       infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
+      hairline: Color.lerp(hairline, other.hairline, t)!,
     );
   }
 }
 
-/// Spacing scale. Use these instead of arbitrary numbers so rhythm stays
-/// consistent and a density change is a one-line edit.
+/// Spacing scale.
 class Gap {
   Gap._();
   static const double xs = 4;
@@ -163,28 +198,29 @@ class Gap {
 
 class Radii {
   Radii._();
-  static const double sm = 8;
-  static const double md = 12;
-  static const double lg = 16;
+  static const double sm = 10;
+  static const double md = 14;
+  static const double lg = 20;
+  static const double xl = 28;
   static const double pill = 999;
 }
 
-/// Motion. Short and purposeful — this is an app people use standing up, under
-/// time pressure, at a noisy event. Animation here is for orientation (what
-/// changed, where did it come from), never decoration.
+/// Motion. Short and purposeful — this is used standing up, under time pressure,
+/// in a noisy room. Animation is for orientation (what changed, where from),
+/// never decoration.
 class Motion {
   Motion._();
   static const Duration fast = Duration(milliseconds: 150);
-  static const Duration normal = Duration(milliseconds: 250);
-  static const Duration slow = Duration(milliseconds: 400);
+  static const Duration normal = Duration(milliseconds: 260);
+  static const Duration slow = Duration(milliseconds: 420);
   static const Curve curve = Curves.easeOutCubic;
+  static const Curve emphasized = Curves.easeOutBack;
 }
 
 extension AppThemeX on BuildContext {
   ColorScheme get scheme => Theme.of(this).colorScheme;
   TextTheme get text => Theme.of(this).textTheme;
 
-  /// Status colours (success/warning/danger/info) for the current brightness.
   AppSemanticColors get colors =>
       Theme.of(this).extension<AppSemanticColors>() ?? AppSemanticColors.light();
 

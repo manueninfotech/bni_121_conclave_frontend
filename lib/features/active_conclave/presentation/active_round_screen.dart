@@ -377,14 +377,14 @@ class _RoundView extends StatelessWidget {
               child: ContentWidth(
                 child: SizedBox(
                   height: 56,
+                  // No `style:` on the label. Overriding it with a TextTheme
+                  // style drags in that style's colour (near-black onSurface),
+                  // which silently defeats the button's own onPrimary and leaves
+                  // black text on the red fill. Let the button own its colours.
                   child: FilledButton.icon(
                     onPressed: canRecord ? onScan : null,
-                    icon: const Icon(Icons.qr_code_scanner, size: 26),
-                    label: Text(
-                      canRecord ? 'Scan members' : 'Scanning closed',
-                      style: context.text.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
+                    icon: const Icon(Icons.qr_code_scanner, size: 24),
+                    label: Text(canRecord ? 'Scan members' : 'Scanning closed'),
                   ),
                 ),
               ),
@@ -444,81 +444,102 @@ class _TimerCard extends StatelessWidget {
         ? 0.0
         : (remaining.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
 
+    // Under a minute, the countdown starts breathing. It is the one moment the
+    // screen should demand attention — you are about to be moved on mid-sentence.
+    final urgent = phase == RoundPhase.active &&
+        remaining.inSeconds <= 60 &&
+        remaining.inSeconds > 0;
+
     return Semantics(
       label: '$label. ${remaining.inMinutes} minutes '
           '${remaining.inSeconds.remainder(60)} seconds remaining. '
           'Round ${round.roundNumber} of ${round.totalRounds}, table ${round.tableNumber}.',
       excludeSemantics: true,
       child: AnimatedContainer(
-        duration: Motion.normal,
+        duration: Motion.slow,
         curve: Motion.curve,
-        padding: const EdgeInsets.all(Gap.xl),
+        padding: const EdgeInsets.symmetric(vertical: Gap.xl, horizontal: Gap.lg),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(Radii.lg),
-          border: Border.all(color: fg.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(Radii.xl),
+          border: Border.all(color: fg.withValues(alpha: 0.18)),
         ),
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 18, color: fg),
+                Icon(icon, size: 15, color: fg),
                 const SizedBox(width: Gap.sm),
                 Flexible(
                   child: Text(
                     label.toUpperCase(),
                     textAlign: TextAlign.center,
-                    style: context.text.labelMedium?.copyWith(
+                    style: context.text.labelSmall?.copyWith(
                       color: fg,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: Gap.lg),
+            const SizedBox(height: Gap.xl),
 
-            SizedBox(
-              width: 160,
-              height: 160,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // A ring, because time remaining is easier to judge at a glance
-                  // as a shape than as digits.
-                  TweenAnimationBuilder<double>(
-                    tween: Tween(begin: progress, end: progress),
-                    duration: Motion.fast,
-                    builder: (context, v, _) => SizedBox.expand(
-                      child: CircularProgressIndicator(
-                        value: phase == RoundPhase.ended ? 0 : v,
-                        strokeWidth: 10,
-                        strokeCap: StrokeCap.round,
-                        color: fg,
-                        backgroundColor: fg.withValues(alpha: 0.15),
-                      ),
-                    ),
-                  ),
-                  FittedBox(
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.xl),
-                      child: Text(
-                        _fmt(remaining),
-                        style: context.text.displaySmall?.copyWith(
+            _PulsingRing(
+              enabled: urgent,
+              child: SizedBox(
+                width: 184,
+                height: 184,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // A ring, because time remaining is easier to judge at a
+                    // glance as a shape than as digits — and at this event you
+                    // are glancing, mid-conversation.
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: progress, end: progress),
+                      duration: Motion.fast,
+                      builder: (context, v, _) => SizedBox.expand(
+                        child: CircularProgressIndicator(
+                          value: phase == RoundPhase.ended ? 0 : v,
+                          strokeWidth: 8,
+                          strokeCap: StrokeCap.round,
                           color: fg,
-                          fontWeight: FontWeight.w800,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                          backgroundColor: fg.withValues(alpha: 0.12),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Tabular figures: without them the digits jitter as the
+                        // glyph widths change each second, and a twitching timer
+                        // is maddening to watch.
+                        Text(
+                          _fmt(remaining),
+                          style: context.text.displayMedium?.copyWith(
+                            color: fg,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -2,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        Text(
+                          phase == RoundPhase.ended ? 'ended' : 'remaining',
+                          style: context.text.labelSmall?.copyWith(
+                            color: fg.withValues(alpha: 0.7),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            const SizedBox(height: Gap.lg),
+            const SizedBox(height: Gap.xl),
             Wrap(
               spacing: Gap.sm,
               runSpacing: Gap.sm,
@@ -534,7 +555,7 @@ class _TimerCard extends StatelessWidget {
                 ),
                 if (round.isCaptain)
                   const StatusBadge(
-                    label: 'You are the captain',
+                    label: 'Captain',
                     tone: StatusTone.info,
                     icon: Icons.star_outline,
                   ),
@@ -543,6 +564,65 @@ class _TimerCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A slow pulse for the final minute.
+///
+/// Deliberately subtle and slow — a fast flash would read as an error, and the
+/// point is "wrap up", not "something is wrong".
+class _PulsingRing extends StatefulWidget {
+  final Widget child;
+  final bool enabled;
+
+  const _PulsingRing({required this.child, required this.enabled});
+
+  @override
+  State<_PulsingRing> createState() => _PulsingRingState();
+}
+
+class _PulsingRingState extends State<_PulsingRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.enabled) _c.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulsingRing old) {
+    super.didUpdateWidget(old);
+    if (widget.enabled && !_c.isAnimating) {
+      _c.repeat(reverse: true);
+    } else if (!widget.enabled && _c.isAnimating) {
+      _c.stop();
+      _c.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) => Transform.scale(
+        scale: 1 + (_c.value * 0.03),
+        child: child,
+      ),
+      child: widget.child,
     );
   }
 }
@@ -674,8 +754,28 @@ class _SeatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = context.scheme;
+    final c = context.colors;
 
-    return Card(
+    // The card itself carries the answer. Once you've said you're here, the card
+    // reads as settled at a glance — you shouldn't have to parse a control to
+    // find out what you already told it.
+    final accent = switch (attendance) {
+      true => c.success,
+      false => c.danger,
+      null => null,
+    };
+
+    return AnimatedContainer(
+      duration: Motion.normal,
+      curve: Motion.curve,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(
+          color: accent?.withValues(alpha: 0.45) ?? c.hairline,
+          width: accent != null ? 1.5 : 1,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(Gap.lg),
         child: Column(
@@ -684,106 +784,267 @@ class _SeatCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: seat.isSelf
-                      ? scheme.primaryContainer
-                      : scheme.surfaceContainerHighest,
-                  child: Text(
-                    seat.name.isEmpty ? '?' : seat.name[0].toUpperCase(),
-                    style: context.text.titleMedium?.copyWith(
-                      color: seat.isSelf
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                _Avatar(seat: seat, attendance: attendance),
                 const SizedBox(width: Gap.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        seat.isSelf ? '${seat.name} (you)' : seat.name,
-                        style: context.text.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              seat.isSelf ? 'You' : seat.name,
+                              style: context.text.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (seat.isCaptain) ...[
+                            const SizedBox(width: Gap.sm),
+                            Icon(Icons.star_rounded, size: 15, color: c.info),
+                          ],
+                        ],
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        '${seat.businessName} · ${seat.category}',
-                        style: context.text.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        seat.businessName.isEmpty
+                            ? seat.category
+                            : '${seat.businessName} · ${seat.category}',
+                        style: context.text.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                if (alreadyReferred)
+                  Tooltip(
+                    message: 'You referred ${seat.name} this round',
+                    child: Container(
+                      padding: const EdgeInsets.all(Gap.sm),
+                      decoration: BoxDecoration(
+                        color: c.successContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.handshake_rounded,
+                          size: 16, color: c.onSuccessContainer),
+                    ),
+                  ),
               ],
             ),
 
-            if (seat.isCaptain || attendance != null || alreadyReferred) ...[
-              const SizedBox(height: Gap.md),
-              Wrap(
-                spacing: Gap.sm,
-                runSpacing: Gap.sm,
-                children: [
-                  if (seat.isCaptain)
-                    const StatusBadge(
-                      label: 'Captain',
-                      tone: StatusTone.info,
-                      icon: Icons.star_outline,
-                    ),
-                  if (attendance != null)
-                    StatusBadge(
-                      label: attendance! ? 'Present' : 'Absent',
-                      tone: attendance! ? StatusTone.success : StatusTone.danger,
-                      icon: attendance! ? Icons.check : Icons.close,
-                    ),
-                  if (alreadyReferred)
-                    const StatusBadge(
-                      label: 'Referral given',
-                      tone: StatusTone.success,
-                      icon: Icons.handshake_outlined,
-                    ),
-                ],
+            if (canMark) ...[
+              const SizedBox(height: Gap.lg),
+              _AttendanceToggle(
+                value: attendance,
+                isSelf: seat.isSelf,
+                onChanged: onAttendance,
               ),
             ],
 
-            if (canMark || (!seat.isSelf && (canRefer || alreadyReferred))) ...[
-              const SizedBox(height: Gap.md),
-              // Stacks instead of overflowing when the font size is turned up.
-              AdaptiveRow(
-                children: [
-                  if (canMark) ...[
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => onAttendance(true),
-                        icon: const Icon(Icons.check, size: 18),
-                        label: Text(seat.isSelf ? "I'm here" : 'Present'),
-                      ),
-                    ),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => onAttendance(false),
-                        icon: const Icon(Icons.close, size: 18),
-                        label: const Text('Absent'),
-                      ),
-                    ),
-                  ],
-                  if (!seat.isSelf && !alreadyReferred)
-                    Expanded(
-                      child: FilledButton.tonalIcon(
-                        onPressed: canRefer ? onRefer : null,
-                        icon: const Icon(Icons.handshake_outlined, size: 18),
-                        label: const Text('Refer'),
-                      ),
-                    ),
-                ],
+            // A referral is a promise of business — a real commitment, and the
+            // point of the whole event. It gets its own full-width row rather
+            // than being a third button squeezed beside attendance.
+            if (!seat.isSelf && !alreadyReferred) ...[
+              const SizedBox(height: Gap.sm),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: canRefer ? onRefer : null,
+                  icon: const Icon(Icons.handshake_outlined, size: 18),
+                  label: Text('Refer ${seat.isSelf ? '' : seat.name.split(' ').first}'),
+                ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The avatar doubles as the attendance indicator once an answer exists.
+class _Avatar extends StatelessWidget {
+  final TableSeat seat;
+  final bool? attendance;
+
+  const _Avatar({required this.seat, required this.attendance});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final scheme = context.scheme;
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: seat.isSelf
+                  ? scheme.secondaryContainer
+                  : scheme.surfaceContainerHigh,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              seat.name.isEmpty ? '?' : seat.name[0].toUpperCase(),
+              style: context.text.titleMedium?.copyWith(
+                color: seat.isSelf
+                    ? scheme.onSecondaryContainer
+                    : scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (attendance != null)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: AnimatedScale(
+                scale: 1,
+                duration: Motion.normal,
+                curve: Motion.emphasized,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: attendance! ? c.success : c.danger,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      attendance! ? Icons.check_rounded : Icons.close_rounded,
+                      size: 11,
+                      color: scheme.surface,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Attendance as a segmented toggle rather than two stateless buttons.
+///
+/// The old pair of buttons never showed what you had already chosen — you tapped
+/// "I'm here" and got back two identical buttons, so the control looked like it
+/// had ignored you. Attendance is STATE, and a control for state has to render
+/// its value.
+class _AttendanceToggle extends StatelessWidget {
+  final bool? value;
+  final bool isSelf;
+  final ValueChanged<bool> onChanged;
+
+  const _AttendanceToggle({
+    required this.value,
+    required this.isSelf,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+
+    return Semantics(
+      label: isSelf ? 'Your attendance' : 'Attendance',
+      value: switch (value) {
+        true => 'Present',
+        false => 'Absent',
+        null => 'Not marked',
+      },
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: context.scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(Radii.md),
+          border: Border.all(color: c.hairline),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _Segment(
+                label: isSelf ? "I'm here" : 'Present',
+                icon: Icons.check_rounded,
+                selected: value == true,
+                color: c.success,
+                onTap: () => onChanged(true),
+              ),
+            ),
+            Expanded(
+              child: _Segment(
+                label: 'Absent',
+                icon: Icons.close_rounded,
+                selected: value == false,
+                color: c.danger,
+                onTap: () => onChanged(false),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Segment extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _Segment({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? context.scheme.surface : context.scheme.onSurfaceVariant;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: Motion.fast,
+        curve: Motion.curve,
+        padding: const EdgeInsets.symmetric(vertical: Gap.md),
+        decoration: BoxDecoration(
+          color: selected ? color : Colors.transparent,
+          borderRadius: BorderRadius.circular(Radii.sm),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: fg),
+            const SizedBox(width: Gap.xs),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.labelLarge?.copyWith(
+                  color: fg,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
       ),
