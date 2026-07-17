@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand red (AppColors.brandRed in lib/core/theme/tokens.dart). Android
+         tints the notification's small icon and accent with this. Keep the two in
+         sync — this is the native mirror of the Dart token, since the manifest
+         cannot read Dart. -->
+    <color name="notification_color">#C41230</color>
+</resources>

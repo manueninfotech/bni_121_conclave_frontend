@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (API 31) backup and transfer policy.
+
+  Both paths are disabled. The app's local storage is an offline QUEUE of
+  attendance and referral records waiting to reach the server, plus a cached
+  Firebase session. Restoring that onto another device would replay one member's
+  records under a different login, and the queue would drain to the server as if
+  it were real. The server is the record of the event; there is nothing here that
+  should survive the device.
+
+  cloud-backup  — Google Drive auto-backup.
+  device-transfer — the Android setup wizard's phone-to-phone copy.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>

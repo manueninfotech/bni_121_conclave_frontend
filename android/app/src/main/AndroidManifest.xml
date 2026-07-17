@@ -6,11 +6,35 @@
     <!-- Captains scan members' QR codes to record attendance. -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- connectivity_plus: the app watches for a connection returning to drain
+         the offline attendance queue. Without this the check throws and queued
+         attendance never syncs. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+    <!-- The camera is a CAPTAIN's tool. Members only display a QR code, so a
+         device without a camera is still perfectly usable. mobile_scanner already
+         declares this as optional; repeating it here keeps the intent visible —
+         if it ever became required="true", Play would hide the app from those
+         devices entirely. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+
+    <!-- Backup is off deliberately. Android's auto-backup would copy the offline
+         SQLite database and cached session to Google Drive and restore it onto a
+         DIFFERENT device, resurrecting one member's attendance and referral rows
+         under another person's login. The offline DB is a local queue that drains
+         to the server; the server is the record. There is nothing here worth
+         restoring, and restoring it is actively wrong.
+
+         allowBackup/fullBackupContent cover up to Android 11; dataExtractionRules
+         covers cloud backup AND device-to-device transfer on Android 12+. -->
     <application
-        android:label="conclave_1_2_1"
+        android:label="BNI 121 Conclave"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -33,6 +57,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Round alerts: status-bar icon and tint.
+             The status bar can only draw a single-colour silhouette — it masks by
+             alpha and ignores RGB — so ic_stat_conclave is the app icon's mark as
+             a white-on-transparent glyph, not the red square (which would show as
+             a solid white blob). The colour below is what Android tints it with
+             when the notification is expanded. Without this meta-data FCM falls
+             back to the full launcher icon and you get the white-square bug. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_conclave" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
