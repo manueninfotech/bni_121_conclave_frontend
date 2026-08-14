@@ -64,7 +64,17 @@ class ConclaveRepository {
   /// you, so a no-show leaves a hole in other people's tables.
   ///
   /// Throws [RegistrationConflict] when it clashes with an existing registration.
-  Future<void> registerForConclave(String conclaveId) async {
+  ///
+  /// [payment] is included only for paid conclaves: either the Razorpay proof
+  /// (`{method:'online', orderId, paymentId, signature}`) for the backend to
+  /// verify, or `{method:'offline'}` (optionally with a `utrNumber`) which the
+  /// backend records as pending for an admin to reconcile. Free conclaves pass
+  /// nothing and register as before.
+  Future<void> registerForConclave(
+    String conclaveId, {
+    Map<String, dynamic>? payment,
+    String? utrNumber,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Must be logged in to register.');
 
@@ -73,6 +83,11 @@ class ConclaveRepository {
     try {
       await _dio.post(
         '${ApiConfig.baseUrl}/conclaves/$conclaveId/register',
+        data: {
+          'payment': ?payment,
+          if (utrNumber != null && utrNumber.trim().isNotEmpty)
+            'utrNumber': utrNumber.trim(),
+        },
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
     } on DioException catch (e) {

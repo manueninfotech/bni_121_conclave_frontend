@@ -34,6 +34,57 @@ enum ConclaveRole {
   }
 }
 
+/// The registration fee and where to pay it, as set by the admin panel.
+///
+/// All of it is optional: a conclave with no `paymentDetails`, or a zero fee, is
+/// free and registers in one tap. When a fee is set, the app shows it and offers
+/// Razorpay (online) or the UPI/bank details below (offline).
+class PaymentDetails {
+  /// Fee in whole rupees. 0 means free.
+  final int registrationFee;
+  final String? upiId;
+  final String? upiQrImageUrl;
+  final String? bankName;
+  final String? accountNumber;
+  final String? ifscCode;
+  final String? accountHolderName;
+
+  const PaymentDetails({
+    this.registrationFee = 0,
+    this.upiId,
+    this.upiQrImageUrl,
+    this.bankName,
+    this.accountNumber,
+    this.ifscCode,
+    this.accountHolderName,
+  });
+
+  bool get hasFee => registrationFee > 0;
+
+  /// True when there's enough to actually pay offline (a UPI id or a full bank
+  /// row). Without this the offline option would show a fee and no way to pay it.
+  bool get hasOfflineDetails =>
+      (upiId != null && upiId!.trim().isNotEmpty) ||
+      (accountNumber != null && accountNumber!.trim().isNotEmpty);
+
+  static String? _str(dynamic v) {
+    final s = v?.toString().trim();
+    return (s == null || s.isEmpty) ? null : s;
+  }
+
+  factory PaymentDetails.fromMap(Map<String, dynamic> m) {
+    return PaymentDetails(
+      registrationFee: (m['registrationFee'] as num?)?.round() ?? 0,
+      upiId: _str(m['upiId']),
+      upiQrImageUrl: _str(m['upiQrImageUrl']),
+      bankName: _str(m['bankName']),
+      accountNumber: _str(m['accountNumber']),
+      ifscCode: _str(m['ifscCode']),
+      accountHolderName: _str(m['accountHolderName']),
+    );
+  }
+}
+
 class Conclave {
   final String id;
   final String name;
@@ -41,6 +92,9 @@ class Conclave {
   final DateTime date;
   final ConclaveStatus status;
   final bool isRegistrationOpen;
+
+  /// Null when the conclave is free (no fee configured).
+  final PaymentDetails? paymentDetails;
 
   /// Start and end are deliberately flexible — either may be unset.
   final DateTime? startTime;
@@ -69,6 +123,7 @@ class Conclave {
     this.chiefGuests = const [],
     this.personsPerTable = 7,
     this.roundCount = 6,
+    this.paymentDetails,
     this.isRegistered = false,
     this.userRole,
     this.userTableNumber,
@@ -113,6 +168,10 @@ class Conclave {
       isRegistrationOpen: data['isRegistrationOpen'] ?? false,
       personsPerTable: data['personsPerTable'] ?? 7,
       roundCount: data['roundCount'] ?? 6,
+      paymentDetails: data['paymentDetails'] is Map
+          ? PaymentDetails.fromMap(
+              Map<String, dynamic>.from(data['paymentDetails'] as Map))
+          : null,
     );
   }
 
@@ -134,6 +193,7 @@ class Conclave {
       isRegistrationOpen: isRegistrationOpen,
       personsPerTable: personsPerTable,
       roundCount: roundCount,
+      paymentDetails: paymentDetails,
       isRegistered: isRegistered ?? this.isRegistered,
       userRole: userRole ?? this.userRole,
       userTableNumber: userTableNumber ?? this.userTableNumber,

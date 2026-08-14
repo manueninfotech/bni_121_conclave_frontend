@@ -8,6 +8,8 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/conclave_repository.dart';
+import '../domain/conclave_model.dart';
+import 'payment_sheet.dart';
 
 /// Confirm registration.
 ///
@@ -31,7 +33,29 @@ class ConclaveRegisterScreen extends ConsumerStatefulWidget {
 class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen> {
   bool _isSubmitting = false;
 
-  Future<void> _confirm() async {
+  Future<void> _confirm(Conclave conclave) async {
+    // Paid conclave: hand off to the payment sheet, which owns the online/offline
+    // flow and the /register call. It pops `true` once the member is registered.
+    final pd = conclave.paymentDetails;
+    if (pd != null && pd.hasFee) {
+      final profile = ref.read(myProfileProvider).asData?.value;
+      final registered = await showRegistrationPaymentSheet(
+        context: context,
+        ref: ref,
+        conclave: conclave,
+        prefillEmail: profile?.email,
+        prefillContact: profile?.phone,
+      );
+      if (registered == true && mounted) {
+        context.go('/conclaves');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You're registered.")),
+        );
+      }
+      return;
+    }
+
+    // Free conclave: register in one tap, as before.
     setState(() => _isSubmitting = true);
 
     try {
@@ -139,6 +163,12 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                         label: 'Starts',
                         value: DateFormat('h:mm a').format(conclave.startTime!),
                       ),
+                    if (conclave.paymentDetails?.hasFee ?? false)
+                      InfoRow(
+                        icon: Icons.payments_outlined,
+                        label: 'Fee',
+                        value: '₹${conclave.paymentDetails!.registrationFee}',
+                      ),
                   ],
                 ),
 
@@ -163,14 +193,16 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                 SizedBox(
                   height: 52,
                   child: FilledButton(
-                    onPressed: _isSubmitting ? null : _confirm,
+                    onPressed: _isSubmitting ? null : () => _confirm(conclave),
                     child: _isSubmitting
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Confirm registration'),
+                        : Text((conclave.paymentDetails?.hasFee ?? false)
+                            ? 'Continue to payment'
+                            : 'Confirm registration'),
                   ),
                 ),
                 const SizedBox(height: Gap.sm),

@@ -57,6 +57,25 @@
 -dontwarn com.tekartik.sqflite.**
 
 # ---------------------------------------------------------------------------
+# Razorpay — the registration-fee checkout
+# ---------------------------------------------------------------------------
+# The SDK drives its checkout through a WebView JavaScript bridge and reads
+# @JavascriptInterface-annotated callbacks by name, plus proguard.annotation.*
+# markers on its own classes. R8 stripping any of these breaks payment only in a
+# release build — money on the line, at registration time. Razorpay's official
+# consumer rules:
+-keep class com.razorpay.** { *; }
+-keep class proguard.annotation.** { *; }
+-keepclassmembers class * {
+    @proguard.annotation.Keep *;
+}
+-keepattributes JavascriptInterface
+-keepattributes *Annotation*
+-dontwarn com.razorpay.**
+# Razorpay pulls in Google Pay's API for UPI; it's optional and may be absent.
+-dontwarn com.google.android.apps.nbu.paisa.inapp.client.api.**
+
+# ---------------------------------------------------------------------------
 # Play Core (deferred components)
 # ---------------------------------------------------------------------------
 # Flutter references these for split installs even when the feature is unused.

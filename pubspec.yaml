@@ -21,7 +21,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Bump the code for each internal-test build; bump the name only for a real
 # release. 1.0.0+1 was the flutter-create default and is what the dry-run debug
 # builds carried, so the signed line starts at +2.
-version: 1.0.1+4
+version: 1.0.2+5
 
 environment:
   sdk: ^3.10.4
@@ -57,6 +57,9 @@ dependencies:
   # Attendance capture: captains scan members' QR codes, members display theirs.
   mobile_scanner: ^7.1.4
   qr_flutter: ^4.1.0
+  # Registration-fee payment. The app only ever holds the public key_id + an
+  # order id created by the backend; the Razorpay secret never touches the app.
+  razorpay_flutter: ^1.4.0
 
 dev_dependencies:
   flutter_test:
