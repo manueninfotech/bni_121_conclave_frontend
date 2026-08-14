@@ -3,9 +3,16 @@ import 'package:flutter/foundation.dart';
 /// Where the backend lives.
 ///
 /// A shipped build cannot talk to localhost — the phone's localhost is the
-/// phone. So the base URL is a build-time constant, supplied with --dart-define:
+/// phone. So the base URL is a build-time constant, supplied with --dart-define.
 ///
-///   `flutter build apk --dart-define=API_BASE_URL=https://your-app.vercel.app/api`
+/// The production backend (the one the admin panel writes to) is:
+///
+///   flutter build appbundle \
+///     --dart-define=API_BASE_URL=https://bni-1-2-1-backend.onrender.com/api
+///
+/// Keep this URL in sync with the backend deployment. It is NOT hardcoded here
+/// on purpose — a wrong or dead URL should be a deploy decision, caught at build
+/// time (see the release guard below), not a source edit shipped by accident.
 ///
 /// In debug builds, if nothing is supplied we fall back to the local dev server
 /// (10.0.2.2 is the Android emulator's alias for the host machine's localhost).
