@@ -74,11 +74,28 @@ class Conclave {
     this.userTableNumber,
   });
 
+  /// Coerces whatever a date field holds into a DateTime.
+  ///
+  /// The same field arrives in different shapes depending on who wrote it: the
+  /// backend writes a Firestore Timestamp, the admin UI writes an ISO-8601
+  /// String ("2026-07-27T05:28:15.127Z"), and some paths write epoch millis.
+  /// The old version assumed Timestamp and called `.toDate()` on everything — a
+  /// single string date threw NoSuchMethodError, which errored the whole
+  /// conclaves stream, so NOBODY could load ANY conclave and the app looked dead
+  /// right after login. Handle every shape, and never throw: a single unparseable
+  /// value must not take down the list.
   static DateTime? _toDate(dynamic v) {
     if (v == null) return null;
     if (v is DateTime) return v;
-    // Firestore Timestamp
-    return (v as dynamic).toDate() as DateTime?;
+    if (v is String) return DateTime.tryParse(v)?.toLocal();
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v).toLocal();
+    // Firestore Timestamp exposes toDate(); anything else we can't read.
+    try {
+      final d = (v as dynamic).toDate();
+      return d is DateTime ? d : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   factory Conclave.fromFirestore(Map<String, dynamic> data, String id) {
