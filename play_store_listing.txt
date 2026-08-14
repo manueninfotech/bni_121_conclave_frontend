@@ -1,0 +1,71 @@
+============================================================
+BNI 121 Conclave — Google Play Store Listing
+============================================================
+
+------------------------------------------------------------
+SHORT DESCRIPTION  (Play limit: 80 characters)
+------------------------------------------------------------
+Use the option you like best. All are under 80 characters and
+avoid any ranking / store-performance wording.
+
+[PRIMARY]
+Structured 1-to-1 networking conclaves: schedule, attendance, referrals.
+
+[ALT 1]
+Run your 1-to-1 networking conclave — seating, rounds, attendance, referrals.
+
+[ALT 2]
+Seating, rounds, attendance and referrals for 1-to-1 networking conclaves.
+
+[ALT 3]
+Your table, your rounds, your referrals — for in-person networking conclaves.
+
+
+------------------------------------------------------------
+LONG DESCRIPTION  (Play limit: 4000 characters)
+------------------------------------------------------------
+BNI 121 Conclave brings structure to in-person referral networking. Built for members of networking chapters, it runs your 1-to-1 conclave from start to finish — seating, rounds, attendance, and referrals — so every meeting counts.
+
+WHAT YOU CAN DO
+
+Register in seconds
+Sign up with your phone number or email, add your business details, and register for upcoming conclaves in a few taps.
+
+Know your seat, every round
+See exactly which table you are on and who you are meeting, round by round. Your schedule updates the moment a new round begins, so you are never guessing where to go.
+
+Fair, category-based seating
+Seating follows one clear rule: no two people from the same business category ever share a table. You meet new professionals from different fields in every round.
+
+Attendance that works offline
+Event venues rarely have reliable signal. Table captains scan members' QR codes to record attendance, and it works with no connection at all — everything syncs automatically the moment you are back online. No lost records, no manual roll-calls.
+
+Referrals in one tap
+Pass business to the people at your table with a single tap. Add a note if you want to, or skip it. Your referrals are recorded and ready to follow up on later.
+
+Round alerts
+Get a notification the moment a new round starts, so you are always on time and at the right table.
+
+Your conclave summary
+After the event, review everything you did — the connections you made and the referrals you gave and received — all in one place.
+
+BUILT FOR BUSINESS PROFESSIONALS
+
+The app is clean, quick, and straightforward whether you are a first-time member or a seasoned networker. It adapts to your chosen text size and lays out comfortably on phones of every screen size, so it stays readable and easy to use in a busy room.
+
+SECURE BY DESIGN
+
+Your account is protected with secure sign-in, and your information is handled with server-side access controls. The camera is used only for captains to scan attendance QR codes — no photos or video are ever captured or stored.
+
+Read our privacy policy at: manuen.com/conclave/privacy
+
+HOW IT WORKS
+
+1. Register for an upcoming conclave and complete your profile.
+2. When the event begins, open the app to see your table and the members in your round.
+3. Captains scan members in to record attendance for each round.
+4. Give referrals to the people you meet with a single tap.
+5. Move to your next table when the next round starts.
+6. Review your full summary once the conclave ends.
+
+Developed by Manuen Infotech.

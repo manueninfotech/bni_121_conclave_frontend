@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/time/server_clock.dart';
+import 'features/onboarding/data/onboarding_service.dart';
 import 'firebase_options.dart';
 import 'app.dart';
 
@@ -41,6 +42,11 @@ void main() async {
   // boundaries against the server's clock rather than its own.
   final container = ProviderContainer();
   await container.read(serverClockProvider).load();
+
+  // Load the first-run flag before the first frame, so the router's synchronous
+  // redirect can decide onboarding-vs-login without a flash of the wrong screen.
+  final seenOnboarding = await container.read(onboardingServiceProvider).hasSeen();
+  container.read(onboardingSeenProvider.notifier).set(seenOnboarding);
 
   runApp(
     UncontrolledProviderScope(

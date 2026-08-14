@@ -10,6 +10,8 @@ import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
 import 'features/auth/data/auth_repository.dart';
+import 'features/onboarding/data/onboarding_service.dart';
+import 'features/onboarding/presentation/onboarding_screen.dart';
 import 'features/profile/presentation/profile_screen.dart';
 import 'features/profile/presentation/edit_profile_screen.dart';
 import 'features/conclaves/presentation/conclaves_list_screen.dart';
@@ -34,37 +36,44 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authNotifier,
     redirect: (context, state) {
       final authState = authNotifier.value;
-      
-      // If authState is loading, wait on splash
-      if (authState.isLoading) return '/';
-      
-      final isAuth = authState.value != null;
-      final isSplash = state.uri.path == '/';
-      final isLoggingIn = state.uri.path == '/login';
-      final isRegistering = state.uri.path == '/register';
 
-      // If on splash and finished loading auth
-      if (isSplash) {
-        // Only redirect to conclaves if they are fully authenticated
-        // Note: For phone auth, they might be authenticated but missing a profile.
-        // If they restart the app mid-registration, we ideally want to send them back to /register.
-        // But for simplicity, we just send to /conclaves. If profile fails, they can logout.
-        return isAuth ? '/conclaves' : '/login';
+      // Auth still resolving — hold on the splash.
+      if (authState.isLoading) {
+        return state.uri.path == '/' ? null : '/';
       }
+
+      final isAuth = authState.value != null;
+      final seenOnboarding = ref.read(onboardingSeenProvider);
+      final path = state.uri.path;
 
       if (isAuth) {
-        if (isLoggingIn) return '/conclaves';
-        // Do not redirect away from /register so they can finish their profile!
-      } else {
-        if (!isLoggingIn && !isRegistering) return '/login';
+        // A signed-in user has no business on the pre-auth screens — except
+        // /register, where a phone user may still be finishing their profile
+        // (they authenticate via OTP partway through). Leave them there.
+        if (path == '/' || path == '/login' || path == '/onboarding') {
+          return '/conclaves';
+        }
+        return null;
       }
 
+      // Signed out. First-time users see the tour before the login wall.
+      if (!seenOnboarding) {
+        return path == '/onboarding' ? null : '/onboarding';
+      }
+
+      // Onboarding done: the only valid places are the auth screens.
+      const authScreens = {'/login', '/register', '/onboarding'};
+      if (!authScreens.contains(path)) return '/login';
       return null;
     },
     routes: [
       GoRoute(
         path: '/',
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/login',

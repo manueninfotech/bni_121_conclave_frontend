@@ -101,6 +101,10 @@ class _Detail extends StatelessWidget {
           title: Text(conclave.name),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
+            // A manual leading button (unlike the auto-injected BackButton) gets
+            // no default label, so a screen reader would announce a bare
+            // "button". Name it.
+            tooltip: 'Back',
             onPressed: () => context.canPop()
                 ? context.pop()
                 : context.go('/conclaves'),

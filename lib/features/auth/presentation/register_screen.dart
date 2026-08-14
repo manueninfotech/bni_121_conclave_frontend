@@ -221,10 +221,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      // On the first step, let the system back gesture pop the route (back to
+      // sign-in). On later steps, intercept it so hardware back walks BACK a
+      // step — matching the app-bar arrow — instead of abandoning the form.
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _isLoading) return;
+        _back();
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
           onPressed: _isLoading ? null : _back,
         ),
         title: Text('Step ${_displayStep + 1} of $_totalSteps'),
@@ -290,6 +300,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ],
         ),
         ),
+      ),
       ),
     );
   }

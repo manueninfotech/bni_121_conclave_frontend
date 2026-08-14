@@ -351,7 +351,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   ?.copyWith(color: context.scheme.onSurfaceVariant),
                             ),
                             TextButton(
-                              onPressed: () => context.go('/register'),
+                              // push, not go: this stacks Create-account ON TOP
+                              // of sign-in, so the back button (and the register
+                              // screen's own back arrow) returns here instead of
+                              // doing nothing.
+                              onPressed: () => context.push('/register'),
                               child: const Text('Create an account'),
                             ),
                           ],
