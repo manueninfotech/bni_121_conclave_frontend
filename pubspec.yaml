@@ -21,7 +21,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Bump the code for each internal-test build; bump the name only for a real
 # release. 1.0.0+1 was the flutter-create default and is what the dry-run debug
 # builds carried, so the signed line starts at +2.
-version: 1.0.2+5
+version: 1.0.3+6
 
 environment:
   sdk: ^3.10.4
@@ -60,6 +60,10 @@ dependencies:
   # Registration-fee payment. The app only ever holds the public key_id + an
   # order id created by the backend; the Razorpay secret never touches the app.
   razorpay_flutter: ^1.4.0
+  # Forced updates via Google Play. When a newer build is live, the app shows
+  # Play's blocking full-screen update flow. Play is the source of truth — no
+  # version numbers to maintain. Android/Play only; no-ops elsewhere.
+  in_app_update: ^4.2.3
 
 dev_dependencies:
   flutter_test:

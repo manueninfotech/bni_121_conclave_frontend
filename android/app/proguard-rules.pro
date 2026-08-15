@@ -76,12 +76,14 @@
 -dontwarn com.google.android.apps.nbu.paisa.inapp.client.api.**
 
 # ---------------------------------------------------------------------------
-# Play Core (deferred components)
+# Play Core + Play app-update (in_app_update)
 # ---------------------------------------------------------------------------
-# Flutter references these for split installs even when the feature is unused.
-# Without the -dontwarn, R8 fails the build on the missing classes.
--dontwarn com.google.android.play.core.**
--keep class com.google.android.play.core.** { *; }
+# Flutter references Play Core for split installs even when unused, and
+# in_app_update drives the forced-update flow through com.google.android.play.*.
+# Without the -dontwarn, R8 fails the build on the missing classes; without the
+# keep, the update flow breaks in release only.
+-dontwarn com.google.android.play.**
+-keep class com.google.android.play.** { *; }
 
 # ---------------------------------------------------------------------------
 # Kotlin

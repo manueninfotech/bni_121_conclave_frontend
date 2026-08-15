@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
 import 'features/auth/data/session_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
@@ -158,6 +159,8 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     // to be sitting on the one screen that used to own the sync timer.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncServiceProvider).startConnectivityWatch();
+      // Force a Play update if a newer build is live. No-op off Play.
+      const AppUpdateService().enforceUpdate();
     });
   }
 
