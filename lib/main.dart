@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'core/config/remote_config_service.dart';
 import 'core/time/server_clock.dart';
 import 'features/onboarding/data/onboarding_service.dart';
 import 'firebase_options.dart';
@@ -28,6 +29,11 @@ void main() async {
   );
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Resolve the backend URL from Remote Config before anything makes a request,
+  // so the very first API call already targets the configured host. Never
+  // throws; falls back to the in-app defaults offline.
+  await RemoteConfigService.instance.init();
 
   // The venue has no usable connectivity for 300-400 people. Persist Firestore
   // locally so the conclave document — and with it the schedule and the table

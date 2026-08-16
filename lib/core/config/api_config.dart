@@ -1,43 +1,34 @@
-import 'package:flutter/foundation.dart';
+import 'remote_config_service.dart';
 
 /// Where the backend lives.
 ///
-/// A shipped build cannot talk to localhost — the phone's localhost is the
-/// phone. So the base URL is a build-time constant, supplied with --dart-define.
+/// The URL is NO LONGER hardcoded or baked in at build time. It comes from
+/// Firebase Remote Config ([RemoteConfigService]), so the backend can be
+/// repointed from the Firebase console without shipping a new app.
 ///
-/// The production backend (the one the admin panel writes to) is:
+/// The app talks to the **prod** backend by default. A build started with
+/// `--dart-define=BACKEND_ENV=dev` uses the `backend_url_dev` parameter instead
+/// — the only reason to select an environment at build time, since which server
+/// a dev build hits is a developer decision, not a remote one.
 ///
-///   flutter build appbundle \
-///     --dart-define=API_BASE_URL=https://bni-1-2-1-backend.onrender.com/api
-///
-/// Keep this URL in sync with the backend deployment. It is NOT hardcoded here
-/// on purpose — a wrong or dead URL should be a deploy decision, caught at build
-/// time (see the release guard below), not a source edit shipped by accident.
-///
-/// In debug builds, if nothing is supplied we fall back to the local dev server
-/// (10.0.2.2 is the Android emulator's alias for the host machine's localhost).
-///
-/// In a RELEASE build with no API_BASE_URL we deliberately fail loudly rather
-/// than silently shipping an app that points at a server nobody can reach. A
-/// release APK quietly wired to localhost is exactly the bug this guards.
+/// `--dart-define=API_BASE_URL=...` still wins over everything, as an explicit
+/// one-off override for local experiments.
 class ApiConfig {
-  static const String _fromEnv = String.fromEnvironment('API_BASE_URL');
+  /// 'prod' (default) or 'dev'. Chooses WHICH Remote Config URL to read.
+  static const String _env =
+      String.fromEnvironment('BACKEND_ENV', defaultValue: 'prod');
+
+  /// An explicit hard override for one-off runs; empty unless supplied.
+  static const String _explicit = String.fromEnvironment('API_BASE_URL');
+
+  static bool get _isDev => _env == 'dev';
 
   static String get baseUrl {
-    if (_fromEnv.isNotEmpty) return _fromEnv;
-
-    if (kReleaseMode) {
-      throw StateError(
-        'API_BASE_URL was not set for this release build. Rebuild with:\n'
-        '  flutter build apk --dart-define=API_BASE_URL=https://<your-app>.vercel.app/api',
-      );
-    }
-
-    return defaultTargetPlatform == TargetPlatform.android
-        ? 'http://10.0.2.2:3000/api' // Android emulator -> host localhost
-        : 'http://localhost:3000/api';
+    if (_explicit.isNotEmpty) return _explicit;
+    final rc = RemoteConfigService.instance;
+    return _isDev ? rc.backendUrlDev : rc.backendUrlProd;
   }
 
-  /// True when we're using the local dev fallback rather than a configured host.
-  static bool get isUsingLocalFallback => _fromEnv.isEmpty;
+  /// True when this build targets the development backend.
+  static bool get isDev => _isDev;
 }

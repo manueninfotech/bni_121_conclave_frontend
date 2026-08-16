@@ -6,6 +6,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/members_repository.dart';
 
 /// The app-wide member directory: every registered member, searchable.
@@ -34,13 +35,16 @@ class _MembersDirectoryScreenState
 
   List<Member> _filter(List<Member> all) {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return all;
+    // A fresh list either way — the caller sorts it, and mutating the provider's
+    // own list would be a bug.
+    if (q.isEmpty) return List.of(all);
     return all.where((m) => m.searchable.contains(q)).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
+    final myUid = ref.watch(authStateProvider).asData?.value?.uid;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Members')),
@@ -53,6 +57,14 @@ class _MembersDirectoryScreenState
         ),
         data: (all) {
           final results = _filter(all);
+          // Put yourself at the very top, so the directory opens on you.
+          if (myUid != null) {
+            results.sort((a, b) {
+              if (a.uid == myUid) return -1;
+              if (b.uid == myUid) return 1;
+              return 0;
+            });
+          }
           return Column(
             children: [
               Padding(
@@ -107,6 +119,7 @@ class _MembersDirectoryScreenState
                             itemBuilder: (context, i) => _MemberCard(
                               member: results[i],
                               index: i,
+                              isMe: results[i].uid == myUid,
                             ),
                           ),
                         ),
@@ -123,8 +136,13 @@ class _MembersDirectoryScreenState
 class _MemberCard extends StatelessWidget {
   final Member member;
   final int index;
+  final bool isMe;
 
-  const _MemberCard({required this.member, required this.index});
+  const _MemberCard({
+    required this.member,
+    required this.index,
+    this.isMe = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -147,9 +165,34 @@ class _MemberCard extends StatelessWidget {
             photoUrl: member.photoUrl,
             radius: 26,
           ),
-          title: Text(
-            member.name,
-            style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          title: Row(
+            children: [
+              Flexible(
+                child: Text(
+                  member.name,
+                  style: context.text.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isMe) ...[
+                const SizedBox(width: Gap.sm),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: context.scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(Radii.pill),
+                  ),
+                  child: Text(
+                    'You',
+                    style: context.text.labelSmall?.copyWith(
+                      color: context.scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           subtitle: subtitle.isEmpty
               ? null

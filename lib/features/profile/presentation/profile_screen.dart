@@ -65,8 +65,6 @@ class ProfileScreen extends ConsumerWidget {
         ),
         data: (p) {
           if (p == null) {
-            // The old screen showed users the raw string "Profile document does
-            // not exist in Firestore." — which tells them nothing they can act on.
             return EmptyView(
               icon: Icons.person_off_outlined,
               title: 'Profile not found',
@@ -79,134 +77,69 @@ class ProfileScreen extends ConsumerWidget {
             );
           }
 
+          // The short facts that read well as compact tiles.
+          final facts = <Widget>[
+            if (p.businessCategory.isNotEmpty)
+              _FactTile(
+                icon: Icons.category_outlined,
+                label: 'Category',
+                value: p.businessCategory,
+              ),
+            if (p.location.isNotEmpty)
+              _FactTile(
+                icon: Icons.place_outlined,
+                label: 'Location',
+                value: _titleCase(p.location),
+              ),
+            if (p.chapter != null && p.chapter!.isNotEmpty)
+              _FactTile(
+                icon: Icons.groups_2_outlined,
+                label: 'Chapter',
+                value: p.chapter!,
+              ),
+            _FactTile(
+              icon: Icons.public,
+              label: 'Country',
+              value: p.country,
+            ),
+          ];
+
           return RefreshIndicator(
             onRefresh: () async => ref.invalidate(myProfileProvider),
             child: ContentWidth(
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                // A tab root: content scrolls behind the floating nav bar, so
-                // grow the bottom to keep the last card clear of it.
                 padding: context.tabScrollInsets,
                 children: [
-                  FadeSlideIn(index: 0, child: _Header(profile: p)),
-                  const SizedBox(height: Gap.xl),
-
-                  FadeSlideIn(
-                    index: 1,
-                    child: _Section(
-                      title: 'Business',
-                      children: [
-                        InfoRow(
-                          icon: Icons.business_outlined,
-                          label: 'Business name',
-                          value: p.businessName.isEmpty ? 'Not set' : p.businessName,
-                        ),
-                        InfoRow(
-                          icon: Icons.category_outlined,
-                          label: 'Business category',
-                          value: p.businessCategory.isEmpty
-                              ? 'Not set'
-                              : p.businessCategory,
-                        ),
-                        if (p.chapter != null && p.chapter!.isNotEmpty)
-                          InfoRow(
-                            icon: Icons.groups_2_outlined,
-                            label: 'Chapter',
-                            value: p.chapter!,
-                          ),
-                      ],
-                    ),
-                  ),
+                  FadeSlideIn(index: 0, child: _IdentityCard(profile: p)),
                   const SizedBox(height: Gap.md),
 
-                  FadeSlideIn(
-                    index: 2,
-                    child: _Section(
-                      title: 'Contact',
-                      children: [
-                        InfoRow(
-                          icon: Icons.phone_iphone_rounded,
-                          label: 'Phone',
-                          value: p.phone.isEmpty ? 'Not set' : p.phone,
-                        ),
-                        InfoRow(
-                          icon: Icons.alternate_email_rounded,
-                          label: 'Email',
-                          // Never surface the synthetic sign-in address.
-                          value: p.email.isEmpty ? 'Not set' : p.email,
-                        ),
-                        InfoRow(
-                          icon: Icons.place_outlined,
-                          label: 'Location',
-                          value: p.location.isEmpty ? 'Not set' : p.location,
-                        ),
-                        InfoRow(
-                          icon: Icons.public,
-                          label: 'Country',
-                          value: p.country,
-                        ),
-                      ],
-                    ),
-                  ),
+                  FadeSlideIn(index: 1, child: _FactGrid(tiles: facts)),
+                  const SizedBox(height: Gap.md),
 
-                  const SizedBox(height: Gap.xl),
+                  FadeSlideIn(index: 2, child: _ContactCard(profile: p)),
+                  const SizedBox(height: Gap.md),
 
                   FadeSlideIn(
                     index: 3,
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: context.scheme.secondaryContainer,
-                          child: Icon(Icons.swap_horiz_rounded,
-                              color: context.scheme.onSecondaryContainer),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ActionTile(
+                            icon: Icons.swap_horiz_rounded,
+                            label: 'My referrals',
+                            onTap: () => context.push('/profile/referrals'),
+                          ),
                         ),
-                        title: const Text('My referrals'),
-                        subtitle: const Text(
-                          'Who you referred, and who referred you',
+                        const SizedBox(width: Gap.md),
+                        Expanded(
+                          child: _ActionTile(
+                            icon: Icons.edit_outlined,
+                            label: 'Edit profile',
+                            onTap: () => context.push('/profile/edit'),
+                          ),
                         ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => context.push('/profile/referrals'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Gap.md),
-
-                  // Category is the field the engine seats people by, so a mistake
-                  // there used to be permanent — there was no way to change it.
-                  FadeSlideIn(
-                    index: 4,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(Gap.lg),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Your business category decides who you sit with',
-                              style: context.text.titleSmall,
-                            ),
-                            const SizedBox(height: Gap.xs),
-                            Text(
-                              'No two people of the same category ever share a table. '
-                              'If yours is wrong, fix it here — changes apply to '
-                              'future conclaves.',
-                              style: context.text.bodySmall?.copyWith(
-                                color: context.scheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: Gap.lg),
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton.icon(
-                                onPressed: () => context.push('/profile/edit'),
-                                icon: const Icon(Icons.edit_outlined),
-                                label: const Text('Edit profile'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
@@ -219,46 +152,144 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+String _titleCase(String s) => s
+    .split(' ')
+    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+    .join(' ');
+
+/// Avatar + identity in one compact horizontal card.
+class _IdentityCard extends StatelessWidget {
   final UserProfile profile;
-  const _Header({required this.profile});
+  const _IdentityCard({required this.profile});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Hero(
-          tag: 'profile-avatar',
-          child: UserAvatar(
-            name: profile.name,
-            photoUrl: profile.photoUrl,
-            radius: 44,
-          ),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Row(
+          children: [
+            Hero(
+              tag: 'profile-avatar',
+              child: UserAvatar(
+                name: profile.name,
+                photoUrl: profile.photoUrl,
+                radius: 34,
+              ),
+            ),
+            const SizedBox(width: Gap.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    profile.name.isEmpty ? 'Unnamed' : profile.name,
+                    style: context.text.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (profile.businessName.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      profile.businessName,
+                      style: context.text.bodyMedium
+                          ?.copyWith(color: context.scheme.onSurfaceVariant),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: Gap.lg),
-        Text(
-          profile.name.isEmpty ? 'Unnamed' : profile.name,
-          textAlign: TextAlign.center,
-          style: context.text.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        if (profile.businessCategory.isNotEmpty) ...[
-          const SizedBox(height: Gap.sm),
-          StatusBadge(
-            label: profile.businessCategory,
-            tone: StatusTone.info,
-            icon: Icons.category_outlined,
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
+/// A short fact as a small stat card.
+class _FactTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
 
-  const _Section({required this.title, required this.children});
+  const _FactTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: context.scheme.onSurfaceVariant),
+            const SizedBox(height: Gap.sm),
+            Text(
+              label.toUpperCase(),
+              style: context.text.labelSmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+                letterSpacing: 0.6,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Lays fact tiles out two per row. Cheap and predictable — no GridView inside a
+/// scroll view, no intrinsic-height passes.
+class _FactGrid extends StatelessWidget {
+  final List<Widget> tiles;
+  const _FactGrid({required this.tiles});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i += 2) {
+      final left = tiles[i];
+      final right = i + 1 < tiles.length ? tiles[i + 1] : null;
+      // IntrinsicHeight bounds the row's height (the ListView gives it an
+      // unbounded one), which is what lets the two tiles share a height via
+      // stretch instead of each demanding infinite height.
+      rows.add(IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: left),
+            const SizedBox(width: Gap.md),
+            // An empty slot keeps a lone tile at half width instead of stretching.
+            Expanded(child: right ?? const SizedBox()),
+          ],
+        ),
+      ));
+      if (i + 2 < tiles.length) rows.add(const SizedBox(height: Gap.md));
+    }
+    return Column(children: rows);
+  }
+}
+
+/// Contact — kept as full-width rows because emails and numbers are long.
+class _ContactCard extends StatelessWidget {
+  final UserProfile profile;
+  const _ContactCard({required this.profile});
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +300,7 @@ class _Section extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title.toUpperCase(),
+              'CONTACT',
               style: context.text.labelSmall?.copyWith(
                 color: context.scheme.onSurfaceVariant,
                 letterSpacing: 0.8,
@@ -277,8 +308,57 @@ class _Section extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Gap.sm),
-            ...children,
+            InfoRow(
+              icon: Icons.phone_iphone_rounded,
+              label: 'Phone',
+              value: profile.phone.isEmpty ? 'Not set' : profile.phone,
+            ),
+            InfoRow(
+              icon: Icons.alternate_email_rounded,
+              label: 'Email',
+              // Never surface the synthetic sign-in address.
+              value: profile.email.isEmpty ? 'Not set' : profile.email,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A compact tappable card — icon over label.
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md,
+            vertical: Gap.lg,
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: context.scheme.primary),
+              const SizedBox(height: Gap.sm),
+              Text(
+                label,
+                style: context.text.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
         ),
       ),
     );
