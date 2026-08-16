@@ -52,7 +52,7 @@ class ConclaveSummaryScreen extends ConsumerWidget {
           child: ContentWidth(
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(context.pagePadding),
+              padding: context.pageInsets,
               children: [
                 FadeSlideIn(index: 0, child: _SyncBanner(summary: s)),
                 const SizedBox(height: Gap.lg),

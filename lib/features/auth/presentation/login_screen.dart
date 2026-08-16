@@ -227,12 +227,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           _Hero(animation: _intro),
           Expanded(
             child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
+              builder: (context, constraints) {
+                // The system navigation bar (gesture pill or 3-button) eats the
+                // bottom edge. Without reserving it here, "New here?" — which the
+                // Spacer pins to the very bottom — gets drawn UNDER the nav bar
+                // and becomes untappable. This reserves it on every device size
+                // rather than hard-coding a margin. The keyboard inset is 0 while
+                // resizeToAvoidBottomInset is false, but we keep it in the sum so
+                // the padding stays correct if that ever changes.
+                final safeBottom = MediaQuery.paddingOf(context).bottom;
+                final bottomInset =
+                    MediaQuery.viewInsetsOf(context).bottom + safeBottom + Gap.lg;
+                return SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
                   context.pagePadding,
                   Gap.xl,
                   context.pagePadding,
-                  MediaQuery.viewInsetsOf(context).bottom + Gap.lg,
+                  bottomInset,
                 ),
                 child: ConstrainedBox(
                   // Fill the space below the hero so the form can push "New
@@ -245,7 +256,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   // unbounded". IntrinsicHeight is what actually bounds it.
                   // Cheap here — the subtree is a short form.
                   constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - Gap.xl - Gap.lg,
+                    minHeight: constraints.maxHeight - Gap.xl - bottomInset,
                   ),
                   child: IntrinsicHeight(
                     child: ContentWidth(
@@ -367,7 +378,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                   ),
                 ),
-              ),
+              );
+              },
             ),
           ),
         ],

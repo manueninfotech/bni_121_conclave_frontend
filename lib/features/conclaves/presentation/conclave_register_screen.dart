@@ -136,7 +136,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
 
           return ContentWidth(
             child: ListView(
-              padding: EdgeInsets.all(context.pagePadding),
+              padding: context.pageInsets,
               children: [
                 Text(
                   conclave.name,

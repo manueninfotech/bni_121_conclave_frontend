@@ -23,6 +23,41 @@ extension ResponsiveX on BuildContext {
   /// True when the user has turned their font size up. Layouts that pack things
   /// into a Row should stack at this point rather than overflow.
   bool get isLargeText => MediaQuery.textScalerOf(this).scale(14) > 18;
+
+  /// The system inset at the bottom of the screen — Android's gesture pill or
+  /// 3-button navigation bar.
+  ///
+  /// A Scaffold does NOT wrap its body in a bottom SafeArea, so a full-bleed
+  /// scroll view has to add this to its own bottom padding; otherwise the last
+  /// card or the primary CTA is drawn under the system bar and is partly
+  /// untappable. `viewPadding` rather than `padding`, so it stays the physical
+  /// inset even while the keyboard is up.
+  double get bottomInset => MediaQuery.viewPaddingOf(this).bottom;
+
+  /// Page padding on the sides and top, with the bottom grown to clear the
+  /// system navigation bar. The default for any full-screen scroll view filling
+  /// a Scaffold body (a pushed detail page, not a tab root).
+  EdgeInsets get pageInsets => EdgeInsets.fromLTRB(
+        pagePadding,
+        pagePadding,
+        pagePadding,
+        pagePadding + bottomInset,
+      );
+
+  /// Bottom room a TAB ROOT's scroll view needs so its last item clears the
+  /// floating navigation bar, which hovers over the content. That bar sits above
+  /// the system gesture inset, so this is that inset plus the pill's height and
+  /// its margins.
+  double get floatingNavClearance => bottomInset + 84;
+
+  /// Page padding for a tab-root scroll view: normal on the sides and top, with
+  /// the bottom grown to clear the floating navigation bar.
+  EdgeInsets get tabScrollInsets => EdgeInsets.fromLTRB(
+        pagePadding,
+        pagePadding,
+        pagePadding,
+        floatingNavClearance,
+      );
 }
 
 /// Constrains content width on wide screens WITHOUT centring it vertically.

@@ -1,9 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/data/auth_repository.dart';
+
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepository(FirebaseFirestore.instance, FirebaseAuth.instance);
+  return ProfileRepository(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+    FirebaseStorage.instance,
+  );
 });
 
 /// The signed-in user's profile, as a live stream.
@@ -11,13 +19,25 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 /// A stream rather than a one-shot `get()`: the old profile screen used a
 /// FutureBuilder, so an edit didn't show up until the screen was rebuilt from
 /// scratch.
+///
+/// It WATCHES auth state so it re-subscribes whenever the signed-in user
+/// changes. Without that, this provider bound to `currentUser` exactly once —
+/// and since the app starts signed-out, that was `null`. It then kept returning
+/// null even after a successful login, so the profile screen showed "no account
+/// found" until the whole app was restarted.
 final myProfileProvider = StreamProvider<UserProfile?>((ref) {
+  final user = ref.watch(authStateProvider).asData?.value;
+  if (user == null) return Stream.value(null);
   return ref.watch(profileRepositoryProvider).watchMyProfile();
 });
 
 class UserProfile {
   final String uid;
   final String name;
+
+  /// Download URL of the member's profile photo, or null for the initials
+  /// avatar. Safe to show anywhere — it carries no contact information.
+  final String? photoUrl;
 
   /// How they sign in. For a phone account this is a SYNTHETIC address
   /// (919515409973@bni121.conclave) — never show it to a human.
@@ -37,6 +57,7 @@ class UserProfile {
   const UserProfile({
     required this.uid,
     required this.name,
+    required this.photoUrl,
     required this.identifier,
     required this.email,
     required this.phone,
@@ -51,6 +72,9 @@ class UserProfile {
     return UserProfile(
       uid: uid,
       name: (m['name'] ?? '') as String,
+      photoUrl: (m['photoUrl'] as String?)?.isEmpty ?? true
+          ? null
+          : m['photoUrl'] as String,
       identifier: (m['identifier'] ?? '') as String,
       // Fall back to identifier for accounts created before both were collected.
       email: (m['email'] ?? '') as String,
@@ -67,8 +91,47 @@ class UserProfile {
 class ProfileRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final FirebaseStorage _storage;
 
-  ProfileRepository(this._firestore, this._auth);
+  ProfileRepository(this._firestore, this._auth, this._storage);
+
+  /// Uploads a new profile photo and records it on the user document.
+  ///
+  /// The image is sent to `avatars/{uid}/profile.jpg` — a stable path, so a new
+  /// photo overwrites the old rather than accumulating files. The download URL
+  /// is written to `users/{uid}.photoUrl`; because the profile is a live stream,
+  /// every avatar in the app updates the moment this returns.
+  Future<void> uploadAvatar(XFile file) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('You are not signed in.');
+
+    final bytes = await file.readAsBytes();
+    final ref = _storage.ref('avatars/$uid/profile.jpg');
+    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+    final url = await ref.getDownloadURL();
+
+    await _firestore.collection('users').doc(uid).set({
+      'photoUrl': url,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Removes the profile photo, reverting to the initials avatar.
+  Future<void> removeAvatar() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) throw Exception('You are not signed in.');
+
+    // Best-effort delete of the stored file; the source of truth is the doc
+    // field, so clearing that is what actually removes it from the app.
+    try {
+      await _storage.ref('avatars/$uid/profile.jpg').delete();
+    } catch (_) {}
+
+    await _firestore.collection('users').doc(uid).set({
+      'photoUrl': FieldValue.delete(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
   Stream<UserProfile?> watchMyProfile() {
     final uid = _auth.currentUser?.uid;

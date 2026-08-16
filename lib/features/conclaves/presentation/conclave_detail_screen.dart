@@ -117,7 +117,9 @@ class _Detail extends StatelessWidget {
                 context.pagePadding,
                 0,
                 context.pagePadding,
-                context.pagePadding,
+                // Clear the system nav bar — the register/join CTA is the last
+                // thing in this scroll view.
+                context.pagePadding + context.bottomInset,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

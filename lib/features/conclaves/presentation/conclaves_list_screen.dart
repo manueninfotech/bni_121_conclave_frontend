@@ -50,13 +50,6 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Conclaves'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'My profile',
-            onPressed: () => context.push('/profile'),
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -142,7 +135,9 @@ class _ConclaveList extends StatelessWidget {
       child: ContentWidth(
         child: ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(context.pagePadding),
+          // A tab root: content scrolls BEHIND the floating nav bar, so the
+          // bottom is grown to keep the last card clear of it.
+          padding: context.tabScrollInsets,
           itemCount: conclaves.length,
           separatorBuilder: (_, _) => const SizedBox(height: Gap.md),
           itemBuilder: (context, i) => FadeSlideIn(

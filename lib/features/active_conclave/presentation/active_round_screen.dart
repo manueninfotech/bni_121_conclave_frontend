@@ -344,7 +344,10 @@ class _RoundView extends StatelessWidget {
                 context.pagePadding,
                 context.pagePadding,
                 context.pagePadding,
-                Gap.sm,
+                // Captains have the scan button (its own SafeArea) below this
+                // list to clear the nav bar; members don't, so the list itself
+                // must reserve that inset or the last seat sits under it.
+                round.isCaptain ? Gap.sm : Gap.sm + context.bottomInset,
               ),
               children: [
                 _TimerCard(round: round, now: now, phase: phase),

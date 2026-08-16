@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/profile_repository.dart';
 
@@ -83,7 +84,9 @@ class ProfileScreen extends ConsumerWidget {
             child: ContentWidth(
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(context.pagePadding),
+                // A tab root: content scrolls behind the floating nav bar, so
+                // grow the bottom to keep the last card clear of it.
+                padding: context.tabScrollInsets,
                 children: [
                   FadeSlideIn(index: 0, child: _Header(profile: p)),
                   const SizedBox(height: Gap.xl),
@@ -148,10 +151,31 @@ class ProfileScreen extends ConsumerWidget {
 
                   const SizedBox(height: Gap.xl),
 
+                  FadeSlideIn(
+                    index: 3,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: context.scheme.secondaryContainer,
+                          child: Icon(Icons.swap_horiz_rounded,
+                              color: context.scheme.onSecondaryContainer),
+                        ),
+                        title: const Text('My referrals'),
+                        subtitle: const Text(
+                          'Who you referred, and who referred you',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push('/profile/referrals'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.md),
+
                   // Category is the field the engine seats people by, so a mistake
                   // there used to be permanent — there was no way to change it.
                   FadeSlideIn(
-                    index: 3,
+                    index: 4,
                     child: Card(
                       child: Padding(
                         padding: const EdgeInsets.all(Gap.lg),
@@ -199,29 +223,16 @@ class _Header extends StatelessWidget {
   final UserProfile profile;
   const _Header({required this.profile});
 
-  String get _initials {
-    final parts = profile.name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return '?';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return (parts.first[0] + parts.last[0]).toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Hero(
           tag: 'profile-avatar',
-          child: CircleAvatar(
+          child: UserAvatar(
+            name: profile.name,
+            photoUrl: profile.photoUrl,
             radius: 44,
-            backgroundColor: context.scheme.primaryContainer,
-            child: Text(
-              _initials,
-              style: context.text.headlineMedium?.copyWith(
-                color: context.scheme.onPrimaryContainer,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
           ),
         ),
         const SizedBox(height: Gap.lg),

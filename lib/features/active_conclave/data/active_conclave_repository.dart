@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/data/auth_repository.dart';
 import '../domain/active_conclave_models.dart';
 
 /// Why the active round could not be resolved. The screen renders each of these
@@ -55,6 +56,10 @@ final activeConclaveRepositoryProvider = Provider<ActiveConclaveRepository>((ref
 /// which is the whole point at a venue with 300+ people and no usable wifi.
 final activeRoundProvider =
     StreamProvider.family<ActiveRoundState, String>((ref, conclaveId) {
+  // Re-resolve when the signed-in user changes: the round is resolved FOR a
+  // specific uid (their table, seat, captain role), so an account switch with
+  // no app restart must not keep showing the previous member's seat.
+  ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
   return ref.watch(activeConclaveRepositoryProvider).watchActiveRound(conclaveId);
 });
 

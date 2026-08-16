@@ -81,6 +81,16 @@ class AppTheme {
       fontFamily: _font,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       splashFactory: InkSparkle.splashFactory,
+      // Cross-fade between full-screen routes instead of a horizontal slide.
+      // The slide split the screen during the splash → app handoff — the splash
+      // sliding out on one side, a still-loading dark screen on the other. A
+      // fade has no such seam and reads as a clean hand-off.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _FadePageTransitionsBuilder(),
+          TargetPlatform.iOS: _FadePageTransitionsBuilder(),
+        },
+      ),
     );
 
     return base.copyWith(
@@ -336,5 +346,22 @@ class AppTheme {
       labelMedium: t(12.5, FontWeight.w600, 0.2),
       labelSmall: t(11.5, FontWeight.w600, 0.4),
     );
+  }
+}
+
+/// A plain cross-fade between routes — no slide, so a full-screen hand-off (the
+/// splash into the app) never splits the screen into an old half and a new half.
+class _FadePageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadePageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(opacity: animation, child: child);
   }
 }

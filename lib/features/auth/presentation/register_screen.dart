@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/business_categories.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/category_picker.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
@@ -60,11 +60,41 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   LoginMethod _method = LoginMethod.phone;
   Country _country = defaultCountry;
 
+  /// Resuming an already-authenticated phone account.
+  ///
+  /// Two ways we get here already signed in:
+  ///  - the OTP just succeeded and Firebase's auth-state change rebuilt this
+  ///    screen from scratch (a signed-in→out transition refreshes the router),
+  ///  - the app reopened on a registration that was interrupted after the OTP
+  ///    but before the profile was saved, and the router sent us back to finish.
+  ///
+  /// Either way the phone is already verified and the number is known from the
+  /// account, so we skip the number+OTP steps and go straight to collecting the
+  /// password and profile. Without this, that auth-state rebuild dropped the
+  /// wizard back to step 1.
+  bool _resuming = false;
+  String? _resumedPhone;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _resuming = true;
+      _resumedPhone = user.phoneNumber;
+      _method = LoginMethod.phone;
+      _step = 2; // straight to the profile (which also asks for a password)
+    }
+  }
+
   bool get _isPhoneFlow => _method == LoginMethod.phone;
 
   /// The full E.164 number, e.g. +919515409973. Built once, here, so the OTP,
-  /// the account identity and the stored profile can never disagree.
-  String get _e164 => Phone.toE164(_country, _identifier.text);
+  /// the account identity and the stored profile can never disagree. When
+  /// resuming, it comes from the already-verified account.
+  String get _e164 => (_resuming && (_resumedPhone?.isNotEmpty ?? false))
+      ? _resumedPhone!
+      : Phone.toE164(_country, _identifier.text);
 
   @override
   void dispose() {
@@ -93,12 +123,47 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   void _back() {
+    // Resuming an already-verified account: there is no earlier step to walk
+    // back to (the number and OTP are behind us). Back means "cancel setup",
+    // which signs out — the router then lands us on the login screen.
+    if (_resuming) {
+      _cancelResume();
+      return;
+    }
     if (_step == 0) {
       context.pop();
       return;
     }
     // Email flow skips step 1, so going back from the profile lands on creds.
     _goTo(_step == 2 && !_isPhoneFlow ? 0 : _step - 1, forward: false);
+  }
+
+  Future<void> _cancelResume() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.logout_rounded, color: ctx.scheme.primary),
+        title: const Text('Cancel setup?'),
+        content: const Text(
+          'Your number is verified, but your account is not finished yet. You '
+          'can complete it later by registering with the same number.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep going'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancel setup'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true) {
+      // Signing out flips auth state; the router redirect takes it from here.
+      await ref.read(authRepositoryProvider).logout();
+    }
   }
 
   void _error(String msg) {
@@ -237,14 +302,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           tooltip: 'Back',
           onPressed: _isLoading ? null : _back,
         ),
-        title: Text('Step ${_displayStep + 1} of $_totalSteps'),
+        title: Text(
+          _resuming ? 'Finish your account' : 'Step ${_displayStep + 1} of $_totalSteps',
+        ),
       ),
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: AppGradients.bloom(AppColors.crimson)),
         child: SafeArea(
         child: Column(
           children: [
-            _Progress(step: _displayStep, total: _totalSteps),
+            // No step bar when resuming — there is only one step left.
+            if (!_resuming) _Progress(step: _displayStep, total: _totalSteps),
             Expanded(
               child: ContentWidth(
                 max: 440,
@@ -350,27 +418,35 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 return null;
               },
             ),
-          const SizedBox(height: Gap.md),
-          TextFormField(
-            controller: _password,
-            obscureText: _obscure,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.newPassword],
-            decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              helperText: 'At least 6 characters',
-              suffixIcon: IconButton(
-                icon: Icon(_obscure
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined),
-                tooltip: _obscure ? 'Show password' : 'Hide password',
-                onPressed: () => setState(() => _obscure = !_obscure),
+          // Phone accounts set their password on the profile step, not here.
+          // A phone user is signed in by the OTP partway through, and that
+          // auth-state change rebuilds this screen — so a password typed here
+          // would be lost and have to be re-entered. Email has no OTP, so it
+          // stays.
+          if (!_isPhoneFlow) ...[
+            const SizedBox(height: Gap.md),
+            TextFormField(
+              controller: _password,
+              obscureText: _obscure,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
+              decoration: InputDecoration(
+                labelText: 'Create a password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                helperText: "New password — you'll use it to sign in. At least 6 characters.",
+                helperMaxLines: 2,
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined),
+                  tooltip: _obscure ? 'Show password' : 'Hide password',
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
               ),
+              validator: (v) =>
+                  (v == null || v.length < 6) ? 'At least 6 characters' : null,
             ),
-            validator: (v) =>
-                (v == null || v.length < 6) ? 'At least 6 characters' : null,
-          ),
+          ],
         ],
       ),
     );
@@ -422,10 +498,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _Heading(
-            title: 'About you',
-            subtitle: 'This is how other members will know you.',
+          _Heading(
+            title: _isPhoneFlow ? 'Finish your account' : 'About you',
+            subtitle: _isPhoneFlow
+                ? 'Your number is verified. Set a password and tell us about you.'
+                : 'This is how other members will know you.',
           ),
+
+          // The phone flow collects its password here — see the note in
+          // _credentials(). Asked exactly once, on the one step that survives
+          // the mid-registration auth-state rebuild.
+          if (_isPhoneFlow) ...[
+            TextFormField(
+              controller: _password,
+              obscureText: _obscure,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.newPassword],
+              decoration: InputDecoration(
+                labelText: 'Create a password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                helperText: "New password — you'll use it to sign in. At least 6 characters.",
+                helperMaxLines: 2,
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined),
+                  tooltip: _obscure ? 'Show password' : 'Hide password',
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+              validator: (v) =>
+                  (v == null || v.length < 6) ? 'At least 6 characters' : null,
+            ),
+            const SizedBox(height: Gap.md),
+          ],
 
           // The leftover contact. Asked here rather than at the credentials step
           // so signing up stays two fields — this is the "tell us about
@@ -487,24 +593,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
           // The field the whole matching engine seats people by, so it says so
           // rather than sitting anonymously among the others.
-          DropdownButtonFormField<String>(
-            initialValue: _category,
-            isExpanded: true, // long names ellipsize instead of overflowing
-            decoration: const InputDecoration(
-              labelText: 'Business category',
-              prefixIcon: Icon(Icons.category_outlined),
-              helperText: 'No two people of the same category share a table',
-              helperMaxLines: 2,
-            ),
-            items: [
-              for (final c in bniBusinessCategories)
-                DropdownMenuItem(
-                  value: c,
-                  child: Text(c, overflow: TextOverflow.ellipsis),
-                ),
-            ],
+          CategoryPickerField(
+            value: _category,
             onChanged: (v) => setState(() => _category = v),
-            validator: (v) => v == null ? 'Choose your business category' : null,
           ),
           const SizedBox(height: Gap.md),
           TextFormField(

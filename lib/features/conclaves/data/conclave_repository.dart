@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/config/api_config.dart';
+import '../../auth/data/auth_repository.dart';
 import '../domain/conclave_model.dart';
 
 final conclaveRepositoryProvider = Provider<ConclaveRepository>((ref) {
@@ -10,6 +11,11 @@ final conclaveRepositoryProvider = Provider<ConclaveRepository>((ref) {
 });
 
 final conclavesStreamProvider = StreamProvider<List<Conclave>>((ref) {
+  // Re-subscribe when the signed-in user changes. getConclaves() stamps each
+  // conclave with THIS user's registration ("Registered", role, table), so a
+  // logout→login on the same device (no restart) must not leave the previous
+  // account's flags on the list.
+  ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
   return ref.watch(conclaveRepositoryProvider).getConclaves();
 });
 

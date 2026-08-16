@@ -89,7 +89,19 @@ class AuthRepository {
       // different accounts.
       final pseudoEmail = Phone.toAuthEmail(phone);
       final credential = EmailAuthProvider.credential(email: pseudoEmail, password: password);
-      await user.linkWithCredential(credential);
+      try {
+        await user.linkWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        // Recovery case: this account was authenticated by OTP on a previous,
+        // interrupted attempt and the password was already linked. That's fine —
+        // the goal (a phone account that can also sign in with a password) is
+        // already met, so carry on and save the profile rather than failing.
+        if (e.code != 'provider-already-linked' &&
+            e.code != 'credential-already-in-use' &&
+            e.code != 'email-already-in-use') {
+          rethrow;
+        }
+      }
 
       // Save profile. `identifier` stays the synthetic address (that IS how they
       // sign in); the real email is stored separately.
@@ -200,7 +212,16 @@ class AuthRepository {
         verificationId: verificationId,
         smsCode: smsCode,
       );
-      return await _auth.signInWithCredential(credential);
+      final cred = await _auth.signInWithCredential(credential);
+
+      // OTP has just signed them in — but they are only PARTWAY through
+      // registration (the profile and password come next). Record the login
+      // time locally NOW, so the app's auto-logout check doesn't see a
+      // signed-in user with no recorded login, decide the session is expired,
+      // and sign them out before they can finish — which orphaned the auth
+      // account and produced "no account found".
+      await _session.markLocalLogin();
+      return cred;
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Invalid OTP');
     }

@@ -22,10 +22,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     duration: const Duration(milliseconds: 900),
   )..forward();
 
-  late final Animation<double> _logoScale = CurvedAnimation(
+  // Starts at 0.85, not 0: the splash is often on screen for only a moment (the
+  // auth check), and a logo caught mid-grow from nothing looked like a tiny
+  // glitch. This way any glimpse of it is already a sensible size.
+  late final Animation<double> _logoScale = Tween<double>(
+    begin: 0.85,
+    end: 1,
+  ).animate(CurvedAnimation(
     parent: _controller,
     curve: const Interval(0, 0.6, curve: Curves.easeOutBack),
-  );
+  ));
 
   late final Animation<double> _fade = CurvedAnimation(
     parent: _controller,

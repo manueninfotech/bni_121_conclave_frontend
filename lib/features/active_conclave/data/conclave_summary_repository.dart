@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/data/auth_repository.dart';
 import '../domain/referral_models.dart';
 import 'local_db.dart';
 import 'referral_repository.dart';
@@ -38,6 +39,9 @@ class ConclaveSummary {
 
 final conclaveSummaryProvider =
     FutureProvider.family<ConclaveSummary, String>((ref, conclaveId) async {
+  // Re-fetch when the signed-in user changes — the summary (attendance +
+  // referrals) is scoped to their uid.
+  ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
   final db = ref.watch(localDbProvider);
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) {

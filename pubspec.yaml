@@ -64,6 +64,8 @@ dependencies:
   # Play's blocking full-screen update flow. Play is the source of truth — no
   # version numbers to maintain. Android/Play only; no-ops elsewhere.
   in_app_update: ^4.2.3
+  firebase_storage: ^13.4.6
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:

@@ -30,6 +30,19 @@ class SessionService {
 
   SessionService(this._auth, this._firestore);
 
+  /// Records the login time LOCALLY only — no Firestore write.
+  ///
+  /// Used the instant a phone user authenticates via OTP, partway through
+  /// registration: they are signed in but their profile does not exist yet, so
+  /// we must NOT create a `users/{uid}` doc (that would leave a half-built
+  /// profile). Writing the local timestamp is what stops [isExpired] from
+  /// treating this brand-new session as expired and signing them out before they
+  /// finish. [recordLogin] runs for real once the profile is saved.
+  Future<void> markLocalLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_loginAtKey, DateTime.now().toIso8601String());
+  }
+
   /// Call on every successful login (and after registration, which logs in).
   ///
   /// Writes the login time to Firestore so the admin can compute the active set,
@@ -38,9 +51,7 @@ class SessionService {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final now = DateTime.now();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_loginAtKey, now.toIso8601String());
+    await markLocalLogin();
 
     try {
       await _firestore.collection('users').doc(user.uid).set({

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/business_categories.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/category_picker.dart';
 import '../../../core/widgets/phone_field.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/profile_repository.dart';
@@ -30,6 +33,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   bool _seeded = false;
   bool _saving = false;
+  bool _photoBusy = false;
 
   @override
   void dispose() {
@@ -40,6 +44,75 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _email.dispose();
     _phone.dispose();
     super.dispose();
+  }
+
+  /// Presents the photo options and runs the chosen one.
+  Future<void> _editPhoto(bool hasPhoto) async {
+    final action = await showModalBottomSheet<_PhotoAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(ctx, _PhotoAction.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(ctx, _PhotoAction.gallery),
+            ),
+            if (hasPhoto)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: ctx.scheme.error),
+                title: Text('Remove photo',
+                    style: TextStyle(color: ctx.scheme.error)),
+                onTap: () => Navigator.pop(ctx, _PhotoAction.remove),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+
+    setState(() => _photoBusy = true);
+    try {
+      final repo = ref.read(profileRepositoryProvider);
+      if (action == _PhotoAction.remove) {
+        await repo.removeAvatar();
+      } else {
+        final picked = await ImagePicker().pickImage(
+          source: action == _PhotoAction.camera
+              ? ImageSource.camera
+              : ImageSource.gallery,
+          // Downscale before upload: an avatar never needs full-res, and a 6MB
+          // camera shot on venue wifi would just hang.
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 85,
+        );
+        if (picked == null) {
+          if (mounted) setState(() => _photoBusy = false);
+          return;
+        }
+        await repo.uploadAvatar(picked);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text('Could not update your photo. ${e.toString()
+                .replaceFirst('Exception: ', '')}'),
+            backgroundColor: context.colors.danger,
+          ));
+      }
+    } finally {
+      if (mounted) setState(() => _photoBusy = false);
+    }
   }
 
   /// Fills the form from the live profile the first time it arrives. Guarded so a
@@ -127,8 +200,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             child: Form(
               key: _formKey,
               child: ListView(
-                padding: EdgeInsets.all(context.pagePadding),
+                padding: context.pageInsets,
                 children: [
+                  Center(
+                    child: _PhotoEditor(
+                      name: p.name,
+                      photoUrl: p.photoUrl,
+                      busy: _photoBusy,
+                      onEdit: () => _editPhoto(p.photoUrl != null),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.xl),
                   TextFormField(
                     controller: _name,
                     textCapitalization: TextCapitalization.words,
@@ -177,25 +259,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: Gap.lg),
 
                   // The important one. Everything the engine does hangs off it.
-                  DropdownButtonFormField<String>(
-                    initialValue: _category,
-                    isExpanded: true, // long names must ellipsize, not overflow
-                    decoration: const InputDecoration(
-                      labelText: 'Business category',
-                      prefixIcon: Icon(Icons.category_outlined),
-                      helperText: 'No two people of the same category share a table',
-                      helperMaxLines: 2,
-                    ),
-                    items: [
-                      for (final c in bniBusinessCategories)
-                        DropdownMenuItem(
-                          value: c,
-                          child: Text(c, overflow: TextOverflow.ellipsis),
-                        ),
-                    ],
+                  CategoryPickerField(
+                    value: _category,
                     onChanged: (v) => setState(() => _category = v),
-                    validator: (v) =>
-                        v == null ? 'Choose your business category' : null,
                   ),
                   const SizedBox(height: Gap.lg),
 
@@ -270,6 +336,75 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+enum _PhotoAction { camera, gallery, remove }
+
+/// The avatar with an edit affordance, and a spinner overlay while a new photo
+/// uploads.
+class _PhotoEditor extends StatelessWidget {
+  final String name;
+  final String? photoUrl;
+  final bool busy;
+  final VoidCallback onEdit;
+
+  const _PhotoEditor({
+    required this.name,
+    required this.photoUrl,
+    required this.busy,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = context.scheme;
+
+    return Semantics(
+      button: true,
+      label: 'Change profile photo',
+      child: GestureDetector(
+        onTap: busy ? null : onEdit,
+        child: Stack(
+          children: [
+            UserAvatar(name: name, photoUrl: photoUrl, radius: 52),
+            if (busy)
+              Positioned.fill(
+                child: CircleAvatar(
+                  radius: 52,
+                  backgroundColor: Colors.black.withValues(alpha: 0.4),
+                  child: const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            // The little camera badge that says "this is tappable".
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: scheme.surface, width: 2),
+                ),
+                child: Icon(
+                  Icons.photo_camera_rounded,
+                  size: 16,
+                  color: scheme.onPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

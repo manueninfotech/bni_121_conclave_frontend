@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/data/auth_repository.dart';
 import '../domain/active_conclave_models.dart';
 import '../domain/referral_models.dart';
 import 'local_db.dart';
@@ -18,6 +19,9 @@ final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
 /// it works with no network.
 final referralSummaryProvider =
     FutureProvider.family<ReferralSummary, String>((ref, conclaveId) {
+  // Re-fetch when the signed-in user changes — the summary is scoped to their
+  // uid, so an account switch must not surface the previous member's referrals.
+  ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
   return ref.watch(referralRepositoryProvider).summaryFor(conclaveId);
 });
 
