@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -116,7 +117,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ];
 
-          return RefreshIndicator(
+          return AppRefresh(
             onRefresh: () async => ref.invalidate(myProfileProvider),
             child: ContentWidth(
               child: ListView(

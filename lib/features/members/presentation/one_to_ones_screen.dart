@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -57,7 +58,7 @@ class OneToOnesScreen extends ConsumerWidget {
                   'to meet outside the conclave.',
             );
           }
-          return RefreshIndicator(
+          return AppRefresh(
             onRefresh: () async => ref.invalidate(myOneToOnesProvider),
             child: ContentWidth(
               child: ListView.separated(

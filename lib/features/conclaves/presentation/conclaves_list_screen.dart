@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -102,7 +103,7 @@ class _ConclaveList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (conclaves.isEmpty) {
       // Always scrollable, so pull-to-refresh still works on an empty list.
-      return RefreshIndicator(
+      return AppRefresh(
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -130,7 +131,7 @@ class _ConclaveList extends StatelessWidget {
       );
     }
 
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: onRefresh,
       child: ContentWidth(
         child: ListView.separated(

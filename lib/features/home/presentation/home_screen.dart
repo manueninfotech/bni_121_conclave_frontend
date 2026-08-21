@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -35,7 +36,7 @@ class HomeScreen extends ConsumerWidget {
         title: const Text('Home'),
         actions: const [_NotificationBell()],
       ),
-      body: RefreshIndicator(
+      body: AppRefresh(
         onRefresh: () async {
           ref.invalidate(conclavesStreamProvider);
           ref.invalidate(myOneToOnesProvider);

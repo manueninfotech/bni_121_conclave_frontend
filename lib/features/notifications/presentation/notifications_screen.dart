@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -50,7 +51,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               message: 'Referrals, 1-2-1 requests and round alerts land here.',
             );
           }
-          return RefreshIndicator(
+          return AppRefresh(
             onRefresh: () async => ref.invalidate(notificationsProvider),
             child: ContentWidth(
               child: ListView.separated(

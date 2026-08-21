@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -204,7 +205,7 @@ class _ReferralList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      return RefreshIndicator(
+      return AppRefresh(
         onRefresh: onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -230,7 +231,7 @@ class _ReferralList extends StatelessWidget {
         .where((e) => e.outcome == ReferralOutcome.closed)
         .fold<int>(0, (s, e) => s + e.closedAmount);
 
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: onRefresh,
       child: ContentWidth(
         child: ListView.separated(
