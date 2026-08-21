@@ -131,6 +131,23 @@ class _Detail extends StatelessWidget {
               ),
             ),
           ),
+
+          if (member.lookingFor.isNotEmpty) ...[
+            const SizedBox(height: Gap.md),
+            _MatchCard(
+              icon: Icons.search_rounded,
+              title: 'Looking for',
+              body: member.lookingFor,
+            ),
+          ],
+          if (member.canOffer.isNotEmpty) ...[
+            const SizedBox(height: Gap.md),
+            _MatchCard(
+              icon: Icons.volunteer_activism_outlined,
+              title: 'Can offer',
+              body: member.canOffer,
+            ),
+          ],
         ],
       ),
     );
@@ -140,4 +157,50 @@ class _Detail extends StatelessWidget {
       .split(' ')
       .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
       .join(' ');
+}
+
+/// A "looking for" / "can offer" panel — the matchmaking signal on a profile.
+class _MatchCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+
+  const _MatchCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: context.scheme.primary),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title.toUpperCase(),
+                    style: context.text.labelSmall?.copyWith(
+                      color: context.scheme.onSurfaceVariant,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(body, style: context.text.bodyMedium),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

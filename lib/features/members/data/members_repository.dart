@@ -19,6 +19,8 @@ class Member {
   final String? chapter;
   final String? region;
   final String membership;
+  final String lookingFor;
+  final String canOffer;
 
   const Member({
     required this.uid,
@@ -30,6 +32,8 @@ class Member {
     required this.chapter,
     required this.region,
     required this.membership,
+    required this.lookingFor,
+    required this.canOffer,
   });
 
   bool get isBni => membership == 'BNI';
@@ -50,11 +54,15 @@ class Member {
             ? null
             : j['region'] as String,
         membership: (j['membership'] ?? '') as String,
+        lookingFor: (j['lookingFor'] ?? '') as String,
+        canOffer: (j['canOffer'] ?? '') as String,
       );
 
-  /// Everything the search box matches against.
+  /// Everything the search box matches against — including what they're looking
+  /// for and can offer, so "office space" finds whoever provides it.
   String get searchable =>
-      '$name $businessName $businessCategory $location'.toLowerCase();
+      '$name $businessName $businessCategory $location $region $lookingFor $canOffer'
+          .toLowerCase();
 }
 
 final membersRepositoryProvider = Provider<MembersRepository>((ref) {

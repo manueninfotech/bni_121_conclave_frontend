@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/category_picker.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
@@ -27,6 +28,11 @@ class _MembersDirectoryScreenState
   final _search = TextEditingController();
   String _query = '';
 
+  // Active filters — null means "no filter".
+  String? _membership; // 'BNI' | 'Non-BNI'
+  String? _category;
+  String? _region;
+
   @override
   void dispose() {
     _search.dispose();
@@ -35,10 +41,52 @@ class _MembersDirectoryScreenState
 
   List<Member> _filter(List<Member> all) {
     final q = _query.trim().toLowerCase();
-    // A fresh list either way — the caller sorts it, and mutating the provider's
-    // own list would be a bug.
-    if (q.isEmpty) return List.of(all);
-    return all.where((m) => m.searchable.contains(q)).toList();
+    // A fresh list — the caller sorts it, and mutating the provider's own list
+    // would be a bug.
+    return all.where((m) {
+      if (_membership != null && m.membership != _membership) return false;
+      if (_category != null && m.businessCategory != _category) return false;
+      if (_region != null && (m.region ?? '') != _region) return false;
+      if (q.isNotEmpty && !m.searchable.contains(q)) return false;
+      return true;
+    }).toList();
+  }
+
+  Future<void> _pickCategory() async {
+    final picked = await showCategoryPicker(context, selected: _category);
+    if (picked != null) setState(() => _category = picked);
+  }
+
+  Future<void> _pickRegion(List<Member> all) async {
+    final regions = all
+        .map((m) => m.region)
+        .whereType<String>()
+        .where((r) => r.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    if (regions.isEmpty) return;
+
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final r in regions)
+              ListTile(
+                title: Text(r),
+                trailing: r == _region
+                    ? Icon(Icons.check_rounded, color: ctx.scheme.primary)
+                    : null,
+                onTap: () => Navigator.pop(ctx, r),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _region = picked);
   }
 
   @override
@@ -96,16 +144,26 @@ class _MembersDirectoryScreenState
                   ),
                 ),
               ),
+              _FilterBar(
+                membership: _membership,
+                category: _category,
+                region: _region,
+                onMembership: (m) => setState(() => _membership = m),
+                onCategory: _pickCategory,
+                onRegion: () => _pickRegion(all),
+                onClearCategory: () => setState(() => _category = null),
+                onClearRegion: () => setState(() => _region = null),
+              ),
               Expanded(
                 child: results.isEmpty
                     ? EmptyView(
                         icon: Icons.person_search_rounded,
-                        title: all.isEmpty
-                            ? 'No members yet'
-                            : 'No matches',
+                        title: all.isEmpty ? 'No members yet' : 'No matches',
                         message: all.isEmpty
                             ? 'Members appear here as people join.'
-                            : 'No one matches “$_query”.',
+                            : (_query.isNotEmpty
+                                ? 'No one matches “$_query”.'
+                                : 'No one matches these filters.'),
                       )
                     : RefreshIndicator(
                         onRefresh: () async => ref.invalidate(membersProvider),
@@ -210,4 +268,67 @@ class _MemberCard extends StatelessWidget {
       .split(' ')
       .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
       .join(' ');
+}
+
+/// The horizontal filter strip under the search box.
+class _FilterBar extends StatelessWidget {
+  final String? membership;
+  final String? category;
+  final String? region;
+  final ValueChanged<String?> onMembership;
+  final VoidCallback onCategory;
+  final VoidCallback onRegion;
+  final VoidCallback onClearCategory;
+  final VoidCallback onClearRegion;
+
+  const _FilterBar({
+    required this.membership,
+    required this.category,
+    required this.region,
+    required this.onMembership,
+    required this.onCategory,
+    required this.onRegion,
+    required this.onClearCategory,
+    required this.onClearRegion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+        children: [
+          FilterChip(
+            label: const Text('BNI'),
+            selected: membership == 'BNI',
+            onSelected: (s) => onMembership(s ? 'BNI' : null),
+          ),
+          const SizedBox(width: Gap.sm),
+          FilterChip(
+            label: const Text('Non-BNI'),
+            selected: membership == 'Non-BNI',
+            onSelected: (s) => onMembership(s ? 'Non-BNI' : null),
+          ),
+          const SizedBox(width: Gap.sm),
+          InputChip(
+            avatar: const Icon(Icons.category_outlined, size: 18),
+            label: Text(category ?? 'Category'),
+            selected: category != null,
+            onPressed: onCategory,
+            onDeleted: category != null ? onClearCategory : null,
+          ),
+          const SizedBox(width: Gap.sm),
+          InputChip(
+            avatar: const Icon(Icons.map_outlined, size: 18),
+            label: Text(region ?? 'Region'),
+            selected: region != null,
+            onPressed: onRegion,
+            onDeleted: region != null ? onClearRegion : null,
+          ),
+        ],
+      ),
+    );
+  }
 }

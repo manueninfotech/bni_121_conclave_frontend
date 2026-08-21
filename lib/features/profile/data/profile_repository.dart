@@ -61,6 +61,11 @@ class UserProfile {
   /// before the field existed.
   final String membership;
 
+  /// Matchmaking: what business this member is looking for, and what they can
+  /// offer. Free text, both optional.
+  final String lookingFor;
+  final String canOffer;
+
   final String country;
 
   const UserProfile({
@@ -76,6 +81,8 @@ class UserProfile {
     required this.chapter,
     required this.region,
     required this.membership,
+    required this.lookingFor,
+    required this.canOffer,
     required this.country,
   });
 
@@ -100,6 +107,8 @@ class UserProfile {
           ? null
           : m['region'] as String,
       membership: (m['membership'] ?? '') as String,
+      lookingFor: (m['lookingFor'] ?? '') as String,
+      canOffer: (m['canOffer'] ?? '') as String,
       country: (m['country'] ?? 'India') as String,
     );
   }
@@ -184,6 +193,8 @@ class ProfileRepository {
     required String membership,
     String? chapter,
     String? region,
+    String lookingFor = '',
+    String canOffer = '',
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('You are not signed in.');
@@ -208,6 +219,8 @@ class ProfileRepository {
       'chapter': chapter?.trim().isEmpty ?? true ? null : chapter!.trim(),
       'region': region?.trim().isEmpty ?? true ? null : region!.trim(),
       'membership': membership,
+      'lookingFor': lookingFor.trim(),
+      'canOffer': canOffer.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

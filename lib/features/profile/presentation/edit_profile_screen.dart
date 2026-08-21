@@ -28,6 +28,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _location = TextEditingController();
   final _chapter = TextEditingController();
   final _region = TextEditingController();
+  final _lookingFor = TextEditingController();
+  final _canOffer = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
   String? _category;
@@ -45,6 +47,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _location.dispose();
     _chapter.dispose();
     _region.dispose();
+    _lookingFor.dispose();
+    _canOffer.dispose();
     _email.dispose();
     _phone.dispose();
     super.dispose();
@@ -129,6 +133,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _location.text = p.location;
     _chapter.text = p.chapter ?? '';
     _region.text = p.region ?? '';
+    _lookingFor.text = p.lookingFor;
+    _canOffer.text = p.canOffer;
     _email.text = p.email;
     _category = bniBusinessCategories.contains(p.businessCategory)
         ? p.businessCategory
@@ -170,6 +176,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             chapter: _chapter.text,
             region: _region.text,
             membership: _membership!,
+            lookingFor: _lookingFor.text,
+            canOffer: _canOffer.text,
           );
 
       if (!mounted) return;
@@ -319,6 +327,33 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   MembershipToggle(
                     value: _membership,
                     onChanged: (m) => setState(() => _membership = m),
+                  ),
+                  const SizedBox(height: Gap.lg),
+
+                  TextFormField(
+                    controller: _lookingFor,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 1,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: "What you're looking for (optional)",
+                      hintText: 'e.g. Introductions to restaurant owners',
+                      prefixIcon: Icon(Icons.search_rounded),
+                      helperText: 'Other members can find you by this',
+                      helperMaxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.lg),
+                  TextFormField(
+                    controller: _canOffer,
+                    textCapitalization: TextCapitalization.sentences,
+                    minLines: 1,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'What you can offer (optional)',
+                      hintText: 'e.g. Commercial interior fit-outs',
+                      prefixIcon: Icon(Icons.volunteer_activism_outlined),
+                    ),
                   ),
 
                   const SizedBox(height: Gap.xl),

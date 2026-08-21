@@ -129,6 +129,14 @@ class ProfileScreen extends ConsumerWidget {
                   FadeSlideIn(index: 1, child: _FactGrid(tiles: facts)),
                   const SizedBox(height: Gap.md),
 
+                  if (p.lookingFor.isNotEmpty || p.canOffer.isNotEmpty) ...[
+                    FadeSlideIn(
+                      index: 2,
+                      child: _NetworkingCard(profile: p),
+                    ),
+                    const SizedBox(height: Gap.md),
+                  ],
+
                   FadeSlideIn(index: 2, child: _ContactCard(profile: p)),
                   const SizedBox(height: Gap.md),
 
@@ -371,6 +379,47 @@ class _ActionTile extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The member's own matchmaking signals — what they're looking for and can offer.
+class _NetworkingCard extends StatelessWidget {
+  final UserProfile profile;
+  const _NetworkingCard({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'NETWORKING',
+              style: context.text.labelSmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
+            if (profile.lookingFor.isNotEmpty)
+              InfoRow(
+                icon: Icons.search_rounded,
+                label: 'Looking for',
+                value: profile.lookingFor,
+              ),
+            if (profile.canOffer.isNotEmpty)
+              InfoRow(
+                icon: Icons.volunteer_activism_outlined,
+                label: 'Can offer',
+                value: profile.canOffer,
+              ),
+          ],
         ),
       ),
     );
