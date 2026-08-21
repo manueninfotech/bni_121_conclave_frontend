@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -57,10 +58,28 @@ class ConclaveSummaryScreen extends ConsumerWidget {
                 FadeSlideIn(index: 0, child: _SyncBanner(summary: s)),
                 const SizedBox(height: Gap.lg),
                 FadeSlideIn(index: 1, child: _Scoreboard(summary: s)),
+                const SizedBox(height: Gap.lg),
+                FadeSlideIn(
+                  index: 2,
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: context.scheme.secondaryContainer,
+                        child: Icon(Icons.group_add_outlined,
+                            color: context.scheme.onSecondaryContainer),
+                      ),
+                      title: const Text('People you met'),
+                      subtitle: const Text('Everyone you sat with — save them'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push('/conclaves/$conclaveId/met'),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: Gap.xl),
-                FadeSlideIn(index: 2, child: _Attendance(summary: s)),
+                FadeSlideIn(index: 3, child: _Attendance(summary: s)),
                 const SizedBox(height: Gap.xl),
-                FadeSlideIn(index: 3, child: _Referrals(referrals: s.referrals)),
+                FadeSlideIn(index: 4, child: _Referrals(referrals: s.referrals)),
               ],
             ),
           ),

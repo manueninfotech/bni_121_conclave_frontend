@@ -147,15 +147,23 @@ class ProfileScreen extends ConsumerWidget {
                         Expanded(
                           child: _ActionTile(
                             icon: Icons.swap_horiz_rounded,
-                            label: 'My referrals',
+                            label: 'Referrals',
                             onTap: () => context.push('/profile/referrals'),
                           ),
                         ),
                         const SizedBox(width: Gap.md),
                         Expanded(
                           child: _ActionTile(
+                            icon: Icons.qr_code_2_rounded,
+                            label: 'My card',
+                            onTap: () => context.push('/profile/card'),
+                          ),
+                        ),
+                        const SizedBox(width: Gap.md),
+                        Expanded(
+                          child: _ActionTile(
                             icon: Icons.edit_outlined,
-                            label: 'Edit profile',
+                            label: 'Edit',
                             onTap: () => context.push('/profile/edit'),
                           ),
                         ),

@@ -23,6 +23,8 @@ import 'features/active_conclave/presentation/conclave_summary_screen.dart';
 import 'features/members/presentation/members_directory_screen.dart';
 import 'features/members/presentation/member_detail_screen.dart';
 import 'features/members/presentation/my_referrals_screen.dart';
+import 'features/members/presentation/people_met_screen.dart';
+import 'features/members/presentation/my_card_screen.dart';
 import 'core/widgets/scaffold_with_nav.dart';
 
 /// The root navigator. Detail pages that should cover the bottom nav bar are
@@ -161,6 +163,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                       conclaveId: state.pathParameters['id']!,
                     ),
                   ),
+                  GoRoute(
+                    path: ':id/met',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => PeopleMetScreen(
+                      conclaveId: state.pathParameters['id']!,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -199,6 +208,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'referrals',
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (context, state) => const MyReferralsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'card',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const MyCardScreen(),
                   ),
                 ],
               ),
