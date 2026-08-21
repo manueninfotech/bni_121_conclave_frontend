@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
+import 'features/active_conclave/data/notification_service.dart';
 import 'features/auth/data/session_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -296,6 +297,18 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
 
   @override
   Widget build(BuildContext context) {
+    // Keep the member subscribed to their personal FCM topic while signed in, so
+    // the backend can push them direct 1-2-1 alerts. Unsubscribe on sign-out.
+    ref.listen(authStateProvider, (previous, next) {
+      final uid = next.asData?.value?.uid;
+      final notifications = ref.read(notificationServiceProvider);
+      if (uid != null) {
+        notifications.subscribeUser(uid);
+      } else {
+        notifications.unsubscribeUser();
+      }
+    });
+
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

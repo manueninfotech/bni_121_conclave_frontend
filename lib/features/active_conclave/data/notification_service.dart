@@ -20,10 +20,42 @@ class NotificationService {
   final FirebaseMessaging _messaging;
 
   String? _subscribedConclaveId;
+  String? _subscribedUid;
 
   NotificationService(this._messaging);
 
   static String topicFor(String conclaveId) => 'conclave_$conclaveId';
+  static String userTopicFor(String uid) => 'user_$uid';
+
+  /// Subscribe to this member's personal topic, so the backend can push them
+  /// direct, event-driven notifications (a 1-2-1 request, a response) without a
+  /// scheduler. Called on sign-in.
+  Future<void> subscribeUser(String uid) async {
+    if (_subscribedUid == uid) return;
+    try {
+      await _messaging.requestPermission();
+      final previous = _subscribedUid;
+      if (previous != null && previous != uid) {
+        await _messaging.unsubscribeFromTopic(userTopicFor(previous));
+      }
+      await _messaging.subscribeToTopic(userTopicFor(uid));
+      _subscribedUid = uid;
+      debugPrint('Subscribed to personal alerts for $uid');
+    } catch (e) {
+      debugPrint('Could not subscribe to personal alerts: $e');
+    }
+  }
+
+  /// Called on sign-out, so a shared device stops delivering the previous
+  /// member's notifications.
+  Future<void> unsubscribeUser() async {
+    final current = _subscribedUid;
+    if (current == null) return;
+    try {
+      await _messaging.unsubscribeFromTopic(userTopicFor(current));
+    } catch (_) {}
+    _subscribedUid = null;
+  }
 
   /// Ask for permission and subscribe to this conclave's round alerts.
   Future<void> subscribe(String conclaveId) async {
