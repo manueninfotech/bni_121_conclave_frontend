@@ -22,6 +22,8 @@ class LocalNotifications {
   static const channelRoundAlerts = 'round_alerts';
   static const channelOneToOnes = 'one_to_ones';
   static const channelReminders = 'one_to_one_reminders';
+  static const channelReferrals = 'referrals';
+  static const channelGeneral = 'general';
 
   static const _brand = Color(0xFFC41230);
 
@@ -51,6 +53,11 @@ class LocalNotifications {
       AndroidNotificationChannel(channelReminders, 'Meeting reminders',
           description: 'Countdowns to your one-to-one meetings',
           importance: Importance.high),
+      AndroidNotificationChannel(channelReferrals, 'Referrals',
+          description: 'When a member passes you a referral',
+          importance: Importance.high),
+      AndroidNotificationChannel(channelGeneral, 'General',
+          description: 'Other updates', importance: Importance.defaultImportance),
     ]) {
       await android$?.createNotificationChannel(c);
     }
