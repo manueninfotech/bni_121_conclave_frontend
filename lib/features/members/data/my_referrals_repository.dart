@@ -7,6 +7,33 @@ import '../../auth/data/auth_repository.dart';
 
 /// One referral — given or received — with the counterpart and where it
 /// happened. Self-scoped: the backend only ever returns the caller's own.
+/// The business-outcome lifecycle a referral moves through, driven by the
+/// receiver.
+enum ReferralOutcome { open, accepted, closed, notClosed }
+
+ReferralOutcome _outcomeFrom(String s) => switch (s) {
+      'accepted' => ReferralOutcome.accepted,
+      'closed' => ReferralOutcome.closed,
+      'not_closed' => ReferralOutcome.notClosed,
+      _ => ReferralOutcome.open,
+    };
+
+extension ReferralOutcomeX on ReferralOutcome {
+  String get wire => switch (this) {
+        ReferralOutcome.open => 'open',
+        ReferralOutcome.accepted => 'accepted',
+        ReferralOutcome.closed => 'closed',
+        ReferralOutcome.notClosed => 'not_closed',
+      };
+
+  String get label => switch (this) {
+        ReferralOutcome.open => 'Open',
+        ReferralOutcome.accepted => 'Accepted',
+        ReferralOutcome.closed => 'Closed',
+        ReferralOutcome.notClosed => "Didn't work out",
+      };
+}
+
 class ReferralEntry {
   final String id;
   final String conclaveId;
@@ -15,6 +42,9 @@ class ReferralEntry {
   final String otherName;
   final String otherBusinessName;
   final String notes;
+  final ReferralOutcome outcome;
+  final int closedAmount;
+  final String outcomeNote;
   final DateTime? createdAt;
 
   const ReferralEntry({
@@ -25,6 +55,9 @@ class ReferralEntry {
     required this.otherName,
     required this.otherBusinessName,
     required this.notes,
+    required this.outcome,
+    required this.closedAmount,
+    required this.outcomeNote,
     required this.createdAt,
   });
 
@@ -36,6 +69,9 @@ class ReferralEntry {
         otherName: (j['otherName'] ?? '') as String,
         otherBusinessName: (j['otherBusinessName'] ?? '') as String,
         notes: (j['notes'] ?? '') as String,
+        outcome: _outcomeFrom((j['outcome'] ?? 'open') as String),
+        closedAmount: (j['closedAmount'] as num?)?.toInt() ?? 0,
+        outcomeNote: (j['outcomeNote'] ?? '') as String,
         createdAt: DateTime.tryParse((j['createdAt'] ?? '') as String)?.toLocal(),
       );
 }
@@ -90,6 +126,33 @@ class MyReferralsRepository {
       throw Exception(msg.isNotEmpty
           ? msg
           : 'Could not load your referrals. Check your connection.');
+    }
+  }
+
+  /// Records the outcome of a referral this member RECEIVED. `amount` (rupees)
+  /// applies only when [outcome] is closed.
+  Future<void> updateOutcome({
+    required String conclaveId,
+    required String referralId,
+    required ReferralOutcome outcome,
+    int amount = 0,
+    String note = '',
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('You are not signed in.');
+
+    final token = await user.getIdToken();
+    try {
+      await _dio.patch(
+        '${ApiConfig.baseUrl}/conclaves/$conclaveId/referrals/$referralId/outcome',
+        data: {'outcome': outcome.wire, 'amount': amount, 'note': note},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      final msg = e.response?.data is Map
+          ? (e.response?.data['error'] ?? '').toString()
+          : '';
+      throw Exception(msg.isNotEmpty ? msg : 'Could not update the referral.');
     }
   }
 }
