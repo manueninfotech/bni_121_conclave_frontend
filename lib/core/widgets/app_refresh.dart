@@ -5,10 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
-/// The app's own pull-to-refresh — a crimson ring that draws itself as you pull
-/// (with the BNI mark growing at its centre), then spins as a smooth branded
-/// loader while it refreshes. Identical on iOS and Android, and it replaces the
-/// stock Material spinner everywhere.
+/// The app's own pull-to-refresh: crimson dots that orbit a hub — members
+/// around a table — fading in as you pull, then circling smoothly while it
+/// loads. Identical on iOS and Android; replaces the stock Material spinner.
 ///
 /// Drop-in for `RefreshIndicator` — same `onRefresh` + `child`.
 class AppRefresh extends StatelessWidget {
@@ -32,7 +31,6 @@ class AppRefresh extends StatelessWidget {
             final gap = (controller.value * _reveal).clamp(0.0, _reveal);
             return Stack(
               children: [
-                // The indicator lives in the gap the pull opens at the top.
                 Positioned(
                   top: 0,
                   left: 0,
@@ -44,7 +42,7 @@ class AppRefresh extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Opacity(
                       opacity: controller.value.clamp(0.0, 1.0),
-                      child: _RingIndicator(controller: controller),
+                      child: _OrbitIndicator(controller: controller),
                     ),
                   ),
                 ),
@@ -59,19 +57,19 @@ class AppRefresh extends StatelessWidget {
   }
 }
 
-class _RingIndicator extends StatefulWidget {
+class _OrbitIndicator extends StatefulWidget {
   final IndicatorController controller;
-  const _RingIndicator({required this.controller});
+  const _OrbitIndicator({required this.controller});
 
   @override
-  State<_RingIndicator> createState() => _RingIndicatorState();
+  State<_OrbitIndicator> createState() => _OrbitIndicatorState();
 }
 
-class _RingIndicatorState extends State<_RingIndicator>
+class _OrbitIndicatorState extends State<_OrbitIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _spin = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 850),
+    duration: const Duration(milliseconds: 1100),
   )..repeat();
 
   @override
@@ -82,38 +80,21 @@ class _RingIndicatorState extends State<_RingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final track = context.colors.hairline;
     return AnimatedBuilder(
       animation: Listenable.merge([widget.controller, _spin]),
       builder: (context, _) {
         final loading = widget.controller.isLoading ||
             widget.controller.isFinalizing ||
             widget.controller.isSettling;
-        final progress = widget.controller.value.clamp(0.0, 1.0);
-        final iconScale = loading
-            ? 0.9 + 0.12 * math.sin(_spin.value * 2 * math.pi)
-            : 0.55 + 0.45 * progress;
-
         return SizedBox(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           child: CustomPaint(
-            painter: _RingPainter(
-              progress: progress,
+            painter: _OrbitPainter(
+              progress: widget.controller.value.clamp(0.0, 1.0),
               loading: loading,
               spin: _spin.value,
               color: AppColors.crimson,
-              track: track,
-            ),
-            child: Center(
-              child: Transform.scale(
-                scale: iconScale,
-                child: Icon(
-                  Icons.groups_rounded,
-                  size: 15,
-                  color: AppColors.crimson,
-                ),
-              ),
             ),
           ),
         );
@@ -122,50 +103,54 @@ class _RingIndicatorState extends State<_RingIndicator>
   }
 }
 
-class _RingPainter extends CustomPainter {
+class _OrbitPainter extends CustomPainter {
   final double progress;
   final bool loading;
   final double spin;
   final Color color;
-  final Color track;
 
-  _RingPainter({
+  static const int _dots = 6;
+
+  _OrbitPainter({
     required this.progress,
     required this.loading,
     required this.spin,
     required this.color,
-    required this.track,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.width / 2 - 3;
-    final rect = Rect.fromCircle(center: center, radius: radius);
+    final maxOrbit = size.width / 2 - 5;
+    // The ring opens up as you pull; full while loading.
+    final orbit = maxOrbit * (loading ? 1.0 : progress);
+    // Rotates continuously while loading; eases round a little as you pull.
+    final rotation = loading ? spin * 2 * math.pi : progress * math.pi * 0.9;
 
-    final trackPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..color = track;
-    canvas.drawCircle(center, radius, trackPaint);
+    final paint = Paint()..isAntiAlias = true;
 
-    final arcPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
-      ..color = color;
+    for (var i = 0; i < _dots; i++) {
+      final t = i / _dots; // 0..1 position along the comet trail
+      final angle = rotation + t * 2 * math.pi;
+      final pos = center + Offset(math.cos(angle), math.sin(angle)) * orbit;
 
-    if (loading) {
-      // A sweeping arc that rotates — the branded spinner.
-      final start = spin * 2 * math.pi;
-      canvas.drawArc(rect, start, math.pi * 1.4, false, arcPaint);
-    } else {
-      // Draw the ring in proportion to how far you've pulled.
-      canvas.drawArc(rect, -math.pi / 2, progress * 2 * math.pi, false, arcPaint);
+      // Trailing dots are smaller and fainter, so the ring reads as spinning.
+      final trail = 0.35 + 0.65 * t;
+      final pullIn = loading ? 1.0 : (0.45 + 0.55 * progress);
+      final dotRadius = (1.4 + 3.0 * t) * pullIn;
+      final opacity = (loading ? trail : progress * trail).clamp(0.0, 1.0);
+
+      paint.color = color.withValues(alpha: opacity);
+      canvas.drawCircle(pos, dotRadius, paint);
     }
+
+    // The hub — the "table" the dots gather around. Gentle pulse while loading.
+    final hubPulse = loading ? 0.85 + 0.15 * math.sin(spin * 2 * math.pi) : progress;
+    paint.color = color.withValues(alpha: (0.4 + 0.6 * (loading ? 1 : progress)).clamp(0.0, 1.0));
+    canvas.drawCircle(center, 2.4 * hubPulse.clamp(0.25, 1.0), paint);
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) =>
+  bool shouldRepaint(_OrbitPainter old) =>
       old.progress != progress || old.loading != loading || old.spin != spin;
 }
