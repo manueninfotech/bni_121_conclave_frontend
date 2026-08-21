@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/services/local_notifications.dart';
+import 'core/navigation.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
@@ -29,11 +30,12 @@ import 'features/members/presentation/my_referrals_screen.dart';
 import 'features/members/presentation/people_met_screen.dart';
 import 'features/members/presentation/my_card_screen.dart';
 import 'features/members/presentation/one_to_ones_screen.dart';
+import 'features/members/data/one_to_ones_repository.dart';
+import 'features/members/data/my_referrals_repository.dart';
+import 'features/notifications/data/notifications_repository.dart';
+import 'features/notifications/presentation/notifications_screen.dart';
+import 'features/home/presentation/home_screen.dart';
 import 'core/widgets/scaffold_with_nav.dart';
-
-/// The root navigator. Detail pages that should cover the bottom nav bar are
-/// pushed here (via `parentNavigatorKey`), not inside a tab's branch.
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 /// Where the app should be, derived from auth AND whether the profile exists.
 ///
@@ -68,7 +70,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 
   return GoRouter(
-    navigatorKey: _rootNavigatorKey,
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: navNotifier,
     redirect: (context, state) {
@@ -96,7 +98,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // if it turns out there's no profile, needsProfile routes on to
           // /register next. Leaving them on /register mid-registration stands.
           if (path == '/register') return null;
-          return preAuth.contains(path) ? '/conclaves' : null;
+          return preAuth.contains(path) ? '/home' : null;
 
         case _NavState.needsProfile:
           // Authenticated but no profile doc — an interrupted registration.
@@ -105,7 +107,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return path == '/register' ? null : '/register';
 
         case _NavState.ready:
-          return preAuth.contains(path) ? '/conclaves' : null;
+          return preAuth.contains(path) ? '/home' : null;
       }
     },
     routes: [
@@ -132,6 +134,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) =>
             ScaffoldWithNavBar(navigationShell: navigationShell),
         branches: [
+          // Home
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
           // Conclaves
           StatefulShellBranch(
             routes: [
@@ -141,35 +152,35 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => ConclaveDetailScreen(
                       conclaveId: state.pathParameters['id']!,
                     ),
                   ),
                   GoRoute(
                     path: ':id/register',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => ConclaveRegisterScreen(
                       conclaveId: state.pathParameters['id']!,
                     ),
                   ),
                   GoRoute(
                     path: ':id/active',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => ActiveRoundScreen(
                       conclaveId: state.pathParameters['id']!,
                     ),
                   ),
                   GoRoute(
                     path: ':id/summary',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => ConclaveSummaryScreen(
                       conclaveId: state.pathParameters['id']!,
                     ),
                   ),
                   GoRoute(
                     path: ':id/met',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => PeopleMetScreen(
                       conclaveId: state.pathParameters['id']!,
                     ),
@@ -187,7 +198,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => MemberDetailScreen(
                       memberId: state.pathParameters['id']!,
                     ),
@@ -205,22 +216,22 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'edit',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => const EditProfileScreen(),
                   ),
                   GoRoute(
                     path: 'referrals',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => const MyReferralsScreen(),
                   ),
                   GoRoute(
                     path: 'card',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => const MyCardScreen(),
                   ),
                   GoRoute(
                     path: 'one-to-ones',
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (context, state) => const OneToOnesScreen(),
                   ),
                 ],
@@ -228,6 +239,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      // Full-screen, over the nav shell.
+      GoRoute(
+        path: '/notifications',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
       ),
     ],
   );
@@ -266,6 +283,8 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
       ref.read(syncServiceProvider).startConnectivityWatch();
       // Force a Play update if a newer build is live. No-op off Play.
       const AppUpdateService().enforceUpdate();
+      // Route if the app was launched by tapping a local notification.
+      LocalNotifications.handleAppLaunch();
     });
 
     // A 1-2-1 reminder that lands while the app is open: raise the same sticky
@@ -278,7 +297,20 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
           LocalNotifications.handleReminderData(message.data);
       }
     });
+
+    // Deep-link: a notification tapped while the app was backgrounded…
+    _openedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen((m) => openFromNotification(m.data));
+    // …or tapped from a terminated state (delivered once on launch).
+    FirebaseMessaging.instance.getInitialMessage().then((m) {
+      if (m != null) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => openFromNotification(m.data));
+      }
+    });
   }
+
+  StreamSubscription<RemoteMessage>? _openedSub;
 
   StreamSubscription<RemoteMessage>? _reminderSub;
 
@@ -286,6 +318,7 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
   void dispose() {
     _sessionTimer?.cancel();
     _reminderSub?.cancel();
+    _openedSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -300,6 +333,12 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     // phone may have regained signal while the app was backgrounded, and
     // connectivity events are not reliably delivered to a suspended app.
     ref.read(syncServiceProvider).syncAllPending();
+
+    // A 1-2-1 may have been accepted/declined from the notification tray while
+    // we were away, and referrals may have landed. Refresh those views.
+    ref.invalidate(myOneToOnesProvider);
+    ref.invalidate(myReferralsProvider);
+    ref.invalidate(notificationsProvider);
   }
 
   Future<void> _enforceSessionExpiry() async {

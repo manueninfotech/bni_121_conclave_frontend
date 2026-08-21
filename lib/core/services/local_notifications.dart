@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../firebase_options.dart';
 import '../config/api_config.dart';
+import '../navigation.dart';
 
 /// On-device notifications the app raises itself — which is what unlocks
 /// notification CHANNELS (user-toggleable categories) and ACTION BUTTONS
@@ -160,9 +161,28 @@ class LocalNotifications {
     );
   }
 
-  // ---- Action responses ---------------------------------------------------
+  // ---- Taps & action responses --------------------------------------------
 
-  static void _onResponse(NotificationResponse r) => _act(r);
+  static void _onResponse(NotificationResponse r) {
+    if (r.actionId == _acceptAction || r.actionId == _declineAction) {
+      _act(r);
+      return;
+    }
+    // A body tap on one of our local notifications (a 1-2-1 request or the
+    // reminder) — open the 1-2-1s screen.
+    openFromNotification(const {'type': 'one_to_one'});
+  }
+
+  /// If the app was launched by tapping one of our local notifications, route to
+  /// the right screen. Call once after the first frame.
+  static Future<void> handleAppLaunch() async {
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (!(details?.didNotificationLaunchApp ?? false)) return;
+    final resp = details!.notificationResponse;
+    if (resp != null && resp.actionId == null) {
+      openFromNotification(const {'type': 'one_to_one'});
+    }
+  }
 }
 
 /// Foreground/background action handler. Top-level and vm:entry-point so it can

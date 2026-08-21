@@ -66,6 +66,7 @@ class _NavPill extends StatelessWidget {
   const _NavPill({required this.currentIndex, required this.onTap});
 
   static const _items = <({IconData icon, IconData selected, String label})>[
+    (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
     (icon: Icons.event_outlined, selected: Icons.event_rounded, label: 'Conclaves'),
     (icon: Icons.people_outline_rounded, selected: Icons.people_rounded, label: 'Members'),
     (icon: Icons.person_outline_rounded, selected: Icons.person_rounded, label: 'Profile'),
