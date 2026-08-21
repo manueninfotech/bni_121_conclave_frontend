@@ -271,8 +271,11 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     // A 1-2-1 reminder that lands while the app is open: raise the same sticky
     // countdown the background handler would (FCM won't show a data message).
     _reminderSub = FirebaseMessaging.onMessage.listen((message) {
-      if (message.data['type'] == 'one_to_one_reminder') {
-        LocalNotifications.handleReminderData(message.data);
+      switch (message.data['type']) {
+        case 'one_to_one_request':
+          LocalNotifications.handleRequestData(message.data);
+        case 'one_to_one_reminder':
+          LocalNotifications.handleReminderData(message.data);
       }
     });
   }

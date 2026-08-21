@@ -20,10 +20,16 @@ import 'app.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // A 1-2-1 reminder arrives as a DATA message so we can raise our own sticky,
-  // counting-down notification. Everything else (round alerts) carries its own
-  // notification payload and the system shows it directly.
-  if (message.data['type'] == 'one_to_one_reminder') {
+  // Some 1-2-1 pushes arrive as DATA messages so the app can build a richer
+  // notification (Accept/Decline actions, or a sticky countdown). Everything
+  // else (round alerts) carries its own notification payload and the system
+  // shows it directly.
+  final type = message.data['type'];
+  if (type == 'one_to_one_request') {
+    await LocalNotifications.handleRequestData(message.data);
+    return;
+  }
+  if (type == 'one_to_one_reminder') {
     await LocalNotifications.handleReminderData(message.data);
     return;
   }
