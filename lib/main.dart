@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/config/remote_config_service.dart';
+import 'core/services/local_notifications.dart';
 import 'core/time/server_clock.dart';
 import 'features/onboarding/data/onboarding_service.dart';
 import 'firebase_options.dart';
@@ -18,7 +19,15 @@ import 'app.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint('Background round alert: ${message.notification?.title}');
+
+  // A 1-2-1 reminder arrives as a DATA message so we can raise our own sticky,
+  // counting-down notification. Everything else (round alerts) carries its own
+  // notification payload and the system shows it directly.
+  if (message.data['type'] == 'one_to_one_reminder') {
+    await LocalNotifications.handleReminderData(message.data);
+    return;
+  }
+  debugPrint('Background alert: ${message.notification?.title}');
 }
 
 void main() async {
@@ -29,6 +38,7 @@ void main() async {
   );
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  await LocalNotifications.init();
 
   // Resolve the backend URL from Remote Config before anything makes a request,
   // so the very first API call already targets the configured host. Never

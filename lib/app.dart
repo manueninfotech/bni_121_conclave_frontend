@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'core/services/local_notifications.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
@@ -265,11 +267,22 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
       // Force a Play update if a newer build is live. No-op off Play.
       const AppUpdateService().enforceUpdate();
     });
+
+    // A 1-2-1 reminder that lands while the app is open: raise the same sticky
+    // countdown the background handler would (FCM won't show a data message).
+    _reminderSub = FirebaseMessaging.onMessage.listen((message) {
+      if (message.data['type'] == 'one_to_one_reminder') {
+        LocalNotifications.handleReminderData(message.data);
+      }
+    });
   }
+
+  StreamSubscription<RemoteMessage>? _reminderSub;
 
   @override
   void dispose() {
     _sessionTimer?.cancel();
+    _reminderSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
