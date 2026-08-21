@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/category_picker.dart';
+import '../../../core/widgets/membership_toggle.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
@@ -41,7 +42,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _name = TextEditingController();
   final _businessName = TextEditingController();
   final _chapter = TextEditingController();
+  final _region = TextEditingController();
   final _location = TextEditingController();
+
+  /// "BNI" or "Non-BNI" — no default; the member must choose.
+  String? _membership;
 
   /// The contact they did NOT sign up with. The spec asks for both
   /// ("phonenumber/email (autofilled) and ask leftover"), and it is the only way
@@ -104,6 +109,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _name.dispose();
     _businessName.dispose();
     _chapter.dispose();
+    _region.dispose();
     _location.dispose();
     _altEmail.dispose();
     _altPhone.dispose();
@@ -237,6 +243,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submitProfile() async {
     if (!(_profileKey.currentState?.validate() ?? false)) return;
+    // The membership toggle isn't a FormField, so check it explicitly.
+    if (_membership == null) {
+      _error('Choose whether you are a BNI or Non-BNI member.');
+      return;
+    }
 
     setState(() => _isLoading = true);
     final repo = ref.read(authRepositoryProvider);
@@ -254,6 +265,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           businessCategory: _category!,
           location: _location.text.trim(),
           chapter: _chapter.text.trim(),
+          region: _region.text.trim(),
+          membership: _membership!,
         );
       } else {
         await repo.registerWithEmailAndPassword(
@@ -265,6 +278,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           businessCategory: _category!,
           location: _location.text.trim(),
           chapter: _chapter.text.trim(),
+          region: _region.text.trim(),
+          membership: _membership!,
         );
       }
 
@@ -617,6 +632,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               labelText: 'Chapter (optional)',
               prefixIcon: Icon(Icons.groups_2_outlined),
             ),
+          ),
+          const SizedBox(height: Gap.md),
+          TextFormField(
+            controller: _region,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Region (optional)',
+              hintText: 'e.g. Guntur Region',
+              prefixIcon: Icon(Icons.map_outlined),
+            ),
+          ),
+          const SizedBox(height: Gap.lg),
+
+          MembershipToggle(
+            value: _membership,
+            onChanged: (m) => setState(() => _membership = m),
           ),
         ],
       ),

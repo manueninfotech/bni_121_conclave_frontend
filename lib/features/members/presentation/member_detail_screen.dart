@@ -95,6 +95,14 @@ class _Detail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (member.membership.isNotEmpty)
+                    InfoRow(
+                      icon: member.isBni
+                          ? Icons.verified_outlined
+                          : Icons.person_outline,
+                      label: 'Membership',
+                      value: member.membership,
+                    ),
                   if (member.businessName.isNotEmpty)
                     InfoRow(
                       icon: Icons.business_outlined,
@@ -112,6 +120,12 @@ class _Detail extends StatelessWidget {
                       icon: Icons.groups_2_outlined,
                       label: 'Chapter',
                       value: member.chapter!,
+                    ),
+                  if (member.region != null && member.region!.isNotEmpty)
+                    InfoRow(
+                      icon: Icons.map_outlined,
+                      label: 'Region',
+                      value: member.region!,
                     ),
                 ],
               ),

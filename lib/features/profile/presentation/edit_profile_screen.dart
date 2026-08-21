@@ -6,6 +6,7 @@ import '../../../core/constants/business_categories.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/category_picker.dart';
+import '../../../core/widgets/membership_toggle.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -26,9 +27,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _businessName = TextEditingController();
   final _location = TextEditingController();
   final _chapter = TextEditingController();
+  final _region = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
   String? _category;
+  String? _membership;
   Country _country = defaultCountry;
 
   bool _seeded = false;
@@ -41,6 +44,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _businessName.dispose();
     _location.dispose();
     _chapter.dispose();
+    _region.dispose();
     _email.dispose();
     _phone.dispose();
     super.dispose();
@@ -124,10 +128,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _businessName.text = p.businessName;
     _location.text = p.location;
     _chapter.text = p.chapter ?? '';
+    _region.text = p.region ?? '';
     _email.text = p.email;
     _category = bniBusinessCategories.contains(p.businessCategory)
         ? p.businessCategory
         : null;
+    _membership = p.membership.isEmpty ? null : p.membership;
 
     // Split the stored E.164 number back into a country and a national part, so
     // the picker shows the right flag rather than resetting everyone to India.
@@ -140,6 +146,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_membership == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: const Text('Choose whether you are a BNI or Non-BNI member.'),
+          backgroundColor: context.colors.danger,
+        ));
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -153,6 +168,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ? ''
                 : Phone.toE164(_country, _phone.text),
             chapter: _chapter.text,
+            region: _region.text,
+            membership: _membership!,
           );
 
       if (!mounted) return;
@@ -285,6 +302,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       labelText: 'Chapter (optional)',
                       prefixIcon: Icon(Icons.groups_2_outlined),
                     ),
+                  ),
+                  const SizedBox(height: Gap.lg),
+
+                  TextFormField(
+                    controller: _region,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Region (optional)',
+                      hintText: 'e.g. Guntur Region',
+                      prefixIcon: Icon(Icons.map_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.lg),
+
+                  MembershipToggle(
+                    value: _membership,
+                    onChanged: (m) => setState(() => _membership = m),
                   ),
 
                   const SizedBox(height: Gap.xl),

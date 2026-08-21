@@ -52,6 +52,15 @@ class UserProfile {
   final String businessCategory;
   final String location;
   final String? chapter;
+
+  /// Optional BNI region (e.g. "Guntur Region") — separate from chapter, used to
+  /// tell members from different areas apart.
+  final String? region;
+
+  /// "BNI" or "Non-BNI". Chosen at registration; empty only for accounts created
+  /// before the field existed.
+  final String membership;
+
   final String country;
 
   const UserProfile({
@@ -65,8 +74,12 @@ class UserProfile {
     required this.businessCategory,
     required this.location,
     required this.chapter,
+    required this.region,
+    required this.membership,
     required this.country,
   });
+
+  bool get isBni => membership == 'BNI';
 
   factory UserProfile.fromMap(String uid, Map<String, dynamic> m) {
     return UserProfile(
@@ -83,6 +96,10 @@ class UserProfile {
       businessCategory: (m['businessCategory'] ?? '') as String,
       location: (m['location'] ?? '') as String,
       chapter: m['chapter'] as String?,
+      region: (m['region'] as String?)?.isEmpty ?? true
+          ? null
+          : m['region'] as String,
+      membership: (m['membership'] ?? '') as String,
       country: (m['country'] ?? 'India') as String,
     );
   }
@@ -164,7 +181,9 @@ class ProfileRepository {
     /// them being current.
     required String email,
     required String phone,
+    required String membership,
     String? chapter,
+    String? region,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) throw Exception('You are not signed in.');
@@ -172,6 +191,9 @@ class ProfileRepository {
     if (name.trim().isEmpty) throw Exception('Name cannot be empty.');
     if (businessCategory.trim().isEmpty) {
       throw Exception('Business category is required — it decides who you sit with.');
+    }
+    if (membership.trim().isEmpty) {
+      throw Exception('Choose BNI or Non-BNI.');
     }
 
     await _firestore.collection('users').doc(uid).update({
@@ -184,6 +206,8 @@ class ProfileRepository {
       // must group as one place.
       'location': location.trim().toLowerCase(),
       'chapter': chapter?.trim().isEmpty ?? true ? null : chapter!.trim(),
+      'region': region?.trim().isEmpty ?? true ? null : region!.trim(),
+      'membership': membership,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

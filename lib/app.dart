@@ -281,11 +281,12 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     return MaterialApp.router(
       title: 'BNI 121 Conclave',
       theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      // Follow the device. The app previously forced light, ignoring the system
-      // setting entirely — including for anyone who uses dark mode for
-      // readability rather than preference.
-      themeMode: ThemeMode.system,
+      darkTheme: AppTheme.light(),
+      // Light only, by the client's direction: BNI's look is a white background
+      // with red-and-black text, and the app must not adopt the device's dark
+      // theme. Both slots point at the light theme so even a forced-dark device
+      // stays white.
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {

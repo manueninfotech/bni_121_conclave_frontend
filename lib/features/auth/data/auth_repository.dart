@@ -37,7 +37,9 @@ class AuthRepository {
     /// The number we ask for even though they signed up by email — the admin
     /// needs to be able to call people on the day.
     required String phone,
+    required String membership,
     String? chapter,
+    String? region,
   }) async {
     try {
       // 1. Create user in Firebase Auth
@@ -57,6 +59,8 @@ class AuthRepository {
         user.uid, email, name, businessName, businessCategory, location, chapter,
         email: email,
         phone: phone,
+        region: region,
+        membership: membership,
       );
 
       // Registering signs you in, so the auto-logout clock starts here too.
@@ -79,7 +83,9 @@ class AuthRepository {
     /// The address we ask for even though they signed up by phone — without it
     /// there is no way to reach them, and no way to ever reset their password.
     required String email,
+    required String membership,
     String? chapter,
+    String? region,
   }) async {
     try {
       // Firebase has no "phone + password" sign-in, so the account is keyed by a
@@ -109,6 +115,8 @@ class AuthRepository {
         user.uid, pseudoEmail, name, businessName, businessCategory, location, chapter,
         email: email,
         phone: phone,
+        region: region,
+        membership: membership,
       );
 
       await _session.recordLogin();
@@ -139,6 +147,8 @@ class AuthRepository {
     String? chapter, {
     required String email,
     required String phone,
+    required String? region,
+    required String membership,
   }) async {
     await _firestore.collection('users').doc(uid).set({
       'id': uid,
@@ -152,6 +162,9 @@ class AuthRepository {
       'businessCategory': businessCategory,
       'location': location.trim().toLowerCase(),
       'chapter': chapter,
+      'region': region,
+      // "BNI" or "Non-BNI".
+      'membership': membership,
       'country': 'India',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

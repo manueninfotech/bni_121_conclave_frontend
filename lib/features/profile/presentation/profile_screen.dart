@@ -79,6 +79,12 @@ class ProfileScreen extends ConsumerWidget {
 
           // The short facts that read well as compact tiles.
           final facts = <Widget>[
+            if (p.membership.isNotEmpty)
+              _FactTile(
+                icon: p.isBni ? Icons.verified_outlined : Icons.person_outline,
+                label: 'Membership',
+                value: p.membership,
+              ),
             if (p.businessCategory.isNotEmpty)
               _FactTile(
                 icon: Icons.category_outlined,
@@ -96,6 +102,12 @@ class ProfileScreen extends ConsumerWidget {
                 icon: Icons.groups_2_outlined,
                 label: 'Chapter',
                 value: p.chapter!,
+              ),
+            if (p.region != null && p.region!.isNotEmpty)
+              _FactTile(
+                icon: Icons.map_outlined,
+                label: 'Region',
+                value: p.region!,
               ),
             _FactTile(
               icon: Icons.public,

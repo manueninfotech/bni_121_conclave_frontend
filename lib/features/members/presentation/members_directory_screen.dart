@@ -147,6 +147,7 @@ class _MemberCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subtitle = [
+      if (member.membership.isNotEmpty) member.membership,
       if (member.businessCategory.isNotEmpty) member.businessCategory,
       if (member.location.isNotEmpty) _titleCase(member.location),
     ].join('  ·  ');

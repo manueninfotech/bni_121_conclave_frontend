@@ -17,6 +17,8 @@ class Member {
   final String businessCategory;
   final String location;
   final String? chapter;
+  final String? region;
+  final String membership;
 
   const Member({
     required this.uid,
@@ -26,7 +28,11 @@ class Member {
     required this.businessCategory,
     required this.location,
     required this.chapter,
+    required this.region,
+    required this.membership,
   });
+
+  bool get isBni => membership == 'BNI';
 
   factory Member.fromJson(Map<String, dynamic> j) => Member(
         uid: (j['uid'] ?? '') as String,
@@ -40,6 +46,10 @@ class Member {
         chapter: (j['chapter'] as String?)?.isEmpty ?? true
             ? null
             : j['chapter'] as String,
+        region: (j['region'] as String?)?.isEmpty ?? true
+            ? null
+            : j['region'] as String,
+        membership: (j['membership'] ?? '') as String,
       );
 
   /// Everything the search box matches against.
