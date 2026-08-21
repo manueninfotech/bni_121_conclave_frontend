@@ -6,7 +6,9 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/members_repository.dart';
+import 'propose_one_to_one.dart';
 
 /// One member's public profile.
 ///
@@ -32,6 +34,7 @@ class MemberDetailScreen extends ConsumerWidget {
           onRetry: () => ref.invalidate(membersProvider),
         ),
         data: (all) {
+          final myUid = ref.watch(authStateProvider).asData?.value?.uid;
           final member = all.where((m) => m.uid == memberId).firstOrNull;
           if (member == null) {
             return EmptyView(
@@ -46,7 +49,7 @@ class MemberDetailScreen extends ConsumerWidget {
               ),
             );
           }
-          return _Detail(member: member);
+          return _Detail(member: member, isSelf: member.uid == myUid);
         },
       ),
     );
@@ -55,7 +58,8 @@ class MemberDetailScreen extends ConsumerWidget {
 
 class _Detail extends StatelessWidget {
   final Member member;
-  const _Detail({required this.member});
+  final bool isSelf;
+  const _Detail({required this.member, required this.isSelf});
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +92,22 @@ class _Detail extends StatelessWidget {
             ),
           ],
           const SizedBox(height: Gap.xl),
+
+          if (!isSelf) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => showProposeOneToOne(
+                  context,
+                  toUserId: member.uid,
+                  toName: member.name.isEmpty ? 'this member' : member.name,
+                ),
+                icon: const Icon(Icons.coffee_outlined),
+                label: const Text('Request a 1-2-1'),
+              ),
+            ),
+            const SizedBox(height: Gap.md),
+          ],
 
           Card(
             child: Padding(

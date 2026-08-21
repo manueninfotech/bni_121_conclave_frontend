@@ -142,6 +142,25 @@ class ProfileScreen extends ConsumerWidget {
 
                   FadeSlideIn(
                     index: 3,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: context.scheme.secondaryContainer,
+                          child: Icon(Icons.coffee_outlined,
+                              color: context.scheme.onSecondaryContainer),
+                        ),
+                        title: const Text('My 1-2-1s'),
+                        subtitle: const Text('One-to-one meetings you\'ve set up'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push('/profile/one-to-ones'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.md),
+
+                  FadeSlideIn(
+                    index: 4,
                     child: Row(
                       children: [
                         Expanded(

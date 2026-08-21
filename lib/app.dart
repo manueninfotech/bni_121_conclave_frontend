@@ -25,6 +25,7 @@ import 'features/members/presentation/member_detail_screen.dart';
 import 'features/members/presentation/my_referrals_screen.dart';
 import 'features/members/presentation/people_met_screen.dart';
 import 'features/members/presentation/my_card_screen.dart';
+import 'features/members/presentation/one_to_ones_screen.dart';
 import 'core/widgets/scaffold_with_nav.dart';
 
 /// The root navigator. Detail pages that should cover the bottom nav bar are
@@ -213,6 +214,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'card',
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (context, state) => const MyCardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'one-to-ones',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const OneToOnesScreen(),
                   ),
                 ],
               ),
