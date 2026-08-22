@@ -50,3 +50,4 @@ pubspec.yaml.rel.bak
 android/fastlane/report.xml
 android/fastlane/README.md
 android/fastlane/Preview.html
+.conclave-secrets/
