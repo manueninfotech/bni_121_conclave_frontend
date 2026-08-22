@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -176,11 +177,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                 FilledButton.icon(
                   onPressed: _busy ? null : _payOnline,
                   icon: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AppSpinner(size: 18, color: Colors.white)
                       : const Icon(Icons.lock_outline_rounded),
                   label: Text(_busy ? 'Please wait…' : 'Pay ₹$fee securely'),
                 ),

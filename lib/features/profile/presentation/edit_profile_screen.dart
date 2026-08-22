@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -392,11 +393,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: FilledButton(
                       onPressed: _saving ? null : _save,
                       child: _saving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AppSpinner(size: 20, color: Colors.white)
                           : const Text('Save changes'),
                     ),
                   ),
@@ -444,14 +441,7 @@ class _PhotoEditor extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 52,
                   backgroundColor: Colors.black.withValues(alpha: 0.4),
-                  child: const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: const AppSpinner(size: 26, color: Colors.white),
                 ),
               ),
             // The little camera badge that says "this is tappable".

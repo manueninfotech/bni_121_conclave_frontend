@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -177,7 +178,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                   loading: () => const Card(
                     child: Padding(
                       padding: EdgeInsets.all(Gap.xl),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: AppSpinner(size: 32)),
                     ),
                   ),
                   error: (_, _) => const SizedBox.shrink(),
@@ -195,11 +196,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                   child: FilledButton(
                     onPressed: _isSubmitting ? null : () => _confirm(conclave),
                     child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AppSpinner(size: 20, color: Colors.white)
                         : Text((conclave.paymentDetails?.hasFee ?? false)
                             ? 'Continue to payment'
                             : 'Confirm registration'),

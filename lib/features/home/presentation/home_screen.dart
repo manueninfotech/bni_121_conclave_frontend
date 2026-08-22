@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_spinner.dart';
 import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -109,7 +110,7 @@ class _NextConclave extends ConsumerWidget {
         title: 'NEXT UP',
         child: SizedBox(
           height: 40,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          child: Center(child: AppSpinner(size: 28)),
         ),
       ),
       error: (_, _) => const SizedBox.shrink(),

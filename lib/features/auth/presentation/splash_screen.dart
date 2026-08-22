@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tokens.dart';
@@ -130,14 +131,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   padding: const EdgeInsets.only(bottom: Gap.xl),
                   child: Column(
                     children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: scheme.primary.withValues(alpha: 0.6),
-                        ),
-                      ),
+                      const AppSpinner(size: 26),
                       const SizedBox(height: Gap.lg),
                       Text(
                         'In association with Manuen Infotech',

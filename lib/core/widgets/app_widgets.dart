@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
+import 'app_spinner.dart';
 import 'illustrations.dart';
 
 /// The three states every async screen has, in one place.
@@ -17,7 +18,7 @@ class LoadingView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
+          const AppSpinner(size: 46),
           if (label != null) ...[
             const SizedBox(height: Gap.lg),
             Text(label!, style: context.text.bodyMedium),

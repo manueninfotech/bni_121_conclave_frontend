@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -152,11 +153,7 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
             child: FilledButton.icon(
               onPressed: (_when == null || _sending) ? null : _send,
               icon: _sending
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AppSpinner(size: 18, color: Colors.white)
                   : const Icon(Icons.send_rounded),
               label: const Text('Send request'),
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
+import 'app_spinner.dart';
 
 /// Screen-size breakpoints.
 enum ScreenSize { compact, medium, expanded }
@@ -194,14 +195,7 @@ class PrimaryButton extends StatelessWidget {
             shadowColor: Colors.transparent,
           ),
           child: loading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                )
+              ? const AppSpinner(size: 24, color: Colors.white)
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
