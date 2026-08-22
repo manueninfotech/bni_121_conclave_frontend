@@ -17,36 +17,46 @@ class AppRefresh extends StatelessWidget {
   const AppRefresh({super.key, required this.onRefresh, required this.child});
 
   /// How far the content slides down at full pull.
-  static const double _reveal = 78;
+  static const double _reveal = 90;
 
   @override
   Widget build(BuildContext context) {
     return CustomRefreshIndicator(
       onRefresh: onRefresh,
-      offsetToArmed: 96,
+      offsetToArmed: 110,
       builder: (context, child, controller) {
         return AnimatedBuilder(
           animation: controller,
           builder: (context, _) {
-            final gap = (controller.value * _reveal).clamp(0.0, _reveal);
+            final loading = controller.isLoading ||
+                controller.isFinalizing ||
+                controller.isSettling;
+            // Hold the strip fully open while it loads, so the loader can't
+            // shrink or clip as the pull value settles.
+            final v = loading ? 1.0 : controller.value.clamp(0.0, 1.0);
+            final gap = v * _reveal;
+
             return Stack(
               children: [
+                Transform.translate(offset: Offset(0, gap), child: child),
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
                   height: gap,
-                  child: OverflowBox(
-                    minHeight: 0,
-                    maxHeight: 56,
-                    alignment: Alignment.center,
-                    child: Opacity(
-                      opacity: controller.value.clamp(0.0, 1.0),
-                      child: _OrbitIndicator(controller: controller),
+                  // Centre the loader in the opened strip, and scale it DOWN to
+                  // fit while the strip is still small — so it is never clipped
+                  // and always keeps its square aspect (a true circle).
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Opacity(
+                        opacity: v,
+                        child: _OrbitIndicator(controller: controller),
+                      ),
                     ),
                   ),
                 ),
-                Transform.translate(offset: Offset(0, gap), child: child),
               ],
             );
           },
@@ -86,16 +96,13 @@ class _OrbitIndicatorState extends State<_OrbitIndicator>
         final loading = widget.controller.isLoading ||
             widget.controller.isFinalizing ||
             widget.controller.isSettling;
-        return SizedBox(
-          width: 44,
-          height: 44,
-          child: CustomPaint(
-            painter: _OrbitPainter(
-              progress: widget.controller.value.clamp(0.0, 1.0),
-              loading: loading,
-              spin: _spin.value,
-              color: AppColors.crimson,
-            ),
+        return CustomPaint(
+          size: const Size(44, 44),
+          painter: _OrbitPainter(
+            progress: widget.controller.value.clamp(0.0, 1.0),
+            loading: loading,
+            spin: _spin.value,
+            color: AppColors.crimson,
           ),
         );
       },
