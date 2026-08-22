@@ -92,7 +92,11 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
         left: Gap.xl,
         right: Gap.xl,
         top: Gap.sm,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + Gap.xl,
+        // Clear BOTH the keyboard (viewInsets) and the system gesture bar
+        // (viewPadding) — otherwise the Send button sits under the nav bar.
+        bottom: MediaQuery.viewInsetsOf(context).bottom +
+            MediaQuery.viewPaddingOf(context).bottom +
+            Gap.xl,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
