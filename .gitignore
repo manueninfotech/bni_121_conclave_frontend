@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Release automation
+pubspec.yaml.rel.bak
+*.aab.done
+android/fastlane/report.xml
+android/fastlane/README.md
+android/fastlane/Preview.html

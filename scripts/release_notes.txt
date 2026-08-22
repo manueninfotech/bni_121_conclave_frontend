@@ -1,0 +1,7 @@
+What's new
+• Home dashboard: your next conclave, pending 1-2-1s and business closed, at a glance
+• Member directory — search, filter by category/region, and view profiles
+• Request 1-2-1 meetings with other members, with reminders and notifications
+• Track referrals through to closed business, with thank-you values
+• Profile photos and a shareable QR contact card
+• Refreshed, faster design throughout

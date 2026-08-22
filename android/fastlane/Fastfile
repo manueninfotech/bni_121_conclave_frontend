@@ -1,0 +1,43 @@
+# Fastlane — Google Play upload for BNI 121 Conclave.
+#
+# Driven by scripts/release.sh (which builds the AAB and picks the version).
+# Never touches the store listing (title/description/screenshots) — only the
+# binary and this release's changelog.
+
+default_platform(:android)
+
+platform :android do
+  # Prints the highest versionCode currently known to Play across the usual
+  # tracks, so the release script can pick the next one and never collide.
+  desc "Print highest versionCode on Play"
+  lane :latest_code do
+    codes = []
+    %w[internal alpha beta production].each do |track|
+      begin
+        codes += google_play_track_version_codes(track: track)
+      rescue => e
+        UI.message("(#{track}: #{e.message})")
+      end
+    end
+    UI.success("LATEST_CODE=#{codes.max || 0}")
+  end
+
+  # Uploads a pre-built AAB to a track.
+  # Options: aab:, track:, rollout: (fraction 0..1 for a staged production roll).
+  desc "Upload an AAB to a Play track"
+  lane :deploy do |o|
+    staged = !o[:rollout].to_s.empty?
+    upload_to_play_store(
+      aab: o[:aab],
+      track: o[:track] || "internal",
+      release_status: staged ? "inProgress" : "completed",
+      rollout: staged ? o[:rollout].to_s : nil,
+      skip_upload_apk: true,
+      # Leave the store listing alone — only push the binary + changelog.
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: false,
+    )
+  end
+end

@@ -1,0 +1,2 @@
+json_key_file(ENV["PLAY_JSON_KEY"] || File.expand_path("~/.conclave-secrets/play-service-account.json"))
+package_name("com.manuen.conclave_1_2_1")
