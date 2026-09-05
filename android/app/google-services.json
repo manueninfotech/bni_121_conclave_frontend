@@ -12,7 +12,36 @@
           "package_name": "com.manuen.conclave_1_2_1"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "103376964325-n5te6vc6l7el3afq23f5bd8sniojsfkd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.manuen.conclave_1_2_1",
+            "certificate_hash": "e3edf516c9ccd0c21123c295a258a5245e31019a"
+          }
+        },
+        {
+          "client_id": "103376964325-olr75l8cm373udjclldtb8fbusr66vcs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.manuen.conclave_1_2_1",
+            "certificate_hash": "81287ea3542dbe7d7026a64ecfb58d928b5ead34"
+          }
+        },
+        {
+          "client_id": "103376964325-q5o1vo9stopf4riqn8c65ifb20n4c718.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.manuen.conclave_1_2_1",
+            "certificate_hash": "f2819c9e9b59fe6c2b44be83139060d2cc18474b"
+          }
+        },
+        {
+          "client_id": "103376964325-73o0u7nedvc39en74thacrj7hf199m27.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDVa0NfyDulgscgIVu1bcHrX-gBoGNwn2Y"
@@ -20,7 +49,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "103376964325-73o0u7nedvc39en74thacrj7hf199m27.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "103376964325-51s9r1e8sq37ui76q8976igdnfg27d4f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.manuen.bniconclave"
+              }
+            }
+          ]
         }
       }
     }

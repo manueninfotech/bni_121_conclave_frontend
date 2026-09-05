@@ -58,5 +58,16 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.103376964325-51s9r1e8sq37ui76q8976igdnfg27d4f</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

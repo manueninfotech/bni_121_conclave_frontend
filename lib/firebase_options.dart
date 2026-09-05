@@ -62,6 +62,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '103376964325',
     projectId: 'conclave-1-2-1',
     storageBucket: 'conclave-1-2-1.firebasestorage.app',
+    androidClientId: '103376964325-n5te6vc6l7el3afq23f5bd8sniojsfkd.apps.googleusercontent.com',
+    iosClientId: '103376964325-51s9r1e8sq37ui76q8976igdnfg27d4f.apps.googleusercontent.com',
     iosBundleId: 'com.manuen.bniconclave',
   );
 }
