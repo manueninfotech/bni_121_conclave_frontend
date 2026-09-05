@@ -34,6 +34,11 @@ class RemoteConfigService {
       await _rc.setDefaults(const {
         'backend_url_prod': defaultProdUrl,
         'backend_url_dev': defaultDevUrl,
+        // Lowest iOS version allowed to keep running. Empty = no forced update
+        // (the normal case — a new build is surfaced as a soft nudge from the
+        // App Store instead). Bump this ONLY when an old client can no longer
+        // safely talk to the backend.
+        'ios_min_version': '',
       });
       await _rc.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 8),
@@ -58,4 +63,8 @@ class RemoteConfigService {
 
   String get backendUrlProd => _urlFor('backend_url_prod', defaultProdUrl);
   String get backendUrlDev => _urlFor('backend_url_dev', defaultDevUrl);
+
+  /// The lowest iOS marketing version (e.g. "1.2.0") the app may keep running.
+  /// Empty when no forced update is in effect. See [AppUpdateService].
+  String get iosMinVersion => _ready ? _rc.getString('ios_min_version').trim() : '';
 }
