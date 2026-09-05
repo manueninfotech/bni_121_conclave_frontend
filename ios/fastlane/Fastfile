@@ -64,7 +64,6 @@ platform :ios do
     target = (options[:build] || "12").to_s
     40.times do
       builds = Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 20)
-      b = builds.find { |x| x.version.to_s == target || x.build_audit_info&.dig("attributes") }
       b = builds.find { |x| x.version.to_s == target }
       state = b&.processing_state
       UI.message("build #{target}: #{state || 'not visible yet'}")
