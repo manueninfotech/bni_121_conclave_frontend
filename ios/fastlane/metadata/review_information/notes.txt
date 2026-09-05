@@ -1,0 +1,5 @@
+This app requires login. The demo account below is a phone-number account whose password login needs NO SMS OTP, so review can proceed without receiving an SMS.
+
+On the login screen choose "Phone", select India (+91), enter number 9012340000 and password Review@2026.
+
+The app is for real-world BNI networking events; any payment is a physical event registration fee (processed by Razorpay), not digital content.

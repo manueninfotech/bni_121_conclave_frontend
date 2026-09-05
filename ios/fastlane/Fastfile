@@ -40,6 +40,65 @@ platform :ios do
     end
   end
 
+  desc "Push App Store listing metadata + screenshots (no binary, no submission)"
+  lane :push_metadata do
+    deliver(
+      api_key: asc_key,
+      app_identifier: APP_ID,
+      app_version: "1.1.0",
+      skip_binary_upload: true,
+      overwrite_screenshots: true,
+      run_precheck_before_submit: false,
+      submit_for_review: false,
+      force: true, # no interactive HTML preview
+    )
+  end
+
+  desc "Poll until a build finishes App Store Connect processing"
+  lane :wait_build do |options|
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ASC_KEY_ID, issuer_id: ASC_ISSUER, filepath: ASC_KEY_PATH,
+    )
+    app = Spaceship::ConnectAPI::App.find(APP_ID)
+    target = (options[:build] || "12").to_s
+    40.times do
+      builds = Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 20)
+      b = builds.find { |x| x.version.to_s == target || x.build_audit_info&.dig("attributes") }
+      b = builds.find { |x| x.version.to_s == target }
+      state = b&.processing_state
+      UI.message("build #{target}: #{state || 'not visible yet'}")
+      if state == "VALID"
+        UI.success("BUILD_READY #{target}")
+        break
+      elsif state == "FAILED" || state == "INVALID"
+        UI.user_error!("Build #{target} processing #{state}")
+      end
+      sleep 30
+    end
+  end
+
+  desc "Submit the selected build for App Store review (metadata already pushed)"
+  lane :submit do |options|
+    deliver(
+      api_key: asc_key,
+      app_identifier: APP_ID,
+      app_version: "1.1.0",
+      build_number: (options[:build] || "11").to_s,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: true,
+      automatic_release: true,            # release automatically once approved
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false,
+      },
+      run_precheck_before_submit: false,
+      force: true,
+    )
+  end
+
   desc "Upload an already-built IPA to TestFlight (no rebuild)"
   lane :upload_only do
     ipa = Dir[File.expand_path("../../build/ios/ipa/*.ipa", __dir__)].max_by { |f| File.mtime(f) }

@@ -1,0 +1,10 @@
+BNI 121 Conclave is the companion app for members and guests at BNI 121 Conclave networking events.
+
+• Register for conclaves and check in fast with QR codes
+• Browse the member directory and find the right people to meet
+• Request and manage one-to-one meetings
+• Pass referrals, track their outcome, and record closed business
+• Get timely alerts as rounds begin and referrals arrive
+• Save the people you meet straight to your contacts
+
+Built for the room, tuned for the day — everything you need to make your conclave count.
