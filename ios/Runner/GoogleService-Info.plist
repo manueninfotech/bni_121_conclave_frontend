@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.manuen.conclave121</string>
+	<string>com.manuen.bniconclave</string>
 	<key>PROJECT_ID</key>
 	<string>conclave-1-2-1</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:103376964325:ios:e5ed22929c3d66ed77a20c</string>
+	<string>1:103376964325:ios:8568defa3887667377a20c</string>
 </dict>
 </plist>

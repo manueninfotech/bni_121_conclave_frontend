@@ -56,13 +56,12 @@ class DefaultFirebaseOptions {
     projectId: 'conclave-1-2-1',
     storageBucket: 'conclave-1-2-1.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDvxuzJsgdKQD3z23bfQT_eyobUmFuBB9Q',
-    appId: '1:103376964325:ios:e5ed22929c3d66ed77a20c',
+    appId: '1:103376964325:ios:8568defa3887667377a20c',
     messagingSenderId: '103376964325',
     projectId: 'conclave-1-2-1',
     storageBucket: 'conclave-1-2-1.firebasestorage.app',
-    iosBundleId: 'com.manuen.conclave121',
+    iosBundleId: 'com.manuen.bniconclave',
   );
 }

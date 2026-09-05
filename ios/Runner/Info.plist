@@ -3,7 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Table captains use the camera to scan members' QR codes and record attendance for each round.</string>
+	<string>Table captains use the camera to scan members' QR codes and record attendance for each round. You can also take a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a profile photo from your library.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Save the members you meet at a conclave to your contacts.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -47,5 +51,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

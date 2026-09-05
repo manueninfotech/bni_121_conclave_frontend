@@ -249,24 +249,47 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
+    // Category is a FormField (validated above) and membership is checked
+    // explicitly, but read them into locals so a stray null can never reach a
+    // `!` and crash with the opaque "Null check operator used on a null value".
+    final category = _category;
+    if (category == null || category.isEmpty) {
+      setState(() => _isLoading = false);
+      _error('Choose your business category.');
+      return;
+    }
+    final membership = _membership!;
+
     setState(() => _isLoading = true);
     final repo = ref.read(authRepositoryProvider);
 
     try {
       if (_isPhoneFlow) {
         // Already signed in via OTP — just set the password and save the profile.
+        // The account can go missing here if the OTP session was lost before the
+        // profile was saved (a long pause on this form, or a cold reopen after
+        // the session expired). Recover with a clear message instead of crashing
+        // on a null `currentUser`.
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          setState(() => _isLoading = false);
+          _error('Your verification session ended before we could finish. '
+              'Please register again with the same number.');
+          await ref.read(authRepositoryProvider).logout();
+          return;
+        }
         await repo.registerProfileForPhoneUser(
-          user: FirebaseAuth.instance.currentUser!,
+          user: user,
           phone: _e164,
           email: _altEmail.text.trim(),
           password: _password.text.trim(),
           name: _name.text.trim(),
           businessName: _businessName.text.trim(),
-          businessCategory: _category!,
+          businessCategory: category,
           location: _location.text.trim(),
           chapter: _chapter.text.trim(),
           region: _region.text.trim(),
-          membership: _membership!,
+          membership: membership,
         );
       } else {
         await repo.registerWithEmailAndPassword(
@@ -275,11 +298,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: _password.text.trim(),
           name: _name.text.trim(),
           businessName: _businessName.text.trim(),
-          businessCategory: _category!,
+          businessCategory: category,
           location: _location.text.trim(),
           chapter: _chapter.text.trim(),
           region: _region.text.trim(),
-          membership: _membership!,
+          membership: membership,
         );
       }
 
@@ -292,7 +315,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
       context.go('/conclaves');
-    } catch (e) {
+    } catch (e, st) {
+      // Keep the stack for diagnosis — a bare message like "Null check operator
+      // used on a null value" is useless without the line it came from.
+      debugPrint('Registration failed: $e\n$st');
       _error(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);

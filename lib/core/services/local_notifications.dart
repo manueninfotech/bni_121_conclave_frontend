@@ -31,13 +31,38 @@ class LocalNotifications {
   static const _acceptAction = 'onetoone_accept';
   static const _declineAction = 'onetoone_decline';
 
+  /// iOS groups action buttons under a category the notification references,
+  /// where Android attaches them to the notification directly. This is the
+  /// iOS-side equivalent of the Accept/Decline actions on a 1-2-1 request.
+  static const _oneToOneCategory = 'onetoone_request';
+
   static bool _ready = false;
 
   static Future<void> init() async {
     if (_ready) return;
     const android = AndroidInitializationSettings('@drawable/ic_stat_conclave');
+    // iOS: ask for permission up front and declare the Accept/Decline category
+    // so those buttons appear on a 1-2-1 request in the tray, just like Android.
+    final darwin = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+      notificationCategories: [
+        DarwinNotificationCategory(
+          _oneToOneCategory,
+          actions: [
+            DarwinNotificationAction.plain(_acceptAction, 'Accept'),
+            DarwinNotificationAction.plain(
+              _declineAction,
+              'Decline',
+              options: {DarwinNotificationActionOption.destructive},
+            ),
+          ],
+        ),
+      ],
+    );
     await _plugin.initialize(
-      settings: const InitializationSettings(android: android),
+      settings: InitializationSettings(android: android, iOS: darwin),
       onDidReceiveNotificationResponse: _onResponse,
       onDidReceiveBackgroundNotificationResponse: notificationBackgroundResponse,
     );
@@ -87,11 +112,17 @@ class LocalNotifications {
             showsUserInterface: false, cancelNotification: true),
       ],
     );
+    const ios = DarwinNotificationDetails(
+      categoryIdentifier: _oneToOneCategory,
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
     await _plugin.show(
       id: meetingId.hashCode & 0x7fffffff,
       title: '🤝 1-2-1 request',
       body: '$fromName would like a one-to-one with you.',
-      notificationDetails: NotificationDetails(android: android),
+      notificationDetails: NotificationDetails(android: android, iOS: ios),
       payload: meetingId,
     );
   }
@@ -140,11 +171,19 @@ class LocalNotifications {
         contentTitle: '☕ 1-2-1 with $otherName',
       ),
     );
+    // iOS has no ongoing/chronometer notification, so the countdown can't be a
+    // live sticky there; it still surfaces as a normal alert with the details.
+    final ios = DarwinNotificationDetails(
+      subtitle: place.isEmpty ? null : place.trim(),
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
     await _plugin.show(
       id: id,
       title: '☕ 1-2-1 with $otherName',
       body: 'Starting soon$place',
-      notificationDetails: NotificationDetails(android: android),
+      notificationDetails: NotificationDetails(android: android, iOS: ios),
     );
   }
 
