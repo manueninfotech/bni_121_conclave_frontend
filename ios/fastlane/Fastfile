@@ -1,0 +1,88 @@
+default_platform(:ios)
+
+# App Store Connect API key — the same key drives app creation, signing lookups
+# and the TestFlight upload, so no interactive Apple ID login is ever needed.
+ASC_KEY_ID   = "79TJL426G2"
+ASC_ISSUER   = "cb07fb7a-b51b-41a8-9466-d07c578a4790"
+ASC_KEY_PATH = File.expand_path("~/.conclave-secrets/ASC_API_AuthKey_79TJL426G2.p8")
+APP_ID       = "com.manuen.bniconclave"
+TEAM_ID      = "3PH4PG45KG"
+
+platform :ios do
+  def asc_key
+    app_store_connect_api_key(
+      key_id: ASC_KEY_ID,
+      issuer_id: ASC_ISSUER,
+      key_filepath: ASC_KEY_PATH,
+      in_house: false,
+    )
+  end
+
+  desc "Create the App Store Connect record if it does not exist yet"
+  lane :ensure_app do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ASC_KEY_ID, issuer_id: ASC_ISSUER, filepath: ASC_KEY_PATH,
+    )
+    app = Spaceship::ConnectAPI::App.find(APP_ID)
+    if app
+      UI.success("App already exists in App Store Connect: #{app.name} (#{app.id})")
+    else
+      app = Spaceship::ConnectAPI::App.create(
+        name: "BNI 121 Conclave",
+        version_string: "1.1.0",
+        sku: "bniconclave121",
+        primary_locale: "en-US",
+        bundle_id: APP_ID,
+        platforms: ["IOS"],
+      )
+      UI.success("Created App Store Connect record: #{app.id}")
+    end
+  end
+
+  desc "Upload an already-built IPA to TestFlight (no rebuild)"
+  lane :upload_only do
+    ipa = Dir[File.expand_path("../../build/ios/ipa/*.ipa", __dir__)].max_by { |f| File.mtime(f) }
+    UI.user_error!("No IPA found — run the build first") if ipa.nil?
+    upload_to_testflight(
+      api_key: asc_key,
+      ipa: ipa,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+    )
+  end
+
+  desc "Build the Flutter release archive, export a signed IPA, and upload to TestFlight"
+  lane :beta do
+    ensure_app
+
+    archive = File.expand_path("../../build/ios/archive/Runner.xcarchive", __dir__)
+    export_dir = File.expand_path("../../build/ios/ipa", __dir__)
+
+    # Build via Flutter so the Dart/asset pipeline runs and the .xcarchive is
+    # produced. Flutter's own export step signs with no account context, so it
+    # fails to mint a distribution cert on a fresh account — we ignore that and
+    # export ourselves below with the ASC API key, which CAN create the cert.
+    Dir.chdir("../..") do
+      sh("flutter", "build", "ipa", "--release", "--export-method", "app-store") do |ok, _res|
+        UI.important("flutter export step returned non-zero (expected on first run); exporting with the API key next") unless ok
+      end
+    end
+
+    # Export the signed IPA from the archive using the App Store Connect API key.
+    # -allowProvisioningUpdates + the key let xcodebuild create/download the
+    # iOS Distribution cert and App Store profile headlessly.
+    sh(
+      "xcodebuild", "-exportArchive",
+      "-archivePath", archive,
+      "-exportPath", export_dir,
+      "-exportOptionsPlist", File.expand_path("../ExportOptions.plist", __dir__),
+      "-allowProvisioningUpdates",
+      "-authenticationKeyPath", ASC_KEY_PATH,
+      "-authenticationKeyID", ASC_KEY_ID,
+      "-authenticationKeyIssuerID", ASC_ISSUER,
+    )
+
+    upload_only
+  end
+end
