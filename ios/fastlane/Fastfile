@@ -45,7 +45,7 @@ platform :ios do
     deliver(
       api_key: asc_key,
       app_identifier: APP_ID,
-      app_version: "1.1.0",
+      app_version: "1.1.1",
       skip_binary_upload: true,
       overwrite_screenshots: true,
       run_precheck_before_submit: false,
@@ -82,8 +82,8 @@ platform :ios do
     deliver(
       api_key: asc_key,
       app_identifier: APP_ID,
-      app_version: "1.1.0",
-      build_number: (options[:build] || "11").to_s,
+      app_version: "1.1.1",
+      build_number: (options[:build] || "13").to_s,
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: true,
@@ -142,5 +142,67 @@ platform :ios do
     )
 
     upload_only
+  end
+end
+
+platform :ios do
+  desc "Read current App Store review status + any rejection messages"
+  lane :review_status do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: "79TJL426G2", issuer_id: "cb07fb7a-b51b-41a8-9466-d07c578a4790",
+      filepath: File.expand_path("~/.conclave-secrets/ASC_API_AuthKey_79TJL426G2.p8"),
+    )
+    app = Spaceship::ConnectAPI::App.find("com.manuen.bniconclave")
+    versions = app.get_app_store_versions(includes: "appStoreReviewDetail")
+    versions.first(3).each do |v|
+      UI.important("Version #{v.version_string} — state: #{v.app_store_state}")
+    end
+    # Resolution Center messages (rejection details) via raw client
+    begin
+      resp = Spaceship::ConnectAPI.get("resolutionCenterThreads", { "filter[app]" => app.id, "limit" => 5 })
+      UI.message(resp.to_json)
+    rescue => e
+      UI.error("resolutionCenterThreads: #{e.class} #{e.message}")
+    end
+  end
+end
+
+platform :ios do
+  desc "Inspect review submissions + version states"
+  lane :inspect_review do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: "79TJL426G2", issuer_id: "cb07fb7a-b51b-41a8-9466-d07c578a4790",
+      filepath: File.expand_path("~/.conclave-secrets/ASC_API_AuthKey_79TJL426G2.p8"),
+    )
+    app = Spaceship::ConnectAPI::App.find("com.manuen.bniconclave")
+    app.get_app_store_versions.first(4).each { |v| UI.important("version #{v.version_string}: #{v.app_store_state}") }
+    subs = Spaceship::ConnectAPI::ReviewSubmission.all(client: Spaceship::ConnectAPI, filter: { app: app.id }, includes: "items") rescue nil
+    if subs
+      subs.each { |s| UI.message("review submission #{s.id}: state=#{s.state} platform=#{s.platform}") }
+    else
+      UI.error("could not list review submissions directly")
+    end
+  end
+end
+
+platform :ios do
+  desc "Cancel any in-progress review submission (e.g. after a rejection)"
+  lane :cancel_review do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: "79TJL426G2", issuer_id: "cb07fb7a-b51b-41a8-9466-d07c578a4790",
+      filepath: File.expand_path("~/.conclave-secrets/ASC_API_AuthKey_79TJL426G2.p8"),
+    )
+    app = Spaceship::ConnectAPI::App.find("com.manuen.bniconclave")
+    sub = app.get_in_progress_review_submission(platform: "IOS")
+    if sub
+      UI.important("Cancelling in-progress review submission #{sub.id} (state=#{sub.state})")
+      sub.cancel_submission
+      UI.success("Cancelled")
+    else
+      UI.success("No in-progress review submission")
+    end
   end
 end
