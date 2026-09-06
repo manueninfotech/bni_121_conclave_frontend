@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/domain/phone.dart';
 import 'session_service.dart';
 
@@ -270,6 +272,34 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    await _session.signOut();
+  }
+
+  /// Permanently deletes the signed-in member's account.
+  ///
+  /// The backend (using the Admin SDK) removes the profile document, its
+  /// notifications, and the Firebase Auth login in one authenticated call — the
+  /// client cannot delete its own Firestore document (security rules forbid it)
+  /// and deleting the auth user client-side would need a fresh re-login. After it
+  /// succeeds the local session is cleared, which drops the router to /login.
+  ///
+  /// Required by App Store Guideline 5.1.1(v): an app with account creation must
+  /// let the user delete their account from within the app.
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('You are not signed in.');
+    final token = await user.getIdToken();
+    try {
+      await Dio().delete(
+        '${ApiConfig.baseUrl}/me/account',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        'Could not delete your account. ${e.response?.statusCode ?? ''} '
+        'Please try again, or contact the admin.',
+      );
+    }
     await _session.signOut();
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/app_spinner.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
@@ -40,6 +41,51 @@ class ProfileScreen extends ConsumerWidget {
 
     await ref.read(authRepositoryProvider).logout();
     if (context.mounted) context.go('/login');
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.warning_amber_rounded, color: ctx.colors.danger),
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your account and profile — your details, '
+          'networking info, referrals, and one-to-ones. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: ctx.colors.danger),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    // Block the UI while the backend removes everything.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: AppSpinner(size: 46)),
+    );
+    try {
+      await ref.read(authRepositoryProvider).deleteAccount();
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // dismiss the spinner
+      context.go('/login');
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // dismiss the spinner
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   @override
@@ -188,6 +234,19 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  const SizedBox(height: Gap.lg),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => _confirmDeleteAccount(context, ref),
+                      icon: Icon(Icons.delete_outline,
+                          color: context.colors.danger),
+                      label: Text(
+                        'Delete account',
+                        style: TextStyle(color: context.colors.danger),
+                      ),
                     ),
                   ),
                 ],
