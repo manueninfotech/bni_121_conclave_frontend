@@ -1,0 +1,16 @@
+{
+  "conditions": [],
+  "parameters": {
+    "backend_url_prod": {
+      "defaultValue": {
+        "value": "https://conclave-backend.blackpond-26884e90.centralindia.azurecontainerapps.io/api"
+      },
+      "valueType": "STRING",
+      "description": "Live backend base URL. Migrated to Azure Container Apps 2026-09-12; Render (bni-1-2-1-backend.onrender.com/api) kept as fallback — flip this value back to roll back instantly."
+    }
+  },
+  "parameterGroups": {},
+  "version": {
+    "description": "Point prod backend at Azure Container Apps"
+  }
+}
