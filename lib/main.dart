@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'core/config/remote_config_service.dart';
 import 'core/services/local_notifications.dart';
 import 'core/time/server_clock.dart';
@@ -37,11 +40,37 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Crash reporting. Route every Flutter framework error and every uncaught
+  // async error to Crashlytics, so a crash on a member's phone comes back
+  // symbolicated with the device, OS and stack — not just a store-level count.
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  binding.platformDispatcher.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
+
+  // App Check attests requests come from the genuine app. Activated (tokens are
+  // sent) but NOT enforced on the backend yet — enforcement is a console toggle
+  // to flip only after the token flow is verified, so no one is locked out.
+  try {
+    // ignore: deprecated_member_use
+    await FirebaseAppCheck.instance.activate(
+      // ignore: deprecated_member_use
+      androidProvider:
+          kReleaseMode ? AndroidProvider.playIntegrity : AndroidProvider.debug,
+      // ignore: deprecated_member_use
+      appleProvider:
+          kReleaseMode ? AppleProvider.deviceCheck : AppleProvider.debug,
+    );
+  } catch (e) {
+    debugPrint('App Check activate failed (non-fatal): $e');
+  }
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await LocalNotifications.init();

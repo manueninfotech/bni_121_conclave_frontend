@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/services/local_notifications.dart';
+import 'core/services/analytics_service.dart';
 import 'core/navigation.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/app_update_service.dart';
@@ -73,6 +75,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: navNotifier,
+    // Logs a screen_view to Analytics on every navigation.
+    observers: [Analytics.observer],
     redirect: (context, state) {
       final navState = navNotifier.value;
       final path = state.uri.path;
@@ -357,6 +361,9 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     ref.listen(authStateProvider, (previous, next) {
       final uid = next.asData?.value?.uid;
       final notifications = ref.read(notificationServiceProvider);
+      // Tie analytics + crash reports to the signed-in member (null on sign-out).
+      Analytics.setUser(uid: uid);
+      FirebaseCrashlytics.instance.setUserIdentifier(uid ?? '');
       if (uid != null) {
         notifications.subscribeUser(uid);
       } else {

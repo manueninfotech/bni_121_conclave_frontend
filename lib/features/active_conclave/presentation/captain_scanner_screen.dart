@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/time/server_clock.dart';
 import '../data/local_db.dart';
@@ -77,6 +78,8 @@ class _CaptainScannerScreenState extends ConsumerState<CaptainScannerScreen> {
             isPresent: true,
             markedBy: widget.round.currentUserId,
           );
+      Analytics.qrScan(widget.round.conclaveId);
+      Analytics.attendanceMarked(widget.round.conclaveId, present: true);
 
       if (!mounted) return;
       HapticFeedback.mediumImpact();

@@ -5,6 +5,8 @@ plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    id("com.google.firebase.firebase-perf")
     // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -100,6 +102,10 @@ flutter {
 }
 
 dependencies {
+    // Pin a recent Firebase Android BoM so the native firebase_core plugin's
+    // setCustomAuthDomain() resolves (it's missing on older BoMs, which breaks
+    // the build after adding analytics/crashlytics/performance/app_check).
+    implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 

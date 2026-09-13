@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/domain/phone.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/category_picker.dart';
 import '../../../core/widgets/membership_toggle.dart';
@@ -306,6 +307,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
 
+      Analytics.signUp(_isPhoneFlow ? 'phone' : 'email');
       if (!mounted) return;
       if (!_isPhoneFlow) {
         ScaffoldMessenger.of(context).showSnackBar(

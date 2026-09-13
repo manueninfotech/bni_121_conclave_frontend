@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/api_config.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../auth/data/auth_repository.dart';
 
 enum OneToOneStatus { pending, accepted, declined, cancelled }
@@ -133,6 +134,7 @@ class OneToOnesRepository {
         },
         options: _auth$(await _token()),
       );
+      Analytics.oneToOne('requested');
     } on DioException catch (e) {
       throw Exception(_msg(e, 'Could not send the request.'));
     }
@@ -145,6 +147,7 @@ class OneToOnesRepository {
         data: {'status': status.wire},
         options: _auth$(await _token()),
       );
+      Analytics.oneToOne(status.wire); // accepted / declined / cancelled
     } on DioException catch (e) {
       throw Exception(_msg(e, 'Could not update the 1-2-1.'));
     }

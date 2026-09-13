@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/api_config.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../auth/data/auth_repository.dart';
 
 /// One referral — given or received — with the counterpart and where it
@@ -148,6 +149,7 @@ class MyReferralsRepository {
         data: {'outcome': outcome.wire, 'amount': amount, 'note': note},
         options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
+      Analytics.referralOutcome(outcome.wire, amount: amount);
     } on DioException catch (e) {
       final msg = e.response?.data is Map
           ? (e.response?.data['error'] ?? '').toString()

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/time/server_clock.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -139,6 +140,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
           toBusinessName: seat.businessName,
         );
 
+    if (written) Analytics.referralPassed();
     await _loadLocal(round);
     if (!mounted) return;
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/domain/phone.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
@@ -73,6 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           : _identifier.text.trim();
 
       await ref.read(authRepositoryProvider).login(identifier, _password.text.trim());
+      Analytics.login(_method == LoginMethod.phone ? 'phone' : 'email');
       // The router's redirect handles navigation once auth state changes.
     } catch (e) {
       HapticFeedback.heavyImpact();

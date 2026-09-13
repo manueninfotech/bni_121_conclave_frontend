@@ -72,6 +72,18 @@ dependencies:
   custom_refresh_indicator: ^4.0.2
   package_info_plus: ^8.3.0
   url_launcher: ^6.3.1
+  firebase_analytics: ^12.5.0
+  firebase_crashlytics: ^5.3.0
+  firebase_performance: ^0.11.5
+  firebase_app_check: ^0.4.7
+  app_links: ^7.0.0
+
+# firebase_core 4.14.0 shipped a regression — its native FlutterFirebaseCorePlugin
+# dropped `customAuthDomain`, which firebase_auth still references, so the Android
+# build fails to compile. 4.13.0 has the field. Pin it here until a fixed
+# firebase_core (>4.14.0) is released, then remove this override.
+dependency_overrides:
+  firebase_core: 4.13.0
 
 dev_dependencies:
   flutter_test:

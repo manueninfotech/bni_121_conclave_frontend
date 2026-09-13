@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
@@ -48,6 +49,8 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
         prefillContact: profile?.phone,
       );
       if (registered == true && mounted) {
+        Analytics.conclaveRegister(widget.conclaveId, paid: true);
+        Analytics.paymentCompleted(widget.conclaveId, pd.registrationFee);
         context.go('/conclaves');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("You're registered.")),
@@ -64,6 +67,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
           .read(conclaveRepositoryProvider)
           .registerForConclave(widget.conclaveId);
       ref.invalidate(conclavesStreamProvider);
+      Analytics.conclaveRegister(widget.conclaveId, paid: false);
 
       if (!mounted) return;
       context.go('/conclaves');
