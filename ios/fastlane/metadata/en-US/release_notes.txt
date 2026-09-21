@@ -1,1 +1,4 @@
-First release of BNI 1-2-1 Conclave — register for conclaves, meet the right members, set up one-to-ones, pass and track referrals, and stay updated on the day.
+• New timed rounds: each person gets 1 minute to introduce themselves, then 30 seconds to pass referrals — in a set order, captain last.
+• See who's speaking now, who's up next, and how long is left. The timer stays on screen as you scroll your table.
+• You can now delete your account anytime from Profile.
+• Speed, stability and reliability improvements.
