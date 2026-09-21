@@ -78,12 +78,30 @@ dependencies:
   firebase_app_check: ^0.4.7
   app_links: ^7.0.0
 
-# firebase_core 4.14.0 shipped a regression — its native FlutterFirebaseCorePlugin
-# dropped `customAuthDomain`, which firebase_auth still references, so the Android
-# build fails to compile. 4.13.0 has the field. Pin it here until a fixed
-# firebase_core (>4.14.0) is released, then remove this override.
+# The whole FlutterFire suite is pinned to the 2026-08-03 release (the one that
+# shipped firebase_core 4.13.0 — the stack iOS 1.1.1 was built and approved on).
+# Two upstream problems force this until we move to a newer Flutter:
+#   1. firebase_core 4.14.0 dropped native `customAuthDomain`, which firebase_auth
+#      still references → the ANDROID build fails to compile.
+#   2. The plugins released after 2026-08-03 regenerated their Pigeon bridges
+#      against a newer Flutter iOS embedding; their Swift throws a `FlutterError`
+#      that "is not convertible to 'any Error'" on our Flutter 3.38.5 → the iOS
+#      archive fails (seen in remote_config, storage, analytics, performance,
+#      app_check).
+# Pinning the entire suite (not just the broken plugins) also keeps every plugin
+# on the same underlying Firebase iOS SDK, so CocoaPods stays consistent. Bump
+# these together once the Flutter SDK is upgraded, then drop the block.
 dependency_overrides:
   firebase_core: 4.13.0
+  firebase_auth: 6.5.7
+  firebase_messaging: 16.5.0
+  cloud_firestore: 6.8.0
+  firebase_storage: 13.4.6
+  firebase_remote_config: 6.5.6
+  firebase_analytics: 12.4.6
+  firebase_crashlytics: 5.2.7
+  firebase_performance: 0.11.4+6
+  firebase_app_check: 0.4.6
 
 dev_dependencies:
   flutter_test:
