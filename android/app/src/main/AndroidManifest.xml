@@ -1,4 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- firebase_analytics (via play-services-measurement) adds the advertising-ID
+         permission by default. This app uses Analytics only for its own product
+         metrics — it shows no ads and does no cross-app tracking — so we strip the
+         permission. That keeps the Play "Advertising ID" declaration (and the App
+         Store privacy label) honestly set to "not used", and stops Play rejecting
+         the upload for an undeclared AD_ID permission. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
     <!-- Round alerts. Required from Android 13 (API 33): without it the system
          silently drops every notification, and the members are never told a new
          round has started. -->
