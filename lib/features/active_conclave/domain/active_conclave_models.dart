@@ -161,9 +161,19 @@ class ConclaveSchedule {
 /// transition window for members to walk to their next table.
 ///   P = 8 -> 12 min active + 3 min transition
 ///   P = 6 ->  9 min active + 6 min transition
+///
+/// Inside the active portion the talking is now *sequenced* into two passes (see
+/// [ActiveRound.speakingTurns]): every person gets [bio] to introduce themselves
+/// in turn, then — once all bios are done — every person gets [referral] to pass
+/// business, in the same order. bio + referral == [perPerson], so the total
+/// active time is unchanged; it is only organised into ordered turns.
 class RoundTiming {
   static const Duration block = Duration(minutes: 15);
   static const Duration perPerson = Duration(seconds: 90); // 1.5 min
+  // The two-pass split of perPerson. Kept as separate constants so the schedule
+  // and the block stay in lockstep: bio + referral must equal perPerson.
+  static const Duration bio = Duration(seconds: 60);
+  static const Duration referral = Duration(seconds: 30);
 
   final Duration active;
   final Duration transition;
@@ -179,6 +189,43 @@ class RoundTiming {
     // Clamp rather than produce a negative duration.
     final transition = active >= block ? Duration.zero : block - active;
     return RoundTiming(active: active, transition: transition);
+  }
+}
+
+/// The two things a person does when it is their turn at the table.
+enum TurnKind { bio, referral }
+
+/// One person's turn to speak, resolved to an absolute time window.
+///
+/// The whole sequence is computed from the round's start time (see
+/// [ActiveRound.speakingTurns]) — there is no shared cursor to sync, so every
+/// phone at the table lands on the same current speaker, and it works offline.
+class SpeakingTurn {
+  final TableSeat speaker;
+
+  /// 1-based position in the speaking order. The captain is always last.
+  final int order;
+  final TurnKind kind;
+  final DateTime startsAt;
+  final Duration length;
+
+  const SpeakingTurn({
+    required this.speaker,
+    required this.order,
+    required this.kind,
+    required this.startsAt,
+    required this.length,
+  });
+
+  DateTime get endsAt => startsAt.add(length);
+
+  bool containsAt(DateTime now) =>
+      !now.isBefore(startsAt) && now.isBefore(endsAt);
+
+  /// Time left in this turn; zero once it has elapsed.
+  Duration remainingAt(DateTime now) {
+    final r = endsAt.difference(now);
+    return r.isNegative ? Duration.zero : r;
   }
 }
 
@@ -275,4 +322,71 @@ class ActiveRound {
 
   /// The other people at the table — the ones the user can refer.
   List<TableSeat> get others => seats.where((s) => !s.isSelf).toList();
+
+  /// Speaking order for the table: members introduce first, the captain always
+  /// goes last. Sorted by participant id so the order is stable and identical on
+  /// every device at the table.
+  List<TableSeat> get speakingOrder {
+    final members = seats.where((s) => !s.isCaptain).toList()
+      ..sort((a, b) => a.participantId.compareTo(b.participantId));
+    final captains = seats.where((s) => s.isCaptain).toList()
+      ..sort((a, b) => a.participantId.compareTo(b.participantId));
+    return [...members, ...captains];
+  }
+
+  /// The full sequenced schedule: pass 1 is everyone's [RoundTiming.bio] in
+  /// order, pass 2 is everyone's [RoundTiming.referral] in the same order. The
+  /// last turn ends exactly at [activeEndsAt], so the schedule fills the active
+  /// phase and nothing else shifts.
+  List<SpeakingTurn> get speakingTurns {
+    final order = speakingOrder;
+    final turns = <SpeakingTurn>[];
+    var cursor = startTime;
+    for (var i = 0; i < order.length; i++) {
+      turns.add(SpeakingTurn(
+        speaker: order[i],
+        order: i + 1,
+        kind: TurnKind.bio,
+        startsAt: cursor,
+        length: RoundTiming.bio,
+      ));
+      cursor = cursor.add(RoundTiming.bio);
+    }
+    for (var i = 0; i < order.length; i++) {
+      turns.add(SpeakingTurn(
+        speaker: order[i],
+        order: i + 1,
+        kind: TurnKind.referral,
+        startsAt: cursor,
+        length: RoundTiming.referral,
+      ));
+      cursor = cursor.add(RoundTiming.referral);
+    }
+    return turns;
+  }
+
+  /// The turn happening right now, or null outside the active (talking) phase.
+  SpeakingTurn? currentTurnAt(DateTime now) {
+    if (phaseAt(now) != RoundPhase.active) return null;
+    for (final t in speakingTurns) {
+      if (t.containsAt(now)) return t;
+    }
+    return null;
+  }
+
+  /// The next turn to begin after [now], or null if the last speaker is up.
+  SpeakingTurn? nextTurnAt(DateTime now) {
+    for (final t in speakingTurns) {
+      if (t.startsAt.isAfter(now)) return t;
+    }
+    return null;
+  }
+
+  /// 1-based speaking position of a seat (the captain is last).
+  int orderNumberOf(TableSeat seat) {
+    final order = speakingOrder;
+    final idx =
+        order.indexWhere((s) => s.participantId == seat.participantId);
+    return idx < 0 ? order.length : idx + 1;
+  }
 }

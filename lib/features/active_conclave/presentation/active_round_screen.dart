@@ -336,81 +336,115 @@ class _RoundView extends StatelessWidget {
   Widget build(BuildContext context) {
     final phase = round.phaseAt(now);
     final canRecord = round.canRecordAt(now);
+    final order = round.speakingOrder;
+    final currentTurn = round.currentTurnAt(now);
 
     return Column(
       children: [
         Expanded(
           child: ContentWidth(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                context.pagePadding,
-                context.pagePadding,
-                context.pagePadding,
-                // Captains have the scan button (its own SafeArea) below this
-                // list to clear the nav bar; members don't, so the list itself
-                // must reserve that inset or the last seat sits under it.
-                round.isCaptain ? Gap.sm : Gap.sm + context.bottomInset,
-              ),
-              children: [
-                _TimerCard(round: round, now: now, phase: phase),
-                const SizedBox(height: Gap.lg),
-
-                if (!canRecord) ...[
-                  _PhaseNotice(phase: phase, round: round),
-                  const SizedBox(height: Gap.lg),
-                ],
-
-                // A member's code is the thing a captain scans, so it is the
-                // member's primary object — not buried below the roster.
-                if (!round.isCaptain) ...[
-                  _MyQrCard(round: round),
-                  const SizedBox(height: Gap.lg),
-                ],
-
-                Row(
-                  children: [
-                    Text(
-                      'At your table',
-                      style: context.text.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (round.isCaptain)
-                      Text(
-                        '${attendance.values.where((p) => p).length} of ${round.seats.length} present',
-                        style: context.text.labelSmall?.copyWith(
-                          color: context.scheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
+            child: CustomScrollView(
+              slivers: [
+                // The timer is pinned and shrinks to a compact bar as the roster
+                // scrolls under it, so the countdown and the current speaker are
+                // never off-screen — the whole point of a standing-up, glance-
+                // driven layout.
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _TimerHeaderDelegate(round: round, now: now),
                 ),
-                const SizedBox(height: Gap.sm),
-
-                for (var i = 0; i < round.seats.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: Gap.sm),
-                    child: FadeSlideIn(
-                      index: i,
-                      child: _SeatCard(
-                        seat: round.seats[i],
-                        // Captains see the whole table's attendance; members only
-                        // ever see their own.
-                        attendance: (round.isCaptain || round.seats[i].isSelf)
-                            ? attendance[round.seats[i].userId]
-                            : null,
-                        canMark: canRecord &&
-                            (round.seats[i].isSelf || round.isCaptain),
-                        canRefer: canRecord &&
-                            !round.seats[i].isSelf &&
-                            !referred.contains(round.seats[i].userId),
-                        alreadyReferred: referred.contains(round.seats[i].userId),
-                        onAttendance: (p) => onAttendance(round.seats[i], p),
-                        onRefer: () => onRefer(round.seats[i]),
-                        onAddNote: () => onAddNote(round.seats[i]),
-                      ),
-                    ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    context.pagePadding,
+                    Gap.lg,
+                    context.pagePadding,
+                    // Captains have the scan button (its own SafeArea) below this
+                    // list to clear the nav bar; members don't, so the list itself
+                    // must reserve that inset or the last seat sits under it.
+                    round.isCaptain ? Gap.sm : Gap.sm + context.bottomInset,
                   ),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      if (!canRecord) ...[
+                        _PhaseNotice(phase: phase, round: round),
+                        const SizedBox(height: Gap.lg),
+                      ],
+
+                      // A member's code is the thing a captain scans, so it is the
+                      // member's primary object — not buried below the roster.
+                      if (!round.isCaptain) ...[
+                        _MyQrCard(round: round),
+                        const SizedBox(height: Gap.lg),
+                      ],
+
+                      Row(
+                        children: [
+                          Text(
+                            'At your table',
+                            style: context.text.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: Gap.sm),
+                          Text(
+                            'speaking order',
+                            style: context.text.labelSmall?.copyWith(
+                              color: context.scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (round.isCaptain)
+                            Text(
+                              '${attendance.values.where((p) => p).length} of ${order.length} present',
+                              style: context.text.labelSmall?.copyWith(
+                                color: context.scheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: Gap.sm),
+
+                      // Ordered by who speaks when — members first, captain last —
+                      // so the roster reads top-to-bottom as the running order.
+                      for (var i = 0; i < order.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: Gap.sm),
+                          child: FadeSlideIn(
+                            index: i,
+                            child: _SeatCard(
+                              seat: order[i],
+                              order: i + 1,
+                              speaking: currentTurn != null &&
+                                      currentTurn.speaker.participantId ==
+                                          order[i].participantId
+                                  ? currentTurn
+                                  : null,
+                              turnRemaining: currentTurn != null &&
+                                      currentTurn.speaker.participantId ==
+                                          order[i].participantId
+                                  ? currentTurn.remainingAt(now)
+                                  : null,
+                              // Captains see the whole table's attendance; members
+                              // only ever see their own.
+                              attendance: (round.isCaptain || order[i].isSelf)
+                                  ? attendance[order[i].userId]
+                                  : null,
+                              canMark: canRecord &&
+                                  (order[i].isSelf || round.isCaptain),
+                              canRefer: canRecord &&
+                                  !order[i].isSelf &&
+                                  !referred.contains(order[i].userId),
+                              alreadyReferred:
+                                  referred.contains(order[i].userId),
+                              onAttendance: (p) => onAttendance(order[i], p),
+                              onRefer: () => onRefer(order[i]),
+                              onAddNote: () => onAddNote(order[i]),
+                            ),
+                          ),
+                        ),
+                    ]),
+                  ),
+                ),
               ],
             ),
           ),
@@ -451,83 +485,213 @@ class _RoundView extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 
-/// The anchor of the screen: how long is left, and what for.
-class _TimerCard extends StatelessWidget {
+String _mmss(Duration d) {
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return '$m:$s';
+}
+
+/// Everything the timer needs, resolved once from the round + clock.
+///
+/// During the active phase the timer tracks the *current speaker's* turn — their
+/// bio or referral countdown, who is up, who is next. Off the active phase it
+/// falls back to the phase countdown (walk to your next table / round ended).
+class _TimerVM {
+  final RoundPhase phase;
+  final Color fg;
+  final Color bg;
+  final IconData icon;
+  final String kicker;
+  final Duration remaining;
+  final Duration total;
+  final String? nowName; // current speaker; null off the active phase
+  final bool selfNow; // the current speaker is the signed-in user
+  final String? nextName; // next speaker; null when the last person is up
+  final bool urgent;
+
+  const _TimerVM({
+    required this.phase,
+    required this.fg,
+    required this.bg,
+    required this.icon,
+    required this.kicker,
+    required this.remaining,
+    required this.total,
+    required this.nowName,
+    required this.selfNow,
+    required this.nextName,
+    required this.urgent,
+  });
+
+  double get progress => total.inMilliseconds == 0
+      ? 0.0
+      : (remaining.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+
+  static _TimerVM of(ActiveRound round, DateTime now, BuildContext context) {
+    final c = context.colors;
+    final phase = round.phaseAt(now);
+    final turn = phase == RoundPhase.active ? round.currentTurnAt(now) : null;
+
+    if (turn != null) {
+      final next = round.nextTurnAt(now);
+      final remaining = turn.remainingAt(now);
+      return _TimerVM(
+        phase: phase,
+        fg: c.onSuccessContainer,
+        bg: c.successContainer,
+        icon: turn.kind == TurnKind.bio
+            ? Icons.record_voice_over_outlined
+            : Icons.handshake_outlined,
+        kicker: turn.kind == TurnKind.bio ? 'Bio' : 'Referrals',
+        remaining: remaining,
+        total: turn.length,
+        nowName: turn.speaker.isSelf ? 'You' : turn.speaker.name,
+        selfNow: turn.speaker.isSelf,
+        nextName: next == null
+            ? null
+            : (next.speaker.isSelf ? 'You' : next.speaker.name),
+        // The last ten seconds of any turn pulse — the cue to wrap up before the
+        // floor passes to the next person.
+        urgent: remaining.inSeconds <= 10 && remaining.inSeconds > 0,
+      );
+    }
+
+    if (phase == RoundPhase.transition) {
+      return _TimerVM(
+        phase: phase,
+        fg: c.onWarningContainer,
+        bg: c.warningContainer,
+        icon: Icons.directions_walk,
+        kicker: 'Move to your next table',
+        remaining: round.remainingAt(now),
+        total: round.timing.transition,
+        nowName: null,
+        selfNow: false,
+        nextName: null,
+        urgent: false,
+      );
+    }
+
+    return _TimerVM(
+      phase: phase,
+      fg: context.scheme.onSurfaceVariant,
+      bg: context.scheme.surfaceContainerHighest,
+      icon: Icons.hourglass_empty,
+      kicker: 'Round ended',
+      remaining: Duration.zero,
+      total: round.timing.transition,
+      nowName: null,
+      selfNow: false,
+      nextName: null,
+      urgent: false,
+    );
+  }
+}
+
+/// Pins the timer to the top and shrinks it from a full ring to a compact bar as
+/// the roster scrolls under it — so the countdown and the current speaker are
+/// always on screen.
+class _TimerHeaderDelegate extends SliverPersistentHeaderDelegate {
   final ActiveRound round;
   final DateTime now;
-  final RoundPhase phase;
 
-  const _TimerCard({required this.round, required this.now, required this.phase});
+  _TimerHeaderDelegate({required this.round, required this.now});
 
-  static String _fmt(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
+  // The expanded card lays out at exactly [maxExtent]; as the header shrinks the
+  // card is clipped and cross-faded into the compact bar at [minExtent].
+  @override
+  double get maxExtent => 336;
+  @override
+  double get minExtent => 84;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
+    final vm = _TimerVM.of(round, now, context);
+    final range = maxExtent - minExtent;
+    final t = range <= 0 ? 1.0 : (shrinkOffset / range).clamp(0.0, 1.0);
+
+    return Container(
+      // Opaque backdrop so the roster scrolls cleanly under the rounded card.
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (t < 0.99)
+            IgnorePointer(
+              ignoring: t > 0.5,
+              child: Opacity(
+                opacity: (1 - t / 0.7).clamp(0.0, 1.0),
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: maxExtent,
+                    maxHeight: maxExtent,
+                    child: _TimerExpanded(vm: vm, round: round),
+                  ),
+                ),
+              ),
+            ),
+          if (t > 0.3)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Opacity(
+                opacity: ((t - 0.3) / 0.7).clamp(0.0, 1.0),
+                child: SizedBox(
+                  height: minExtent,
+                  child: Center(child: _TimerCompact(vm: vm, round: round)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
+  bool shouldRebuild(covariant _TimerHeaderDelegate old) =>
+      old.now != now || old.round != round;
+}
+
+/// The full timer: a big ring bound to the current turn, plus who is up and next.
+class _TimerExpanded extends StatelessWidget {
+  final _TimerVM vm;
+  final ActiveRound round;
+
+  const _TimerExpanded({required this.vm, required this.round});
+
+  @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-
-    final (fg, bg, label, icon) = switch (phase) {
-      RoundPhase.active => (
-          c.onSuccessContainer,
-          c.successContainer,
-          'Talking time',
-          Icons.record_voice_over_outlined,
-        ),
-      RoundPhase.transition => (
-          c.onWarningContainer,
-          c.warningContainer,
-          'Move to your next table',
-          Icons.directions_walk,
-        ),
-      RoundPhase.ended => (
-          context.scheme.onSurfaceVariant,
-          context.scheme.surfaceContainerHighest,
-          'Round ended',
-          Icons.hourglass_empty,
-        ),
-    };
-
-    final remaining = round.remainingAt(now);
-    final total = phase == RoundPhase.active
-        ? round.timing.active
-        : round.timing.transition;
-    final progress = total.inMilliseconds == 0
-        ? 0.0
-        : (remaining.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
-
-    // Under a minute, the countdown starts breathing. It is the one moment the
-    // screen should demand attention — you are about to be moved on mid-sentence.
-    final urgent = phase == RoundPhase.active &&
-        remaining.inSeconds <= 60 &&
-        remaining.inSeconds > 0;
+    final fg = vm.fg;
 
     return Semantics(
-      label: '$label. ${remaining.inMinutes} minutes '
-          '${remaining.inSeconds.remainder(60)} seconds remaining. '
-          'Round ${round.roundNumber} of ${round.totalRounds}, table ${round.tableNumber}.',
+      label: '${vm.kicker}. '
+          '${vm.nowName != null ? '${vm.nowName} speaking. ' : ''}'
+          '${vm.remaining.inMinutes} minutes '
+          '${vm.remaining.inSeconds.remainder(60)} seconds left. '
+          'Round ${round.roundNumber} of ${round.totalRounds}, '
+          'table ${round.tableNumber}.',
       excludeSemantics: true,
-      child: AnimatedContainer(
-        duration: Motion.slow,
-        curve: Motion.curve,
-        padding: const EdgeInsets.symmetric(vertical: Gap.xl, horizontal: Gap.lg),
+      child: Container(
+        width: double.infinity,
+        padding:
+            const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: Gap.lg),
         decoration: BoxDecoration(
-          color: bg,
+          color: vm.bg,
           borderRadius: BorderRadius.circular(Radii.xl),
           border: Border.all(color: fg.withValues(alpha: 0.18)),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 15, color: fg),
+                Icon(vm.icon, size: 15, color: fg),
                 const SizedBox(width: Gap.sm),
                 Flexible(
                   child: Text(
-                    label.toUpperCase(),
+                    vm.kicker.toUpperCase(),
                     textAlign: TextAlign.center,
                     style: context.text.labelSmall?.copyWith(
                       color: fg,
@@ -538,25 +702,23 @@ class _TimerCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: Gap.xl),
-
+            const SizedBox(height: Gap.md),
             _PulsingRing(
-              enabled: urgent,
+              enabled: vm.urgent,
               child: SizedBox(
-                width: 184,
-                height: 184,
+                width: 168,
+                height: 168,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // A ring, because time remaining is easier to judge at a
-                    // glance as a shape than as digits — and at this event you
-                    // are glancing, mid-conversation.
+                    // A ring, because time left is easier to judge at a glance as
+                    // a shape than as digits — and here you are glancing, mid-talk.
                     TweenAnimationBuilder<double>(
-                      tween: Tween(begin: progress, end: progress),
+                      tween: Tween(begin: vm.progress, end: vm.progress),
                       duration: Motion.fast,
                       builder: (context, v, _) => SizedBox.expand(
                         child: CircularProgressIndicator(
-                          value: phase == RoundPhase.ended ? 0 : v,
+                          value: vm.phase == RoundPhase.ended ? 0 : v,
                           strokeWidth: 8,
                           strokeCap: StrokeCap.round,
                           color: fg,
@@ -568,19 +730,20 @@ class _TimerCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Tabular figures: without them the digits jitter as the
-                        // glyph widths change each second, and a twitching timer
-                        // is maddening to watch.
+                        // glyph widths change each second.
                         Text(
-                          _fmt(remaining),
-                          style: context.text.displayMedium?.copyWith(
+                          _mmss(vm.remaining),
+                          style: context.text.displaySmall?.copyWith(
                             color: fg,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -2,
+                            letterSpacing: -1.5,
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
                         Text(
-                          phase == RoundPhase.ended ? 'ended' : 'remaining',
+                          vm.phase == RoundPhase.ended
+                              ? 'ended'
+                              : (vm.nowName != null ? 'left' : 'remaining'),
                           style: context.text.labelSmall?.copyWith(
                             color: fg.withValues(alpha: 0.7),
                             letterSpacing: 1,
@@ -592,8 +755,32 @@ class _TimerCard extends StatelessWidget {
                 ),
               ),
             ),
-
-            const SizedBox(height: Gap.xl),
+            const SizedBox(height: Gap.md),
+            if (vm.nowName != null) ...[
+              Text(
+                vm.selfNow ? 'Your turn to speak' : 'Now: ${vm.nowName}',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleSmall?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (vm.nextName != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'Next: ${vm.nextName}',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.bodySmall?.copyWith(
+                    color: fg.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+              const SizedBox(height: Gap.sm),
+            ],
             Wrap(
               spacing: Gap.sm,
               runSpacing: Gap.sm,
@@ -607,16 +794,94 @@ class _TimerCard extends StatelessWidget {
                   label: 'Round ${round.roundNumber} of ${round.totalRounds}',
                   icon: Icons.repeat,
                 ),
-                if (round.isCaptain)
-                  const StatusBadge(
-                    label: 'Captain',
-                    tone: StatusTone.info,
-                    icon: Icons.star_outline,
-                  ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The collapsed timer: a single pinned bar that keeps the countdown and current
+/// speaker on screen while the roster scrolls.
+class _TimerCompact extends StatelessWidget {
+  final _TimerVM vm;
+  final ActiveRound round;
+
+  const _TimerCompact({required this.vm, required this.round});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = vm.fg;
+    final line2 = vm.nowName != null
+        ? (vm.selfNow ? 'Your turn' : 'Now ${vm.nowName}') +
+            (vm.nextName != null ? ' · Next ${vm.nextName}' : '')
+        : 'Table ${round.tableNumber} · '
+            'Round ${round.roundNumber} of ${round.totalRounds}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.sm),
+      decoration: BoxDecoration(
+        color: vm.bg,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: fg.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          _PulsingRing(
+            enabled: vm.urgent,
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                value: vm.phase == RoundPhase.ended ? 0 : vm.progress,
+                strokeWidth: 4,
+                strokeCap: StrokeCap.round,
+                color: fg,
+                backgroundColor: fg.withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Text(
+            _mmss(vm.remaining),
+            style: context.text.titleMedium?.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  vm.kicker.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelSmall?.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                Text(
+                  line2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.bodySmall?.copyWith(
+                    color: fg.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -788,6 +1053,13 @@ class _MyQrCard extends StatelessWidget {
 
 class _SeatCard extends StatelessWidget {
   final TableSeat seat;
+
+  /// 1-based speaking position (captain is last).
+  final int order;
+
+  /// Non-null while this person holds the floor right now.
+  final SpeakingTurn? speaking;
+  final Duration? turnRemaining;
   final bool? attendance;
   final bool canMark;
   final bool canRefer;
@@ -798,6 +1070,9 @@ class _SeatCard extends StatelessWidget {
 
   const _SeatCard({
     required this.seat,
+    required this.order,
+    this.speaking,
+    this.turnRemaining,
     required this.attendance,
     required this.canMark,
     required this.canRefer,
@@ -820,6 +1095,7 @@ class _SeatCard extends StatelessWidget {
       false => c.danger,
       null => null,
     };
+    final speakingNow = speaking != null;
 
     return AnimatedContainer(
       duration: Motion.normal,
@@ -827,9 +1103,13 @@ class _SeatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Radii.lg),
+        // A 2px info border while this person holds the floor, so the roster
+        // mirrors the timer at a glance.
         border: Border.all(
-          color: accent?.withValues(alpha: 0.45) ?? c.hairline,
-          width: accent != null ? 1.5 : 1,
+          color: speakingNow
+              ? c.info
+              : (accent?.withValues(alpha: 0.45) ?? c.hairline),
+          width: speakingNow ? 2 : (accent != null ? 1.5 : 1),
         ),
       ),
       child: Padding(
@@ -840,6 +1120,8 @@ class _SeatCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _OrderChip(order: order, active: speakingNow),
+                const SizedBox(width: Gap.md),
                 _Avatar(seat: seat, attendance: attendance),
                 const SizedBox(width: Gap.md),
                 Expanded(
@@ -891,6 +1173,15 @@ class _SeatCard extends StatelessWidget {
               ],
             ),
 
+            if (speakingNow) ...[
+              const SizedBox(height: Gap.md),
+              _SpeakingPill(
+                kind: speaking!.kind,
+                remaining: turnRemaining ?? speaking!.length,
+                self: seat.isSelf,
+              ),
+            ],
+
             if (canMark && attendance != true) ...[
               const SizedBox(height: Gap.lg),
               _AttendanceToggle(
@@ -916,6 +1207,98 @@ class _SeatCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The speaking-order badge on each seat. Fills in while the person is up.
+class _OrderChip extends StatelessWidget {
+  final int order;
+  final bool active;
+
+  const _OrderChip({required this.order, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final scheme = context.scheme;
+
+    return Container(
+      width: 24,
+      height: 24,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: active ? c.infoContainer : scheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+        border: active ? Border.all(color: c.info, width: 1.5) : null,
+      ),
+      child: Text(
+        '$order',
+        style: context.text.labelSmall?.copyWith(
+          color: active ? c.onInfoContainer : scheme.onSurfaceVariant,
+          fontWeight: FontWeight.w800,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+/// The "speaking now" strip on the active seat: what they're doing (bio /
+/// referral) and their live countdown, mirroring the timer at the top.
+class _SpeakingPill extends StatelessWidget {
+  final TurnKind kind;
+  final Duration remaining;
+  final bool self;
+
+  const _SpeakingPill({
+    required this.kind,
+    required this.remaining,
+    required this.self,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final fg = c.onInfoContainer;
+    final label = kind == TurnKind.bio ? 'Bio' : 'Referral';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+      decoration: BoxDecoration(
+        color: c.infoContainer,
+        borderRadius: BorderRadius.circular(Radii.sm),
+        border: Border.all(color: c.info.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            kind == TurnKind.bio
+                ? Icons.record_voice_over_rounded
+                : Icons.handshake_rounded,
+            size: 14,
+            color: fg,
+          ),
+          const SizedBox(width: Gap.sm),
+          Text(
+            self ? 'Your turn · $label' : 'Speaking now · $label',
+            style: context.text.labelSmall?.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Text(
+            _mmss(remaining),
+            style: context.text.labelSmall?.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }
