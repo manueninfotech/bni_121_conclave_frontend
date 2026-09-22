@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/time/server_clock.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/active_conclave_models.dart';
 
@@ -46,7 +49,14 @@ class ActiveRoundState {
 }
 
 final activeConclaveRepositoryProvider = Provider<ActiveConclaveRepository>((ref) {
-  return ActiveConclaveRepository(FirebaseFirestore.instance, FirebaseAuth.instance);
+  // Rounds now advance on the clock, so resolving the live round needs a
+  // server-corrected 'now' — never the raw device clock, which can be minutes
+  // off and would put two phones on different rounds.
+  return ActiveConclaveRepository(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+    () => ref.read(serverClockProvider).now(),
+  );
 });
 
 /// Streams the live state of one conclave, resolved for the signed-in user.
@@ -66,18 +76,49 @@ final activeRoundProvider =
 class ActiveConclaveRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final DateTime Function() _now;
 
-  ActiveConclaveRepository(this._firestore, this._auth);
+  ActiveConclaveRepository(this._firestore, this._auth, this._now);
 
   Stream<ActiveRoundState> watchActiveRound(String conclaveId) {
-    return _firestore
-        .collection('conclaves')
-        .doc(conclaveId)
-        .snapshots()
-        .map((doc) => _resolve(conclaveId, doc.data()));
+    // Two things move the live round: the conclave document changing (schedule
+    // generated, round 1 started, cancelled) AND the clock crossing a round
+    // boundary. The document does NOT change when a round auto-advances, so a
+    // snapshot-only stream would freeze on a finished round — merge in a ticker
+    // that re-resolves against the current time.
+    final controller = StreamController<ActiveRoundState>();
+    Map<String, dynamic>? latest;
+    var seenDoc = false;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? sub;
+    Timer? ticker;
+
+    void emit() {
+      if (!seenDoc || controller.isClosed) return;
+      controller.add(_resolve(conclaveId, latest, _now()));
+    }
+
+    controller.onListen = () {
+      sub = _firestore
+          .collection('conclaves')
+          .doc(conclaveId)
+          .snapshots()
+          .listen((doc) {
+        latest = doc.data();
+        seenDoc = true;
+        emit();
+      }, onError: controller.addError);
+      ticker = Timer.periodic(const Duration(seconds: 1), (_) => emit());
+    };
+    controller.onCancel = () async {
+      ticker?.cancel();
+      await sub?.cancel();
+    };
+
+    return controller.stream;
   }
 
-  ActiveRoundState _resolve(String conclaveId, Map<String, dynamic>? data) {
+  ActiveRoundState _resolve(
+      String conclaveId, Map<String, dynamic>? data, DateTime now) {
     if (data == null) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.scheduleNotReady);
     }
@@ -113,23 +154,20 @@ class ActiveConclaveRepository {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.notStarted);
     }
 
-    final currentRound = (data['currentRound'] as num?)?.toInt() ?? 0;
-    if (currentRound < 1) {
+    // The anchor is when the admin started the conclave (round 1). Rounds then
+    // auto-advance from here by the clock — no per-round admin action — so we
+    // DERIVE the live round rather than trust a stored counter that stops moving
+    // after round 1.
+    final storedRound = (data['currentRound'] as num?)?.toInt() ?? 0;
+    if (storedRound < 1) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.notStarted);
     }
-
     final startedAt = data['currentRoundStartedAt'];
-    final startTime = startedAt is Timestamp
+    final anchor = startedAt is Timestamp
         ? startedAt.toDate()
         : (startedAt is String ? DateTime.tryParse(startedAt) : null);
-    if (startTime == null) {
+    if (anchor == null) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.missingRoundStart);
-    }
-
-    final round = schedule.round(currentRound);
-    final table = round?.tableFor(me.participantId);
-    if (round == null || table == null) {
-      return const ActiveRoundState.unavailable(ActiveRoundUnavailable.noTableThisRound);
     }
 
     final personsPerTable = (data['personsPerTable'] as num?)?.toInt() ?? 7;
@@ -138,6 +176,28 @@ class ActiveConclaveRepository {
     // Optional per-conclave override: when the admin pins a fixed round length,
     // honour it; otherwise the round auto-scales with the table size.
     final fixedBlockMinutes = (data['roundBlockMinutes'] as num?)?.toInt();
+    final timing = RoundTiming.forPersonsPerTable(
+      personsPerTable,
+      fixedBlockMinutes: fixedBlockMinutes,
+    );
+
+    // Which round is live now = how many whole round-lengths have elapsed since
+    // the anchor. Once we're past the last round, the conclave is over.
+    final roundMs = timing.total.inMilliseconds;
+    final elapsedMs = now.difference(anchor).inMilliseconds;
+    var currentRound = roundMs <= 0 ? storedRound : (elapsedMs ~/ roundMs) + 1;
+    if (currentRound < 1) currentRound = 1;
+    if (currentRound > totalRounds) {
+      return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
+    }
+    final roundStart =
+        anchor.add(Duration(milliseconds: roundMs * (currentRound - 1)));
+
+    final round = schedule.round(currentRound);
+    final table = round?.tableFor(me.participantId);
+    if (round == null || table == null) {
+      return const ActiveRoundState.unavailable(ActiveRoundUnavailable.noTableThisRound);
+    }
 
     // Occupants come back captain-first, which is the order we want on screen.
     final seats = <TableSeat>[];
@@ -163,11 +223,8 @@ class ActiveConclaveRepository {
         roundNumber: currentRound,
         totalRounds: totalRounds,
         tableNumber: table.tableNumber,
-        startTime: startTime,
-        timing: RoundTiming.forPersonsPerTable(
-          personsPerTable,
-          fixedBlockMinutes: fixedBlockMinutes,
-        ),
+        startTime: roundStart,
+        timing: timing,
         seats: seats,
         // Role comes from the schedule itself, not from a hardcoded flag: the
         // user is a captain exactly when they anchor this table.

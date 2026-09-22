@@ -966,7 +966,7 @@ class _PhaseNotice extends StatelessWidget {
               isTransition
                   ? 'Talking time is over. Attendance and referrals are closed for '
                       'round ${round.roundNumber}.'
-                  : 'This round has ended. Waiting for the admin to start the next one.',
+                  : 'This round has ended — moving on…',
               style: context.text.bodySmall?.copyWith(
                 color: isTransition
                     ? c.onWarningContainer
