@@ -1,0 +1,2 @@
+• Rounds now advance automatically. Once the conclave starts, each round rolls into the next on its own — no waiting for the organiser to start every round.
+• Every phone at the table stays in sync on the current round, and the conclave wraps up on its own after the final round.
