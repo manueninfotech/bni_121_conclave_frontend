@@ -181,17 +181,21 @@ class ActiveConclaveRepository {
       fixedBlockMinutes: fixedBlockMinutes,
     );
 
-    // Which round is live now = how many whole round-lengths have elapsed since
-    // the anchor. Once we're past the last round, the conclave is over.
+    // Auto-advance from whatever round was last STARTED (its start time is the
+    // anchor): the current round is that round plus however many whole
+    // round-lengths have since elapsed. Basing it on storedRound rather than
+    // assuming round 1 keeps the app correct even if an admin starts a later
+    // round by hand. Once we're past the last round, the conclave is over.
     final roundMs = timing.total.inMilliseconds;
     final elapsedMs = now.difference(anchor).inMilliseconds;
-    var currentRound = roundMs <= 0 ? storedRound : (elapsedMs ~/ roundMs) + 1;
-    if (currentRound < 1) currentRound = 1;
+    var currentRound =
+        roundMs <= 0 ? storedRound : storedRound + (elapsedMs ~/ roundMs);
+    if (currentRound < storedRound) currentRound = storedRound;
     if (currentRound > totalRounds) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
     }
-    final roundStart =
-        anchor.add(Duration(milliseconds: roundMs * (currentRound - 1)));
+    final roundStart = anchor
+        .add(Duration(milliseconds: roundMs * (currentRound - storedRound)));
 
     final round = schedule.round(currentRound);
     final table = round?.tableFor(me.participantId);
