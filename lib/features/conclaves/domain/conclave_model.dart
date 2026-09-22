@@ -90,6 +90,10 @@ class Conclave {
   final String name;
   final String venueLocation;
   final DateTime date;
+
+  /// Last day of a multi-day event. Null for a single-day conclave (use [date]).
+  final DateTime? endDate;
+
   final ConclaveStatus status;
   final bool isRegistrationOpen;
 
@@ -116,6 +120,7 @@ class Conclave {
     required this.name,
     required this.venueLocation,
     required this.date,
+    this.endDate,
     required this.status,
     required this.isRegistrationOpen,
     this.startTime,
@@ -128,6 +133,26 @@ class Conclave {
     this.userRole,
     this.userTableNumber,
   });
+
+  /// Status corrected for the passage of time.
+  ///
+  /// Nothing writes `completed` when an event's day simply passes, and the app
+  /// reads the stored `status` straight from Firestore — so a finished conclave
+  /// would otherwise sit in the "live" list forever (the bug where a conclave
+  /// marked ended in the admin panel still showed as ongoing in the app). Once
+  /// the event's last day is over, treat it as completed. A conclave running
+  /// today keeps its stored status, so a live event still reads as live.
+  ConclaveStatus get effectiveStatus {
+    if (status == ConclaveStatus.completed ||
+        status == ConclaveStatus.cancelled) {
+      return status;
+    }
+    final lastDay = endDate ?? date;
+    final endOfLastDay =
+        DateTime(lastDay.year, lastDay.month, lastDay.day, 23, 59, 59);
+    if (DateTime.now().isAfter(endOfLastDay)) return ConclaveStatus.completed;
+    return status;
+  }
 
   /// Coerces whatever a date field holds into a DateTime.
   ///
@@ -153,14 +178,37 @@ class Conclave {
     }
   }
 
+  /// Combines a time-of-day string ("10:00", "1:00 PM") with [base]'s calendar
+  /// day. The backend stores start/end as "HH:mm" strings (not full datetimes),
+  /// so [_toDate] can't read them — this anchors the clock time onto the event
+  /// day for display and for the end-of-event check. Full datetimes/Timestamps
+  /// fall through to [_toDate].
+  static DateTime? _timeOfDayOn(dynamic raw, DateTime base) {
+    if (raw is! String) return null;
+    final m =
+        RegExp(r'^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$').firstMatch(raw.trim());
+    if (m == null) return null;
+    var h = int.parse(m.group(1)!);
+    final min = int.parse(m.group(2)!);
+    final mer = m.group(3)?.toUpperCase();
+    if (mer == 'PM' && h < 12) h += 12;
+    if (mer == 'AM' && h == 12) h = 0;
+    return DateTime(base.year, base.month, base.day, h, min);
+  }
+
   factory Conclave.fromFirestore(Map<String, dynamic> data, String id) {
+    final date = _toDate(data['date']) ?? DateTime.now();
+    final endDate = _toDate(data['endDate']);
     return Conclave(
       id: id,
       name: data['name'] ?? 'Unnamed Conclave',
       venueLocation: data['venueLocation'] ?? 'Unknown Venue',
-      date: _toDate(data['date']) ?? DateTime.now(),
-      startTime: _toDate(data['startTime']),
-      endTime: _toDate(data['endTime']),
+      date: date,
+      endDate: endDate,
+      startTime:
+          _timeOfDayOn(data['startTime'], date) ?? _toDate(data['startTime']),
+      endTime: _timeOfDayOn(data['endTime'], endDate ?? date) ??
+          _toDate(data['endTime']),
       chiefGuests: ((data['chiefGuests'] as List?) ?? const [])
           .map((e) => e.toString())
           .toList(),

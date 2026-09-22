@@ -78,7 +78,7 @@ class _Detail extends StatelessWidget {
 
   const _Detail({required this.conclave});
 
-  (String, StatusTone, IconData) get _status => switch (conclave.status) {
+  (String, StatusTone, IconData) get _status => switch (conclave.effectiveStatus) {
         ConclaveStatus.running => ('Live now', StatusTone.success, Icons.podcasts),
         ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
         ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
@@ -281,7 +281,8 @@ class _Action extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (conclave.status == ConclaveStatus.running && conclave.isRegistered) {
+    if (conclave.effectiveStatus == ConclaveStatus.running &&
+        conclave.isRegistered) {
       return SizedBox(
         width: double.infinity,
         height: 52,
@@ -293,7 +294,8 @@ class _Action extends StatelessWidget {
       );
     }
 
-    if (conclave.status == ConclaveStatus.completed && conclave.isRegistered) {
+    if (conclave.effectiveStatus == ConclaveStatus.completed &&
+        conclave.isRegistered) {
       return SizedBox(
         width: double.infinity,
         height: 52,

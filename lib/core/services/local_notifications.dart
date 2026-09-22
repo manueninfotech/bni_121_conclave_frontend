@@ -90,6 +90,49 @@ class LocalNotifications {
     _ready = true;
   }
 
+  // ---- Generic foreground alert -------------------------------------------
+
+  /// Mirror a plain push (round started, referral, or any other notification
+  /// message) into the tray. FCM does NOT display a notification message while
+  /// the app is in the foreground, so without this the user sees nothing while
+  /// they have the app open — which is exactly when a round starts. [channel]
+  /// picks the Android channel (falls back to General).
+  static Future<void> showMessage({
+    required String title,
+    required String body,
+    String channel = channelGeneral,
+    String? payload,
+  }) async {
+    await init();
+    final channelName = switch (channel) {
+      channelRoundAlerts => 'Round alerts',
+      channelReferrals => 'Referrals',
+      channelOneToOnes => '1-2-1s',
+      _ => 'General',
+    };
+    final android = AndroidNotificationDetails(
+      channel,
+      channelName,
+      importance: Importance.high,
+      priority: Priority.high,
+      color: _brand,
+      styleInformation: BigTextStyleInformation(body),
+    );
+    const ios = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    await _plugin.show(
+      // A fresh id each time so alerts stack rather than replace each other.
+      id: DateTime.now().millisecondsSinceEpoch & 0x7fffffff,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(android: android, iOS: ios),
+      payload: payload,
+    );
+  }
+
   // ---- 1-2-1 request (with Accept / Decline actions) ----------------------
 
   static Future<void> showOneToOneRequest({

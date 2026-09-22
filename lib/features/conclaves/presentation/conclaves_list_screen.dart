@@ -36,11 +36,12 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
   /// Upcoming is the COMPLEMENT of the other two, so a status added later can
   /// never fall through the cracks and become invisible in the app.
   List<Conclave> _filter(List<Conclave> all, int tab) => switch (tab) {
-        0 => all.where((c) => _ongoing.contains(c.status)).toList(),
-        2 => all.where((c) => _past.contains(c.status)).toList(),
+        0 => all.where((c) => _ongoing.contains(c.effectiveStatus)).toList(),
+        2 => all.where((c) => _past.contains(c.effectiveStatus)).toList(),
         _ => all
             .where((c) =>
-                !_ongoing.contains(c.status) && !_past.contains(c.status))
+                !_ongoing.contains(c.effectiveStatus) &&
+                !_past.contains(c.effectiveStatus))
             .toList(),
       };
 
@@ -156,7 +157,7 @@ class _ConclaveCard extends StatelessWidget {
 
   const _ConclaveCard({required this.conclave});
 
-  (String, StatusTone, IconData) get _status => switch (conclave.status) {
+  (String, StatusTone, IconData) get _status => switch (conclave.effectiveStatus) {
         ConclaveStatus.running => ('Live', StatusTone.success, Icons.podcasts),
         ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
         ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
@@ -168,7 +169,7 @@ class _ConclaveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, tone, icon) = _status;
-    final isLive = conclave.status == ConclaveStatus.running;
+    final isLive = conclave.effectiveStatus == ConclaveStatus.running;
 
     return Card(
       clipBehavior: Clip.antiAlias,

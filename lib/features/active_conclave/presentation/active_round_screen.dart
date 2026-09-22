@@ -39,7 +39,6 @@ class ActiveRoundScreen extends ConsumerStatefulWidget {
 
 class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
   Timer? _ticker;
-  StreamSubscription? _fcmSub;
   DateTime _now = DateTime.now();
 
   /// Server-corrected clock. Round boundaries are set by the server, so the
@@ -65,23 +64,13 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
       ref.read(syncServiceProvider).startSyncTimer(widget.conclaveId);
       ref.read(notificationServiceProvider).subscribe(widget.conclaveId);
     });
-
-    // FCM shows no system notification while the app is open, so surface round
-    // alerts in-app. The round itself still comes from the conclave document —
-    // this only tells the user to look up.
-    _fcmSub = ref
-        .read(notificationServiceProvider)
-        .foregroundMessages
-        .listen((message) {
-      final title = message.notification?.title;
-      if (title != null && mounted) _toast(title);
-    });
+    // Foreground round alerts are surfaced app-wide as a real notification (see
+    // the onMessage handler in app.dart), so this screen no longer double-toasts.
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
-    _fcmSub?.cancel();
     super.dispose();
   }
 

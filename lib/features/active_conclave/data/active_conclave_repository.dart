@@ -135,6 +135,9 @@ class ActiveConclaveRepository {
     final personsPerTable = (data['personsPerTable'] as num?)?.toInt() ?? 7;
     final totalRounds =
         (data['roundCount'] as num?)?.toInt() ?? schedule.rounds.length;
+    // Optional per-conclave override: when the admin pins a fixed round length,
+    // honour it; otherwise the round auto-scales with the table size.
+    final fixedBlockMinutes = (data['roundBlockMinutes'] as num?)?.toInt();
 
     // Occupants come back captain-first, which is the order we want on screen.
     final seats = <TableSeat>[];
@@ -161,7 +164,10 @@ class ActiveConclaveRepository {
         totalRounds: totalRounds,
         tableNumber: table.tableNumber,
         startTime: startTime,
-        timing: RoundTiming.forPersonsPerTable(personsPerTable),
+        timing: RoundTiming.forPersonsPerTable(
+          personsPerTable,
+          fixedBlockMinutes: fixedBlockMinutes,
+        ),
         seats: seats,
         // Role comes from the schedule itself, not from a hardcoded flag: the
         // user is a captain exactly when they anchor this table.

@@ -294,12 +294,34 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     // A 1-2-1 reminder that lands while the app is open: raise the same sticky
     // countdown the background handler would (FCM won't show a data message).
     _reminderSub = FirebaseMessaging.onMessage.listen((message) {
-      switch (message.data['type']) {
+      final type = message.data['type'];
+      switch (type) {
+        // These two are data-only messages that build a richer, interactive
+        // notification (sticky countdown / Accept-Decline), so they're special.
         case 'one_to_one_request':
           LocalNotifications.handleRequestData(message.data);
+          return;
         case 'one_to_one_reminder':
           LocalNotifications.handleReminderData(message.data);
+          return;
       }
+
+      // Everything else (round started, referral passed, generic updates): FCM
+      // does not show a notification message while the app is open, so mirror it
+      // into the tray ourselves — otherwise the user, who is IN the app exactly
+      // when a round starts, sees nothing at all.
+      final title = message.notification?.title ?? message.data['title'] as String?;
+      final body = message.notification?.body ?? message.data['body'] as String?;
+      if (title == null || body == null) return;
+      LocalNotifications.showMessage(
+        title: title,
+        body: body,
+        channel: switch (type) {
+          'round_started' => LocalNotifications.channelRoundAlerts,
+          'referral' || 'referral_received' => LocalNotifications.channelReferrals,
+          _ => LocalNotifications.channelGeneral,
+        },
+      );
     });
 
     // Deep-link: a notification tapped while the app was backgrounded…

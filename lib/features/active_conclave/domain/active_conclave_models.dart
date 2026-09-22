@@ -156,24 +156,32 @@ class ConclaveSchedule {
 
 /// How long a round runs, derived from the table size.
 ///
-/// Spec: a round occupies a fixed 15-minute block. The active (talking) portion
-/// is 1.5 minutes per person at the table; whatever is left of the block is the
-/// transition window for members to walk to their next table.
-///   P = 8 -> 12 min active + 3 min transition
-///   P = 6 ->  9 min active + 6 min transition
+/// The active (talking) portion is 1.5 minutes per person at the table. By
+/// default the round then adds a small fixed [transitionBuffer] for people to
+/// move to their next table — so a round's length *scales with headcount*
+/// instead of being padded out to a fixed block:
+///   P = 8 -> 12 min talking + 2 min move = 14 min
+///   P = 4 ->  6 min talking + 2 min move =  8 min
+/// This replaced the old fixed 15-minute block, whose transition ballooned to
+/// 9+ minutes of dead time for small tables.
 ///
-/// Inside the active portion the talking is now *sequenced* into two passes (see
+/// A conclave may override this with a fixed total block ([fixedBlockMinutes]) —
+/// the transition is then whatever is left of that block after talking — for
+/// organisers who want to pin the cadence by hand.
+///
+/// Inside the active portion the talking is *sequenced* into two passes (see
 /// [ActiveRound.speakingTurns]): every person gets [bio] to introduce themselves
 /// in turn, then — once all bios are done — every person gets [referral] to pass
-/// business, in the same order. bio + referral == [perPerson], so the total
-/// active time is unchanged; it is only organised into ordered turns.
+/// business, in the same order. bio + referral == [perPerson].
 class RoundTiming {
-  static const Duration block = Duration(minutes: 15);
   static const Duration perPerson = Duration(seconds: 90); // 1.5 min
   // The two-pass split of perPerson. Kept as separate constants so the schedule
-  // and the block stay in lockstep: bio + referral must equal perPerson.
+  // and the timings stay in lockstep: bio + referral must equal perPerson.
   static const Duration bio = Duration(seconds: 60);
   static const Duration referral = Duration(seconds: 30);
+  // The default move-to-next-table window. Small and fixed — walking between
+  // tables takes about the same time whether the table sat 4 people or 8.
+  static const Duration transitionBuffer = Duration(minutes: 2);
 
   final Duration active;
   final Duration transition;
@@ -182,13 +190,25 @@ class RoundTiming {
 
   Duration get total => active + transition;
 
-  factory RoundTiming.forPersonsPerTable(int personsPerTable) {
+  /// [fixedBlockMinutes], when set on the conclave, pins the total round to that
+  /// many minutes (old behaviour); otherwise the round auto-scales as
+  /// talking + [transitionBuffer].
+  factory RoundTiming.forPersonsPerTable(
+    int personsPerTable, {
+    int? fixedBlockMinutes,
+  }) {
     final p = personsPerTable < 1 ? 1 : personsPerTable;
     final active = perPerson * p;
-    // A table big enough to consume the whole block leaves no transition time.
-    // Clamp rather than produce a negative duration.
-    final transition = active >= block ? Duration.zero : block - active;
-    return RoundTiming(active: active, transition: transition);
+
+    if (fixedBlockMinutes != null && fixedBlockMinutes > 0) {
+      final block = Duration(minutes: fixedBlockMinutes);
+      // Clamp rather than produce a negative transition when talking alone
+      // already fills (or overruns) the fixed block.
+      final transition = active >= block ? Duration.zero : block - active;
+      return RoundTiming(active: active, transition: transition);
+    }
+
+    return RoundTiming(active: active, transition: transitionBuffer);
   }
 }
 
