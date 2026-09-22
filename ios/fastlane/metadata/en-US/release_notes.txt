@@ -1,4 +1,5 @@
-• New timed rounds: each person gets 1 minute to introduce themselves, then 30 seconds to pass referrals — in a set order, captain last.
-• See who's speaking now, who's up next, and how long is left. The timer stays on screen as you scroll your table.
-• You can now delete your account anytime from Profile.
-• Speed, stability and reliability improvements.
+• Rounds now advance automatically — once a conclave starts, each round rolls into the next on its own, and the event wraps up after the final round.
+• Round length now fits the group: it scales with how many people are at a table, so small tables don't wait around.
+• Notifications now show while you're using the app — round alerts and referrals no longer stay silent when the app is open.
+• Finished conclaves correctly move out of "Live" once the event is over.
+• Conclaves now show their start and end time, so you know when to arrive.

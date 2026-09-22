@@ -45,7 +45,7 @@ platform :ios do
     deliver(
       api_key: asc_key,
       app_identifier: APP_ID,
-      app_version: "1.1.2",
+      app_version: "1.1.5",
       skip_binary_upload: true,
       # Screenshots carry over from the previous version; re-uploading them is
       # slow and risks the alpha/size checks. Pass screenshots:true to force it.
@@ -85,8 +85,8 @@ platform :ios do
     deliver(
       api_key: asc_key,
       app_identifier: APP_ID,
-      app_version: "1.1.2",
-      build_number: (options[:build] || "14").to_s,
+      app_version: "1.1.5",
+      build_number: (options[:build] || "17").to_s,
       skip_binary_upload: true,
       skip_screenshots: true,
       skip_metadata: true,
