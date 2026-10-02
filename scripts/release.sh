@@ -115,7 +115,14 @@ export PATH="$JAVA_HOME/bin:$PATH"
 # Preconditions
 # ---------------------------------------------------------------------------
 step "Checking prerequisites"
-command -v flutter >/dev/null || die "flutter not on PATH."
+# This project is pinned to a specific Flutter via fvm (.fvmrc) so a global SDK
+# upgrade can't silently change the build. Prefer `fvm flutter` when available.
+if [[ -f .fvmrc ]] && command -v fvm >/dev/null 2>&1; then
+  FLUTTER="fvm flutter"
+else
+  FLUTTER="flutter"
+fi
+command -v ${FLUTTER%% *} >/dev/null || die "${FLUTTER%% *} not on PATH."
 [[ -f android/key.properties ]] || die "android/key.properties missing — release signing not configured."
 STORE_FILE=$(grep -E '^storeFile=' android/key.properties | cut -d= -f2-)
 STORE_FILE="${STORE_FILE/#\~/$HOME}"
@@ -187,8 +194,8 @@ echo "  └───────────────────────
 # Build
 # ---------------------------------------------------------------------------
 step "Building signed AAB"
-flutter pub get >/dev/null
-flutter build appbundle --release
+$FLUTTER pub get >/dev/null
+$FLUTTER build appbundle --release
 [[ -f "$AAB" ]] || die "Build reported success but $AAB is missing."
 touch "$AAB.done"
 ok "Built $AAB ($(du -h "$AAB" | cut -f1))"
