@@ -98,11 +98,21 @@ class ConclaveRepository {
       );
     } on DioException catch (e) {
       final data = e.response?.data;
-      if (e.response?.statusCode == 409 && data is Map) {
+      // Only a genuine clash — one that names the conflicting conclave — is a
+      // RegistrationConflict. The backend returns 409 for other reasons too
+      // (e.g. registration closed), and those must NOT show the "Clashes with
+      // another conclave" dialog; they fall through to their own message below.
+      String? conflictName;
+      if (data is Map && data['conflictsWith'] is Map) {
+        conflictName = (data['conflictsWith'] as Map)['name'] as String?;
+      }
+      if (e.response?.statusCode == 409 &&
+          conflictName != null &&
+          conflictName.isNotEmpty) {
         throw RegistrationConflict(
           (data['error'] ?? 'This conclave clashes with another registration.')
               as String,
-          conflictName: (data['conflictsWith']?['name'] ?? '') as String,
+          conflictName: conflictName,
         );
       }
       if (data is Map && data['error'] != null) {

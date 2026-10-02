@@ -7,6 +7,7 @@ import '../../../core/constants/business_categories.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/category_picker.dart';
+import '../../../core/config/categories_provider.dart';
 import '../../../core/widgets/membership_toggle.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/user_avatar.dart';
@@ -288,6 +289,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   CategoryPickerField(
                     value: _category,
                     onChanged: (v) => setState(() => _category = v),
+                    categories: ref.watch(categoriesProvider),
                   ),
                   const SizedBox(height: Gap.lg),
 

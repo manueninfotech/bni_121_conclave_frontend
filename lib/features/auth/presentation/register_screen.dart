@@ -8,6 +8,7 @@ import '../../../core/domain/phone.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/category_picker.dart';
+import '../../../core/config/categories_provider.dart';
 import '../../../core/widgets/membership_toggle.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
@@ -639,6 +640,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           CategoryPickerField(
             value: _category,
             onChanged: (v) => setState(() => _category = v),
+            categories: ref.watch(categoriesProvider),
           ),
           const SizedBox(height: Gap.md),
           TextFormField(

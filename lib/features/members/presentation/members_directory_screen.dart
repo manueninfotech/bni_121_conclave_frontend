@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/category_picker.dart';
+import '../../../core/config/categories_provider.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
@@ -54,7 +55,11 @@ class _MembersDirectoryScreenState
   }
 
   Future<void> _pickCategory() async {
-    final picked = await showCategoryPicker(context, selected: _category);
+    final picked = await showCategoryPicker(
+      context,
+      selected: _category,
+      categories: ref.read(categoriesProvider),
+    );
     if (picked != null) setState(() => _category = picked);
   }
 

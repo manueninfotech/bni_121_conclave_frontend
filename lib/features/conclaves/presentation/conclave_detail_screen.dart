@@ -307,7 +307,7 @@ class _Action extends StatelessWidget {
       );
     }
 
-    if (conclave.isRegistrationOpen && !conclave.isRegistered) {
+    if (conclave.canRegister && !conclave.isRegistered) {
       return SizedBox(
         width: double.infinity,
         height: 52,
@@ -349,9 +349,13 @@ class _Action extends StatelessWidget {
       child: OutlinedButton(
         onPressed: null,
         child: Text(
-          conclave.status == ConclaveStatus.registrationNotOpen
-              ? 'Registration opens soon'
-              : 'Registration closed',
+          switch (conclave.effectiveStatus) {
+            ConclaveStatus.completed => 'This conclave has ended',
+            ConclaveStatus.cancelled => 'This conclave was cancelled',
+            ConclaveStatus.running => 'This conclave is already running',
+            ConclaveStatus.registrationNotOpen => 'Registration opens soon',
+            _ => 'Registration closed',
+          },
         ),
       ),
     );

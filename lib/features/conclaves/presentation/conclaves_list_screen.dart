@@ -256,7 +256,7 @@ class _CardAction extends StatelessWidget {
       );
     }
 
-    if (conclave.isRegistrationOpen) {
+    if (conclave.canRegister) {
       return SizedBox(
         width: double.infinity,
         child: FilledButton.icon(
@@ -272,9 +272,12 @@ class _CardAction extends StatelessWidget {
       child: OutlinedButton(
         onPressed: null,
         child: Text(
-          conclave.status == ConclaveStatus.registrationNotOpen
-              ? 'Registration not open yet'
-              : 'Registration closed',
+          switch (conclave.effectiveStatus) {
+            ConclaveStatus.completed => 'Ended',
+            ConclaveStatus.cancelled => 'Cancelled',
+            ConclaveStatus.registrationNotOpen => 'Registration not open yet',
+            _ => 'Registration closed',
+          },
         ),
       ),
     );

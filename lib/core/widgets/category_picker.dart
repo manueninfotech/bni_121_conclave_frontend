@@ -19,6 +19,7 @@ class CategoryPickerField extends FormField<String> {
     required ValueChanged<String> onChanged,
     String label = 'Business category',
     String? helperText = 'No two people of the same category share a table',
+    List<String>? categories,
   }) : super(
           initialValue: value,
           validator: (v) =>
@@ -32,6 +33,7 @@ class CategoryPickerField extends FormField<String> {
                 final picked = await showCategoryPicker(
                   context,
                   selected: field.value,
+                  categories: categories,
                 );
                 if (picked != null) {
                   field.didChange(picked);
@@ -61,18 +63,23 @@ class CategoryPickerField extends FormField<String> {
 Future<String?> showCategoryPicker(
   BuildContext context, {
   String? selected,
+  List<String>? categories,
 }) {
   return showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (ctx) => _CategoryPickerSheet(selected: selected),
+    builder: (ctx) => _CategoryPickerSheet(
+      selected: selected,
+      categories: categories ?? bniBusinessCategories,
+    ),
   );
 }
 
 class _CategoryPickerSheet extends StatefulWidget {
   final String? selected;
-  const _CategoryPickerSheet({this.selected});
+  final List<String> categories;
+  const _CategoryPickerSheet({this.selected, required this.categories});
 
   @override
   State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
@@ -90,9 +97,9 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
 
   List<String> get _results {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return bniBusinessCategories;
+    if (q.isEmpty) return widget.categories;
     return [
-      for (final c in bniBusinessCategories)
+      for (final c in widget.categories)
         if (c.toLowerCase().contains(q)) c,
     ];
   }

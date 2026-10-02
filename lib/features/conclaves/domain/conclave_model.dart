@@ -154,6 +154,21 @@ class Conclave {
     return status;
   }
 
+  /// Whether a member can still register right now. Registration is only open
+  /// for an upcoming event with its doors open — never one that is over,
+  /// cancelled, or already running. (The stored [isRegistrationOpen] is often
+  /// stale `true` on past events, which is why past conclaves were wrongly
+  /// offering a Register button.)
+  bool get canRegister {
+    final s = effectiveStatus;
+    if (s == ConclaveStatus.completed ||
+        s == ConclaveStatus.cancelled ||
+        s == ConclaveStatus.running) {
+      return false;
+    }
+    return isRegistrationOpen;
+  }
+
   /// Coerces whatever a date field holds into a DateTime.
   ///
   /// The same field arrives in different shapes depending on who wrote it: the
