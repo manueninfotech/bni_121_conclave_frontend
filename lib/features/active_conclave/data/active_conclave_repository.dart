@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/round_timing_provider.dart';
 import '../../../core/time/server_clock.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/active_conclave_models.dart';
@@ -56,6 +57,7 @@ final activeConclaveRepositoryProvider = Provider<ActiveConclaveRepository>((ref
     FirebaseFirestore.instance,
     FirebaseAuth.instance,
     () => ref.read(serverClockProvider).now(),
+    () => ref.read(roundTimingConfigProvider),
   );
 });
 
@@ -77,8 +79,10 @@ class ActiveConclaveRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final DateTime Function() _now;
+  final RoundTimingConfig Function() _roundTiming;
 
-  ActiveConclaveRepository(this._firestore, this._auth, this._now);
+  ActiveConclaveRepository(
+      this._firestore, this._auth, this._now, this._roundTiming);
 
   Stream<ActiveRoundState> watchActiveRound(String conclaveId) {
     // Two things move the live round: the conclave document changing (schedule
@@ -176,9 +180,13 @@ class ActiveConclaveRepository {
     // Optional per-conclave override: when the admin pins a fixed round length,
     // honour it; otherwise the round auto-scales with the table size.
     final fixedBlockMinutes = (data['roundBlockMinutes'] as num?)?.toInt();
+    final cfg = _roundTiming();
     final timing = RoundTiming.forPersonsPerTable(
       personsPerTable,
       fixedBlockMinutes: fixedBlockMinutes,
+      bioSeconds: cfg.bioSeconds,
+      referralSeconds: cfg.referralSeconds,
+      bufferSeconds: cfg.bufferSeconds,
     );
 
     // Auto-advance from whatever round was last STARTED (its start time is the

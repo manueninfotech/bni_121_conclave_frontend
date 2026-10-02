@@ -172,43 +172,70 @@ class ConclaveSchedule {
 /// Inside the active portion the talking is *sequenced* into two passes (see
 /// [ActiveRound.speakingTurns]): every person gets [bio] to introduce themselves
 /// in turn, then — once all bios are done — every person gets [referral] to pass
-/// business, in the same order. bio + referral == [perPerson].
+/// business, in the same order.
+///
+/// The per-turn lengths ([bio], [referral]) and the [transition] buffer default
+/// to the constants below but can be tuned by the admin (settings/roundTiming),
+/// so they are carried on the INSTANCE, not as global constants — the speaking
+/// schedule reads them off `timing`.
 class RoundTiming {
-  static const Duration perPerson = Duration(seconds: 90); // 1.5 min
-  // The two-pass split of perPerson. Kept as separate constants so the schedule
-  // and the timings stay in lockstep: bio + referral must equal perPerson.
-  static const Duration bio = Duration(seconds: 60);
-  static const Duration referral = Duration(seconds: 30);
-  // The default move-to-next-table window. Small and fixed — walking between
-  // tables takes about the same time whether the table sat 4 people or 8.
-  static const Duration transitionBuffer = Duration(minutes: 2);
+  // Defaults, used when the admin has set no override.
+  static const int defaultBioSeconds = 60;
+  static const int defaultReferralSeconds = 30;
+  static const int defaultBufferSeconds = 120;
 
   final Duration active;
   final Duration transition;
 
-  const RoundTiming({required this.active, required this.transition});
+  /// Per-person bio / referral length this round runs at (admin-tunable).
+  final Duration bio;
+  final Duration referral;
+
+  const RoundTiming({
+    required this.active,
+    required this.transition,
+    required this.bio,
+    required this.referral,
+  });
 
   Duration get total => active + transition;
 
-  /// [fixedBlockMinutes], when set on the conclave, pins the total round to that
-  /// many minutes (old behaviour); otherwise the round auto-scales as
-  /// talking + [transitionBuffer].
+  /// [bioSeconds]/[referralSeconds]/[bufferSeconds] come from settings (with the
+  /// defaults above). [fixedBlockMinutes], when set on the conclave, pins the
+  /// total round to that many minutes instead of auto-scaling as
+  /// talking + buffer.
   factory RoundTiming.forPersonsPerTable(
     int personsPerTable, {
     int? fixedBlockMinutes,
+    int bioSeconds = defaultBioSeconds,
+    int referralSeconds = defaultReferralSeconds,
+    int bufferSeconds = defaultBufferSeconds,
   }) {
     final p = personsPerTable < 1 ? 1 : personsPerTable;
-    final active = perPerson * p;
+    final bio = Duration(seconds: bioSeconds < 1 ? 1 : bioSeconds);
+    final referral =
+        Duration(seconds: referralSeconds < 1 ? 1 : referralSeconds);
+    final active = (bio + referral) * p;
 
     if (fixedBlockMinutes != null && fixedBlockMinutes > 0) {
       final block = Duration(minutes: fixedBlockMinutes);
       // Clamp rather than produce a negative transition when talking alone
       // already fills (or overruns) the fixed block.
       final transition = active >= block ? Duration.zero : block - active;
-      return RoundTiming(active: active, transition: transition);
+      return RoundTiming(
+        active: active,
+        transition: transition,
+        bio: bio,
+        referral: referral,
+      );
     }
 
-    return RoundTiming(active: active, transition: transitionBuffer);
+    return RoundTiming(
+      active: active,
+      transition: Duration(seconds: bufferSeconds < 0 ? 0 : bufferSeconds),
+      bio: bio,
+      referral: referral,
+    );
   }
 }
 
@@ -368,9 +395,9 @@ class ActiveRound {
         order: i + 1,
         kind: TurnKind.bio,
         startsAt: cursor,
-        length: RoundTiming.bio,
+        length: timing.bio,
       ));
-      cursor = cursor.add(RoundTiming.bio);
+      cursor = cursor.add(timing.bio);
     }
     for (var i = 0; i < order.length; i++) {
       turns.add(SpeakingTurn(
@@ -378,9 +405,9 @@ class ActiveRound {
         order: i + 1,
         kind: TurnKind.referral,
         startsAt: cursor,
-        length: RoundTiming.referral,
+        length: timing.referral,
       ));
-      cursor = cursor.add(RoundTiming.referral);
+      cursor = cursor.add(timing.referral);
     }
     return turns;
   }

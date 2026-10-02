@@ -1,2 +1,2 @@
-• Business categories now stay up to date automatically — new ones added by your organiser appear without needing an app update.
-• Fixed past/closed conclaves wrongly showing a "Register" button, and a confusing error message when registration wasn't open.
+• Round timings (intro and referral seconds) can now be fine-tuned by your organiser, taking effect without an app update.
+• Minor fixes and improvements.
