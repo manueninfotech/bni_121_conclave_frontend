@@ -1,0 +1,2 @@
+• Round timings (intro and referral seconds) can now be fine-tuned by your organiser, taking effect without an app update.
+• Minor fixes and improvements.
