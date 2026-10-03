@@ -211,6 +211,14 @@ class ActiveConclaveRepository {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.noTableThisRound);
     }
 
+    // Where this person goes when the round ends (their seat next round). Null
+    // on the last round. For a captain this is their own table — they stay.
+    int? nextTableNumber;
+    if (currentRound < totalRounds) {
+      nextTableNumber =
+          schedule.round(currentRound + 1)?.tableFor(me.participantId)?.tableNumber;
+    }
+
     // Occupants come back captain-first, which is the order we want on screen.
     final seats = <TableSeat>[];
     for (final pid in table.occupantIds) {
@@ -235,6 +243,7 @@ class ActiveConclaveRepository {
         roundNumber: currentRound,
         totalRounds: totalRounds,
         tableNumber: table.tableNumber,
+        nextTableNumber: nextTableNumber,
         startTime: roundStart,
         timing: timing,
         seats: seats,

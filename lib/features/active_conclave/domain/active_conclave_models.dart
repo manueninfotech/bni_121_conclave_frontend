@@ -318,6 +318,12 @@ class ActiveRound {
   final int totalRounds;
   final int tableNumber;
 
+  /// The user's table in the NEXT round — where a member walks to when this
+  /// round ends. Null on the last round (nothing after it). For a captain this
+  /// equals [tableNumber] (captains anchor their table), which the UI uses to
+  /// say "stay put" instead of "move".
+  final int? nextTableNumber;
+
   /// When the admin started this round.
   final DateTime startTime;
 
@@ -335,6 +341,7 @@ class ActiveRound {
     required this.roundNumber,
     required this.totalRounds,
     required this.tableNumber,
+    this.nextTableNumber,
     required this.startTime,
     required this.timing,
     required this.seats,

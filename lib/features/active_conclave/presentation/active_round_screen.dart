@@ -497,6 +497,9 @@ class _TimerVM {
   final bool selfNow; // the current speaker is the signed-in user
   final String? nextName; // next speaker; null when the last person is up
   final bool urgent;
+  // The prominent line for the non-speaking phases — e.g. the transition
+  // destination ("Go to Table 3" / "Stay at Table 1 · next group arriving").
+  final String? headline;
 
   const _TimerVM({
     required this.phase,
@@ -510,6 +513,7 @@ class _TimerVM {
     required this.selfNow,
     required this.nextName,
     required this.urgent,
+    this.headline,
   });
 
   double get progress => total.inMilliseconds == 0
@@ -546,18 +550,39 @@ class _TimerVM {
     }
 
     if (phase == RoundPhase.transition) {
+      final next = round.nextTableNumber;
+      // Captains anchor their table (next == current), everyone else moves.
+      final staying =
+          round.isCaptain || (next != null && next == round.tableNumber);
+      String kicker;
+      String? headline;
+      IconData icon;
+      if (next == null) {
+        kicker = 'Round over';
+        headline = null;
+        icon = Icons.flag_outlined;
+      } else if (staying) {
+        kicker = 'Stay at your table';
+        headline = 'Table $next · your next group is arriving';
+        icon = Icons.chair_alt_outlined;
+      } else {
+        kicker = 'Move to your next table';
+        headline = 'Go to Table $next';
+        icon = Icons.directions_walk;
+      }
       return _TimerVM(
         phase: phase,
         fg: c.onWarningContainer,
         bg: c.warningContainer,
-        icon: Icons.directions_walk,
-        kicker: 'Move to your next table',
+        icon: icon,
+        kicker: kicker,
         remaining: round.remainingAt(now),
         total: round.timing.transition,
         nowName: null,
         selfNow: false,
         nextName: null,
         urgent: false,
+        headline: headline,
       );
     }
 
@@ -769,6 +794,18 @@ class _TimerExpanded extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: Gap.sm),
+            ] else if (vm.headline != null) ...[
+              Text(
+                vm.headline!,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleSmall?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
             ],
             Wrap(
               spacing: Gap.sm,
@@ -806,8 +843,9 @@ class _TimerCompact extends StatelessWidget {
     final line2 = vm.nowName != null
         ? (vm.selfNow ? 'Your turn' : 'Now ${vm.nowName}') +
             (vm.nextName != null ? ' · Next ${vm.nextName}' : '')
-        : 'Table ${round.tableNumber} · '
-            'Round ${round.roundNumber} of ${round.totalRounds}';
+        : vm.headline ??
+            'Table ${round.tableNumber} · '
+                'Round ${round.roundNumber} of ${round.totalRounds}';
 
     return Container(
       width: double.infinity,
