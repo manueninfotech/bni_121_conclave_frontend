@@ -97,6 +97,12 @@ class Conclave {
   final ConclaveStatus status;
   final bool isRegistrationOpen;
 
+  /// The registration window. Used to compute [canRegister] from the clock
+  /// rather than trusting the stored [isRegistrationOpen], which goes stale
+  /// (nothing rewrites it when the window opens or closes).
+  final DateTime? regStartDate;
+  final DateTime? regEndDate;
+
   /// Null when the conclave is free (no fee configured).
   final PaymentDetails? paymentDetails;
 
@@ -123,6 +129,8 @@ class Conclave {
     this.endDate,
     required this.status,
     required this.isRegistrationOpen,
+    this.regStartDate,
+    this.regEndDate,
     this.startTime,
     this.endTime,
     this.chiefGuests = const [],
@@ -166,6 +174,21 @@ class Conclave {
         s == ConclaveStatus.running) {
       return false;
     }
+    // Compute from the registration window when we have it — the stored
+    // isRegistrationOpen drifts (nothing rewrites it as time passes).
+    final now = DateTime.now();
+    if (regStartDate != null) {
+      final opensAt = DateTime(
+          regStartDate!.year, regStartDate!.month, regStartDate!.day);
+      if (now.isBefore(opensAt)) return false; // not open yet
+    }
+    if (regEndDate != null) {
+      final closesAt = DateTime(
+          regEndDate!.year, regEndDate!.month, regEndDate!.day, 23, 59, 59);
+      if (now.isAfter(closesAt)) return false; // window has closed
+    }
+    if (regStartDate != null || regEndDate != null) return true;
+    // No window on the doc — fall back to the stored flag.
     return isRegistrationOpen;
   }
 
@@ -229,6 +252,8 @@ class Conclave {
           .toList(),
       status: ConclaveStatus.fromString(data['status'] ?? 'draft'),
       isRegistrationOpen: data['isRegistrationOpen'] ?? false,
+      regStartDate: _toDate(data['regStartDate']),
+      regEndDate: _toDate(data['regEndDate']),
       personsPerTable: data['personsPerTable'] ?? 7,
       roundCount: data['roundCount'] ?? 6,
       paymentDetails: data['paymentDetails'] is Map
