@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/conclave_summary_repository.dart';
+import '../data/feedback_repository.dart';
 import '../data/sync_service.dart';
 import '../domain/referral_models.dart';
 
@@ -59,6 +61,11 @@ class ConclaveSummaryScreen extends ConsumerWidget {
                 FadeSlideIn(index: 0, child: _SyncBanner(summary: s)),
                 const SizedBox(height: Gap.lg),
                 FadeSlideIn(index: 1, child: _Scoreboard(summary: s)),
+                const SizedBox(height: Gap.lg),
+                FadeSlideIn(
+                  index: 2,
+                  child: _FeedbackCard(conclaveId: conclaveId),
+                ),
                 const SizedBox(height: Gap.lg),
                 FadeSlideIn(
                   index: 2,
@@ -526,6 +533,234 @@ class _Muted extends StatelessWidget {
         text,
         style: context.text.bodySmall
             ?.copyWith(color: context.scheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+// --- Post-conclave feedback (replaces the Google Form) ---------------------
+
+class _FeedbackCard extends ConsumerStatefulWidget {
+  final String conclaveId;
+  const _FeedbackCard({required this.conclaveId});
+
+  @override
+  ConsumerState<_FeedbackCard> createState() => _FeedbackCardState();
+}
+
+class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
+  bool _done = false;
+  String get _prefKey => 'feedback_done_${widget.conclaveId}';
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((p) {
+      if (mounted && (p.getBool(_prefKey) ?? false)) {
+        setState(() => _done = true);
+      }
+    });
+  }
+
+  Future<void> _open() async {
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _FeedbackSheet(conclaveId: widget.conclaveId),
+    );
+    if (ok == true) {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool(_prefKey, true);
+      if (mounted) setState(() => _done = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    if (_done) {
+      return Container(
+        padding: const EdgeInsets.all(Gap.lg),
+        decoration: BoxDecoration(
+          color: c.successContainer,
+          borderRadius: BorderRadius.circular(Radii.md),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: c.onSuccessContainer),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Text(
+                'Thanks for your feedback!',
+                style: context.text.bodyMedium
+                    ?.copyWith(color: c.onSuccessContainer),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: c.infoContainer,
+          child: Icon(Icons.rate_review_outlined, color: c.onInfoContainer),
+        ),
+        title: const Text('How was the conclave?'),
+        subtitle: const Text('Share 30 seconds of feedback'),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: _open,
+      ),
+    );
+  }
+}
+
+class _FeedbackSheet extends ConsumerStatefulWidget {
+  final String conclaveId;
+  const _FeedbackSheet({required this.conclaveId});
+
+  @override
+  ConsumerState<_FeedbackSheet> createState() => _FeedbackSheetState();
+}
+
+class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
+  int _rating = 0;
+  String? _timing; // 'short' | 'right' | 'long'
+  final _referrals = TextEditingController();
+  final _comment = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _referrals.dispose();
+    _comment.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_rating == 0) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Please tap a star rating.')));
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref.read(feedbackRepositoryProvider).submit(
+            widget.conclaveId,
+            rating: _rating,
+            timing: _timing,
+            referrals: int.tryParse(_referrals.text.trim()),
+            comment: _comment.text,
+          );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: context.colors.danger,
+        ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: Gap.xl,
+        right: Gap.xl,
+        top: Gap.sm,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + Gap.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('How was the conclave?',
+              style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: Gap.xs),
+          Text('Your feedback shapes the next one.',
+              style: context.text.bodySmall
+                  ?.copyWith(color: context.scheme.onSurfaceVariant)),
+          const SizedBox(height: Gap.lg),
+
+          // Star rating.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (i) {
+              final filled = i < _rating;
+              return IconButton(
+                onPressed: () => setState(() => _rating = i + 1),
+                icon: Icon(
+                  filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: filled ? Colors.amber : context.scheme.outline,
+                  size: 38,
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: Gap.md),
+
+          Text('Round timing',
+              style: context.text.labelSmall
+                  ?.copyWith(color: context.scheme.onSurfaceVariant)),
+          const SizedBox(height: Gap.xs),
+          Wrap(
+            spacing: Gap.sm,
+            children: [
+              for (final opt in const [
+                ('short', 'Too short'),
+                ('right', 'Just right'),
+                ('long', 'Too long'),
+              ])
+                ChoiceChip(
+                  label: Text(opt.$2),
+                  selected: _timing == opt.$1,
+                  onSelected: (_) => setState(() => _timing = opt.$1),
+                ),
+            ],
+          ),
+          const SizedBox(height: Gap.lg),
+
+          TextField(
+            controller: _referrals,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Referrals / 1-2-1s you got (optional)',
+              prefixIcon: Icon(Icons.handshake_outlined),
+            ),
+          ),
+          const SizedBox(height: Gap.md),
+          TextField(
+            controller: _comment,
+            minLines: 2,
+            maxLines: 4,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'One thing we should improve (optional)',
+            ),
+          ),
+          const SizedBox(height: Gap.lg),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton(
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Send feedback'),
+            ),
+          ),
+        ],
       ),
     );
   }
