@@ -31,43 +31,41 @@ we maximize what's in each review). Android can ship incrementally.
 - [ ] **Timer UX ("uncontrolled timer").** Re-verify after P0 — likely the iOS
       auto-advance gap; confirm the countdown reads correctly on iOS.
 
-## 🟠 P1 — schedule tooling (admin) — STILL PENDING
-- [ ] **Schedule Review: show WHY pairs are flagged** — repeat-pair count + the
-      categories that forced them (e.g. "4× Tax Advisory can't be separated").
-      Data is in `scheduleSummary` / `schedule.stats`.
-- [ ] **Schedule generation: show invalidation reasons** — on failure, render
-      the engine's actual issues (round-count range, captain count/categories,
-      "no category-safe seating") instead of a generic error. Backend already
-      returns `issues` / `warnings` / `derived`; admin just needs to display.
-- [ ] **Admin feedback view** — backend endpoint `GET /admin/conclaves/:id/feedback`
-      is live (8193506); the admin panel UI to display it is NOT built.
+## 🟠 P1 — schedule tooling (admin) — SHIPPED & LIVE (Vercel)
+- [x] **Schedule Review: show WHY pairs are flagged** — repeat modal now explains
+      the dense categories that force repeats, flagging those at/above the table
+      count as the hard drivers. — shipped 1450dfb.
+- [x] **Schedule generation: show invalidation reasons** — the failure banner now
+      renders the engine's real issues/warnings/derived math + hint. — shipped 1450dfb.
+- [x] **Admin feedback view** — new Feedback tab reads `GET /admin/conclaves/:id/feedback`
+      and joins uids to member names. — shipped 1450dfb.
 
 ## 🟡 P2 — reliability & admin
 - [x] **Create-form validation** — reg-start > reg-end blocked. — shipped (admin).
 - [x] **Status drift fix** — app computes reg-open from the window. — shipped d97749b.
 - [x] **Auto-advance guard** — block starting a round that already ran (backend
       422 with the live round). — shipped 22d5845.
-- [ ] **Live sticky notification (Zomato-style)** — ongoing status: Round/Table
-      + who's speaking + countdown. Android ongoing-notification first; iOS Live
-      Activity later.
-- [ ] **Subscribe to the conclave topic at registration** (proper fix; today's
-      personal-topic broadcast was the mitigation).
+- [x] **Live sticky notification (Zomato-style)** — ongoing Android round card with
+      round/table + speaker/next-table + live countdown. iOS Live Activity later.
+      — shipped 2947724.
+- [x] **Subscribe to the conclave topic at registration** — additive subscribe on
+      register, so members get pushes without opening the active-round screen.
+      — shipped 2947724.
 
 ## 🟢 P3 — feedback-driven features
 - [x] **In-app post-conclave feedback** on the summary screen. — shipped 18c57b1.
 - [x] **Calendar integration** — "Add to calendar" on register (iOS+Android) +
-      app-side reminder ~1h before. — built this cycle (uncommitted).
-- [ ] **1-2-1 calendar alerts** — reminders before individual scheduled 1-2-1s
-      (distinct from the conclave-level reminder above).
-- [ ] **Self-heal fix** — `listConclaves` re-opens explicitly-completed
-      conclaves with `currentRound==0`; gate or remove.
+      app-side reminder ~1h before. — shipped 2947724.
+- [x] **1-2-1 calendar alerts** — device reminder ~15 min before every confirmed
+      1-2-1, scheduled at the data layer so both parties get it. — shipped 2947724.
+- [x] **Self-heal fix** — `listConclaves` no longer re-opens a deliberately-completed
+      conclave (trusts completedAt; never re-opens a past event). — shipped fa72ceb, deployed.
 
 ## 🔵 Ops — not code
-- [ ] **Enable Razorpay** — set `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` as
-      Azure container secrets (backend fully built, fails closed 503 until set).
-      Needs the live keys from the approved account.
-- [ ] **Verify backend deploy** — confirm auto-advance guard (22d5845) + feedback
-      endpoints (8193506) are on the live Azure revision, not just committed.
+- [x] **Enable Razorpay** — TEST keys set as Azure secrets (secretref), verified by a
+      live order create+fetch against Razorpay. ⚠️ Swap to LIVE keys before real charges.
+- [x] **Verify backend deploy** — feedback endpoints + auto-advance guard confirmed
+      live (401 not 404); self-heal fix built & deployed (revision 0000010).
 
 ---
 
