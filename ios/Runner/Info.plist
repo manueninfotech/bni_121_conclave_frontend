@@ -39,6 +39,10 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Add a conclave you've registered for to your calendar so it blocks your day and reminds you.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Add a conclave you've registered for to your calendar so it blocks your day and reminds you.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Table captains use the camera to scan members' QR codes and record attendance for each round. You can also take a profile photo.</string>
 	<key>NSContactsUsageDescription</key>

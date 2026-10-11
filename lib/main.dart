@@ -6,6 +6,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 import 'core/config/remote_config_service.dart';
 import 'core/services/local_notifications.dart';
 import 'core/time/server_clock.dart';
@@ -74,6 +77,15 @@ void main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   await LocalNotifications.init();
+
+  // Timezone database + the device's local zone, so scheduled conclave reminders
+  // fire at the right wall-clock time. Falls back to UTC if the lookup fails.
+  tzdata.initializeTimeZones();
+  try {
+    tz.setLocalLocation(tz.getLocation(await FlutterTimezone.getLocalTimezone()));
+  } catch (_) {
+    tz.setLocalLocation(tz.getLocation('UTC'));
+  }
 
   // Resolve the backend URL from Remote Config before anything makes a request,
   // so the very first API call already targets the configured host. Never

@@ -1,9 +1,12 @@
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 import '../../firebase_options.dart';
 import '../config/api_config.dart';
@@ -131,6 +134,174 @@ class LocalNotifications {
       notificationDetails: NotificationDetails(android: android, iOS: ios),
       payload: payload,
     );
+  }
+
+  // ---- Conclave reminder (scheduled) --------------------------------------
+
+  static int _conclaveReminderId(String conclaveId) =>
+      'reminder_$conclaveId'.hashCode & 0x7fffffff;
+
+  /// Schedules a one-off reminder before a conclave the member registered for.
+  /// Safe to call repeatedly — it replaces any existing reminder for the same
+  /// conclave. Never throws (scheduling failures must not break registration).
+  static Future<void> scheduleConclaveReminder({
+    required String conclaveId,
+    required String conclaveName,
+    required DateTime remindAt,
+  }) async {
+    try {
+      await init();
+      if (remindAt.isBefore(DateTime.now())) return;
+      const android = AndroidNotificationDetails(
+        channelReminders,
+        'Meeting reminders',
+        channelDescription: 'Reminders before your conclaves',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: _brand,
+      );
+      const ios = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      await _plugin.zonedSchedule(
+        id: _conclaveReminderId(conclaveId),
+        title: 'Conclave coming up 📅',
+        body: '$conclaveName is almost here — get ready to network.',
+        scheduledDate: tz.TZDateTime.from(remindAt, tz.local),
+        notificationDetails: const NotificationDetails(android: android, iOS: ios),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: 'conclave:$conclaveId',
+      );
+    } catch (_) {
+      // Permissions, a past date on a slow clock, etc. — never block the user.
+    }
+  }
+
+  // ---- Live round sticky (ongoing, self-counting-down) --------------------
+
+  /// A single, stable id so every update replaces the same ongoing notification
+  /// rather than stacking a new one each round.
+  static const _roundStickyId = 0x5713C07;
+
+  /// Shows (or updates) the ongoing "live round" notification — the Zomato-style
+  /// status card that keeps the round, the member's table and a live countdown in
+  /// the shade while the phone is pocketed. Android only: it leans on an ongoing
+  /// chronometer notification, which iOS has no equivalent for (a Live Activity is
+  /// the iOS answer, handled separately). A no-op elsewhere; never throws.
+  ///
+  /// [segmentEnd] is the wall-clock time the current countdown reaches zero — the
+  /// end of the talking phase, or of the walk-to-your-next-table transition. The
+  /// system drives the per-second countdown from it, so the app doesn't have to
+  /// re-post every tick; it only updates when the round, phase or speaker changes.
+  static Future<void> showRoundSticky({
+    required int round,
+    required int totalRounds,
+    required int tableNumber,
+    required String line,
+    required DateTime segmentEnd,
+  }) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await init();
+      final countdown = segmentEnd.isAfter(DateTime.now());
+      final title = 'Round $round of $totalRounds · Table $tableNumber';
+      final android = AndroidNotificationDetails(
+        channelRoundAlerts,
+        'Round alerts',
+        channelDescription: 'When a conclave round starts',
+        // Low importance: an ongoing status that updates as speakers change must
+        // not buzz or pop a heads-up each time — it just sits in the shade.
+        importance: Importance.low,
+        priority: Priority.low,
+        color: _brand,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        category: AndroidNotificationCategory.event,
+        when: countdown ? segmentEnd.millisecondsSinceEpoch : null,
+        showWhen: countdown,
+        usesChronometer: countdown,
+        chronometerCountDown: countdown,
+        styleInformation: BigTextStyleInformation(line, contentTitle: title),
+      );
+      await _plugin.show(
+        id: _roundStickyId,
+        title: title,
+        body: line,
+        notificationDetails: NotificationDetails(android: android),
+        payload: 'conclave_round',
+      );
+    } catch (_) {
+      // An ongoing notification is a convenience; its failure must never affect
+      // the running round on screen.
+    }
+  }
+
+  /// Clears the live-round sticky — on leaving the active-round screen, or when
+  /// the conclave is over. Safe to call when none is showing.
+  static Future<void> cancelRoundSticky() async {
+    try {
+      await _plugin.cancel(id: _roundStickyId);
+    } catch (_) {}
+  }
+
+  // ---- 1-2-1 reminder (scheduled before a confirmed meeting) --------------
+
+  static int _oneToOneReminderId(String meetingId) =>
+      'onetoone_reminder_$meetingId'.hashCode & 0x7fffffff;
+
+  /// Schedules a reminder ~15 minutes before a CONFIRMED 1-2-1 (or at the meeting
+  /// time if it's already inside that window). Idempotent — a stable id per
+  /// meeting means re-scheduling just replaces the pending one, so it's safe to
+  /// call every time the 1-2-1 list loads. Never throws.
+  static Future<void> scheduleOneToOneReminder({
+    required String meetingId,
+    required String otherName,
+    required DateTime proposedAt,
+    String location = '',
+  }) async {
+    try {
+      await init();
+      final lead = proposedAt.subtract(const Duration(minutes: 15));
+      final remindAt = lead.isAfter(DateTime.now()) ? lead : proposedAt;
+      if (remindAt.isBefore(DateTime.now())) return; // meeting already passed
+      final place = location.trim().isEmpty ? '' : ' at ${location.trim()}';
+      final timeLabel = DateFormat('h:mm a').format(proposedAt);
+      const android = AndroidNotificationDetails(
+        channelReminders,
+        'Meeting reminders',
+        channelDescription: 'Countdowns to your one-to-one meetings',
+        importance: Importance.high,
+        priority: Priority.high,
+        color: _brand,
+      );
+      const ios = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      await _plugin.zonedSchedule(
+        id: _oneToOneReminderId(meetingId),
+        title: '☕ 1-2-1 with $otherName',
+        body: 'Coming up at $timeLabel$place — a good moment to line up a referral.',
+        scheduledDate: tz.TZDateTime.from(remindAt, tz.local),
+        notificationDetails: const NotificationDetails(android: android, iOS: ios),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        payload: meetingId,
+      );
+    } catch (_) {
+      // Permissions, a cancelled meeting, a past time — never surface to the user.
+    }
+  }
+
+  /// Cancels a previously scheduled 1-2-1 reminder (the meeting was declined or
+  /// cancelled). Safe when none is pending.
+  static Future<void> cancelOneToOneReminder(String meetingId) async {
+    try {
+      await _plugin.cancel(id: _oneToOneReminderId(meetingId));
+    } catch (_) {}
   }
 
   // ---- 1-2-1 request (with Accept / Decline actions) ----------------------

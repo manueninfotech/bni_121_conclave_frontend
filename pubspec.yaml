@@ -72,6 +72,11 @@ dependencies:
   custom_refresh_indicator: ^4.0.2
   package_info_plus: ^8.3.0
   url_launcher: ^6.3.1
+  # "Add to calendar" when a member registers (opens the native calendar editor
+  # on iOS + Android). timezone/flutter_timezone back scheduled local reminders.
+  add_2_calendar: ^3.0.1
+  timezone: ^0.11.1
+  flutter_timezone: ^4.1.0
   firebase_analytics: ^12.5.0
   firebase_crashlytics: ^5.3.0
   firebase_performance: ^0.11.5

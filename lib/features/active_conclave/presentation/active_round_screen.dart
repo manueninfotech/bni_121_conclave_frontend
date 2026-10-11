@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/services/analytics_service.dart';
+import '../../../core/services/local_notifications.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/time/server_clock.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -51,6 +52,11 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
   int _pendingSync = 0;
   int? _loadedRound;
 
+  /// The last state pushed to the ongoing "live round" notification. Kept so the
+  /// per-second rebuilds only re-post the sticky when the round, phase or speaker
+  /// actually changes — the system drives the countdown itself.
+  String? _stickySig;
+
   @override
   void initState() {
     super.initState();
@@ -71,7 +77,62 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    // Leaving the screen clears the ongoing round sticky — it tracks a live round,
+    // and a stale one left in the shade would be worse than none.
+    LocalNotifications.cancelRoundSticky();
     super.dispose();
+  }
+
+  /// Pushes the current round/phase/speaker to the ongoing Android sticky, but
+  /// only when that state changes (not on every one-second rebuild). The system
+  /// runs the countdown from [ActiveRound.remainingAt], so a pocketed phone keeps
+  /// a correct live card without the app posting each tick.
+  void _syncRoundSticky(ActiveRound round) {
+    final now = _now;
+    final phase = round.phaseAt(now);
+
+    String line;
+    if (phase == RoundPhase.active) {
+      final turn = round.currentTurnAt(now);
+      if (turn != null) {
+        final who =
+            turn.speaker.isSelf ? 'Your turn to speak' : 'Now: ${turn.speaker.name}';
+        line = '$who · ${turn.kind == TurnKind.bio ? 'Bio' : 'Referrals'}';
+      } else {
+        line = 'Round ${round.roundNumber} in progress';
+      }
+    } else if (phase == RoundPhase.transition) {
+      final next = round.nextTableNumber;
+      if (next == null) {
+        line = 'Round over';
+      } else if (round.isCaptain || next == round.tableNumber) {
+        line = 'Stay at Table $next · your next group is arriving';
+      } else {
+        line = 'Go to Table $next';
+      }
+    } else {
+      line = 'Round ended';
+    }
+
+    final sig = '${round.roundNumber}|${phase.name}|$line';
+    if (sig == _stickySig) return;
+    _stickySig = sig;
+
+    LocalNotifications.showRoundSticky(
+      round: round.roundNumber,
+      totalRounds: round.totalRounds,
+      tableNumber: round.tableNumber,
+      line: line,
+      segmentEnd: now.add(round.remainingAt(now)),
+    );
+  }
+
+  /// Drops the sticky when there is no live round to show (conclave finished,
+  /// cancelled, or not yet started).
+  void _clearRoundSticky() {
+    if (_stickySig == null) return;
+    _stickySig = null;
+    LocalNotifications.cancelRoundSticky();
   }
 
   /// Reloads the offline records for [round]. Called on first paint of a round
@@ -273,7 +334,10 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
         ),
         data: (s) {
           final round = s.round;
-          if (round == null) return _Unavailable(reason: s.unavailable!);
+          if (round == null) {
+            _clearRoundSticky();
+            return _Unavailable(reason: s.unavailable!);
+          }
 
           // First paint of a round (or when the admin advances): pull the offline
           // records for it.
@@ -281,6 +345,9 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
             WidgetsBinding.instance
                 .addPostFrameCallback((_) => _loadLocal(round));
           }
+
+          // Keep the ongoing round sticky in step with what's on screen.
+          _syncRoundSticky(round);
 
           return _RoundView(
             round: round,

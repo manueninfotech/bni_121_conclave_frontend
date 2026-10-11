@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/services/analytics_service.dart';
+import '../../../core/services/conclave_calendar.dart';
 import '../../../core/theme/tokens.dart';
+import '../../active_conclave/data/notification_service.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../profile/data/profile_repository.dart';
@@ -51,6 +53,8 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
       if (registered == true && mounted) {
         Analytics.conclaveRegister(widget.conclaveId, paid: true);
         Analytics.paymentCompleted(widget.conclaveId, pd.registrationFee);
+        await _afterRegistered(conclave);
+        if (!mounted) return;
         context.go('/conclaves');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("You're registered.")),
@@ -69,6 +73,8 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
       ref.invalidate(conclavesStreamProvider);
       Analytics.conclaveRegister(widget.conclaveId, paid: false);
 
+      if (!mounted) return;
+      await _afterRegistered(conclave);
       if (!mounted) return;
       context.go('/conclaves');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -104,6 +110,45 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  /// After a successful registration: schedule the app-side reminder (silent,
+  /// never throws) and offer to drop the event onto the member's calendar.
+  Future<void> _afterRegistered(Conclave conclave) async {
+    // Start receiving this conclave's round alerts right away — not only once the
+    // active-round screen is opened. Fire-and-forget; never blocks the flow.
+    ref.read(notificationServiceProvider).subscribeAtRegistration(conclave.id);
+    await ConclaveCalendar.scheduleReminder(conclave);
+    if (!mounted) return;
+    final add = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.event_available_outlined),
+        title: const Text('Add to your calendar?'),
+        content: const Text(
+          "We'll remind you an hour before. Add the conclave to your calendar "
+          'so it blocks your day too.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Add to calendar'),
+          ),
+        ],
+      ),
+    );
+    if (add == true) {
+      try {
+        await ConclaveCalendar.addToCalendar(conclave);
+      } catch (_) {
+        // Opening the native calendar editor can fail (no calendar app, denied
+        // permission) — the reminder is already scheduled, so never block.
+      }
     }
   }
 

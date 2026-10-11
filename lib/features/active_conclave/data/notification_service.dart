@@ -57,6 +57,25 @@ class NotificationService {
     _subscribedUid = null;
   }
 
+  /// Subscribe to a conclave's alerts at REGISTRATION time, so a member starts
+  /// receiving schedule-ready and round-start pushes the moment they register —
+  /// not only once they open the active-round screen (the gap that meant nobody
+  /// got notifications at the first live conclave).
+  ///
+  /// Additive and idempotent, unlike [subscribe]: it does NOT drop the topics of
+  /// other conclaves the member has already registered for, and FCM keeps the
+  /// subscription on its servers across app restarts. Never throws — a failed
+  /// subscription must not block registration.
+  Future<void> subscribeAtRegistration(String conclaveId) async {
+    try {
+      await _messaging.requestPermission();
+      await _messaging.subscribeToTopic(topicFor(conclaveId));
+      debugPrint('Subscribed to alerts at registration for $conclaveId');
+    } catch (e) {
+      debugPrint('Could not subscribe at registration: $e');
+    }
+  }
+
   /// Ask for permission and subscribe to this conclave's round alerts.
   Future<void> subscribe(String conclaveId) async {
     if (_subscribedConclaveId == conclaveId) return;

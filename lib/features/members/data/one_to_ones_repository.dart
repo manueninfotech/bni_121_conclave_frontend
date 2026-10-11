@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/api_config.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../core/services/local_notifications.dart';
 import '../../auth/data/auth_repository.dart';
 
 enum OneToOneStatus { pending, accepted, declined, cancelled }
@@ -109,9 +110,25 @@ class OneToOnesRepository {
         options: _auth$(await _token()),
       );
       final list = ((res.data as Map)['oneToOnes'] as List?) ?? const [];
-      return list
+      final parsed = list
           .map((e) => OneToOne.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
+
+      // Ensure a device reminder exists ~15 min before every CONFIRMED, upcoming
+      // 1-2-1. Idempotent (stable id per meeting), so re-running on each refresh
+      // is safe — and because it runs on the fetched list, it reminds BOTH sides,
+      // not only whoever tapped Accept.
+      for (final m in parsed) {
+        if (m.isUpcoming && m.proposedAt != null) {
+          LocalNotifications.scheduleOneToOneReminder(
+            meetingId: m.id,
+            otherName: m.otherName,
+            proposedAt: m.proposedAt!,
+            location: m.location,
+          );
+        }
+      }
+      return parsed;
     } on DioException catch (e) {
       throw Exception(_msg(e, 'Could not load your 1-2-1s.'));
     }
@@ -148,6 +165,12 @@ class OneToOnesRepository {
         options: _auth$(await _token()),
       );
       Analytics.oneToOne(status.wire); // accepted / declined / cancelled
+      // A meeting that's off calls off its reminder; an accepted one gets its
+      // reminder scheduled on the next list refresh (invalidated by the caller).
+      if (status == OneToOneStatus.declined ||
+          status == OneToOneStatus.cancelled) {
+        await LocalNotifications.cancelOneToOneReminder(id);
+      }
     } on DioException catch (e) {
       throw Exception(_msg(e, 'Could not update the 1-2-1.'));
     }
