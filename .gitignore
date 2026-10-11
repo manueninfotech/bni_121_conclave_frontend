@@ -51,3 +51,10 @@ android/fastlane/report.xml
 android/fastlane/README.md
 android/fastlane/Preview.html
 .conclave-secrets/
+
+# FVM Version Cache
+.fvm/
+# Editor / OS / stray data
+.vscode/
+.DS_Store
+BNIG CATEGORIES - Sheet1.csv

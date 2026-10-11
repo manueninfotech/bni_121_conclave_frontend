@@ -63,6 +63,30 @@ Upload an already-built IPA to TestFlight (no rebuild)
 
 Build the Flutter release archive, export a signed IPA, and upload to TestFlight
 
+### ios review_status
+
+```sh
+[bundle exec] fastlane ios review_status
+```
+
+Read current App Store review status + any rejection messages
+
+### ios inspect_review
+
+```sh
+[bundle exec] fastlane ios inspect_review
+```
+
+Inspect review submissions + version states
+
+### ios cancel_review
+
+```sh
+[bundle exec] fastlane ios cancel_review
+```
+
+Cancel any in-progress review submission (e.g. after a rejection)
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
