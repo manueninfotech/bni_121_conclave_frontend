@@ -2,13 +2,31 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- iOS 26/27 SDK enforces UIScene-lifecycle adoption: without this manifest
-	     the app traps on launch (NoSceneLifecycleAdoption). Single scene, no
-	     custom scene delegate — Flutter's FlutterAppDelegate owns the window. -->
+	<!-- iOS 26/27 SDK enforces UIScene-lifecycle adoption; without full adoption
+	     the app traps on launch (NoSceneLifecycleAdoption). This is the exact
+	     block Flutter 3.38.5's own uiscene migration writes — FlutterSceneDelegate
+	     owns the scene/window, with AppDelegate conforming to
+	     FlutterImplicitEngineDelegate for plugin registration. -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneDelegateClassName</key>
+					<string>FlutterSceneDelegate</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
 	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
