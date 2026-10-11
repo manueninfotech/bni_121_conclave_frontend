@@ -78,16 +78,27 @@ class _Detail extends StatelessWidget {
 
   const _Detail({required this.conclave});
 
-  (String, StatusTone, IconData) get _status => switch (conclave.effectiveStatus) {
-        ConclaveStatus.running => ('Live now', StatusTone.success, Icons.podcasts),
-        ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
-        ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
-        ConclaveStatus.registrationOpen =>
-          ('Registration open', StatusTone.info, Icons.how_to_reg),
-        ConclaveStatus.registrationNotOpen =>
-          ('Registration not open yet', StatusTone.warning, Icons.lock_clock),
-        _ => ('Upcoming', StatusTone.warning, Icons.schedule),
-      };
+  (String, StatusTone, IconData) get _status {
+    // Lead with the member's own status when they're in — the registration
+    // window stops mattering to them. Live/completed/cancelled still win, as
+    // those drive the action below (join / view summary).
+    if (conclave.isRegistered &&
+        conclave.effectiveStatus != ConclaveStatus.running &&
+        conclave.effectiveStatus != ConclaveStatus.completed &&
+        conclave.effectiveStatus != ConclaveStatus.cancelled) {
+      return ("You're registered", StatusTone.success, Icons.check_circle);
+    }
+    return switch (conclave.effectiveStatus) {
+      ConclaveStatus.running => ('Live now', StatusTone.success, Icons.podcasts),
+      ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
+      ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
+      ConclaveStatus.registrationOpen =>
+        ('Registration open', StatusTone.info, Icons.how_to_reg),
+      ConclaveStatus.registrationNotOpen =>
+        ('Registration not open yet', StatusTone.warning, Icons.lock_clock),
+      _ => ('Upcoming', StatusTone.warning, Icons.schedule),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -329,11 +340,13 @@ class _Action extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.check_circle_outline, color: c.onSuccessContainer),
+            Icon(Icons.event_seat_outlined, color: c.onSuccessContainer),
             const SizedBox(width: Gap.md),
             Expanded(
+              // The header badge already says "You're registered" — don't repeat
+              // it here. This slot is forward-looking: what happens next.
               child: Text(
-                "You're registered. We'll show your table when it starts.",
+                "We'll show your table here the moment the conclave goes live.",
                 style: context.text.bodyMedium
                     ?.copyWith(color: c.onSuccessContainer),
               ),

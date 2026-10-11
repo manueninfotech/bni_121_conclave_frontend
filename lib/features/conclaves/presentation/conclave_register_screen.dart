@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/navigation.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/services/conclave_calendar.dart';
 import '../../../core/theme/tokens.dart';
@@ -53,12 +54,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
       if (registered == true && mounted) {
         Analytics.conclaveRegister(widget.conclaveId, paid: true);
         Analytics.paymentCompleted(widget.conclaveId, pd.registrationFee);
-        await _afterRegistered(conclave);
-        if (!mounted) return;
-        context.go('/conclaves');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("You're registered.")),
-        );
+        _onRegistered(conclave);
       }
       return;
     }
@@ -70,16 +66,10 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
       await ref
           .read(conclaveRepositoryProvider)
           .registerForConclave(widget.conclaveId);
-      ref.invalidate(conclavesStreamProvider);
       Analytics.conclaveRegister(widget.conclaveId, paid: false);
 
       if (!mounted) return;
-      await _afterRegistered(conclave);
-      if (!mounted) return;
-      context.go('/conclaves');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You're registered.")),
-      );
+      _onRegistered(conclave);
     } on RegistrationConflict catch (e) {
       // A clash is a decision the user has to understand, not a passing message
       // — and it cannot be undone by unregistering elsewhere.
@@ -113,43 +103,67 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
     }
   }
 
-  /// After a successful registration: schedule the app-side reminder (silent,
-  /// never throws) and offer to drop the event onto the member's calendar.
-  Future<void> _afterRegistered(Conclave conclave) async {
-    // Start receiving this conclave's round alerts right away — not only once the
-    // active-round screen is opened. Fire-and-forget; never blocks the flow.
+  /// Commit the registration SUCCESS to the UI immediately — navigate to the
+  /// conclaves list and confirm — then run the calendar offer as a non-blocking
+  /// follow-up. The hard rule: a member who has just paid must SEE that they're
+  /// registered right away. The calendar step opens the native editor and leaves
+  /// the app, and if the success navigation waited on it the member came back to
+  /// the "Confirm registration" screen and feared the payment had failed. So
+  /// success never waits on the calendar.
+  void _onRegistered(Conclave conclave) {
+    // No-UI side effects: subscribe to round alerts + schedule the app reminder.
     ref.read(notificationServiceProvider).subscribeAtRegistration(conclave.id);
-    await ConclaveCalendar.scheduleReminder(conclave);
-    if (!mounted) return;
-    final add = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.event_available_outlined),
-        title: const Text('Add to your calendar?'),
-        content: const Text(
-          "We'll remind you an hour before. Add the conclave to your calendar "
-          'so it blocks your day too.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Not now'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Add to calendar'),
-          ),
-        ],
-      ),
+    ConclaveCalendar.scheduleReminder(conclave);
+    ref.invalidate(conclavesStreamProvider);
+
+    // Success first: land on the conclaves list and confirm.
+    context.go('/conclaves');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("You're registered.")),
     );
-    if (add == true) {
-      try {
-        await ConclaveCalendar.addToCalendar(conclave);
-      } catch (_) {
-        // Opening the native calendar editor can fail (no calendar app, denied
-        // permission) — the reminder is already scheduled, so never block.
+
+    // Then offer the calendar OVER the conclaves list, via the root navigator so
+    // it survives this screen being disposed by the navigation above.
+    _offerCalendar(conclave);
+  }
+
+  /// Offers "add to calendar" after the success navigation has settled. Uses the
+  /// app's root navigator context, so it no longer depends on this (now disposed)
+  /// screen — and nothing it does can strand the member mid-flow.
+  void _offerCalendar(Conclave conclave) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final ctx = rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+      final add = await showDialog<bool>(
+        context: ctx,
+        builder: (dctx) => AlertDialog(
+          icon: const Icon(Icons.event_available_outlined),
+          title: const Text('Add to your calendar?'),
+          content: const Text(
+            "You're registered — we'll remind you an hour before. Add the "
+            'conclave to your calendar so it blocks your day too.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dctx, false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dctx, true),
+              child: const Text('Add to calendar'),
+            ),
+          ],
+        ),
+      );
+      if (add == true) {
+        try {
+          await ConclaveCalendar.addToCalendar(conclave);
+        } catch (_) {
+          // Opening the native calendar editor can fail (no calendar app, denied
+          // permission) — the reminder is already scheduled, so never block.
+        }
       }
-    }
+    });
   }
 
   @override

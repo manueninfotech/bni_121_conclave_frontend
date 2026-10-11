@@ -157,14 +157,26 @@ class _ConclaveCard extends StatelessWidget {
 
   const _ConclaveCard({required this.conclave});
 
-  (String, StatusTone, IconData) get _status => switch (conclave.effectiveStatus) {
-        ConclaveStatus.running => ('Live', StatusTone.success, Icons.podcasts),
-        ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
-        ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
-        ConclaveStatus.registrationOpen =>
-          ('Registration open', StatusTone.info, Icons.how_to_reg),
-        _ => ('Upcoming', StatusTone.warning, Icons.schedule),
-      };
+  (String, StatusTone, IconData) get _status {
+    // A registered member's own status comes first — "am I in?" is what they
+    // scan for, not the conclave's registration window (which no longer concerns
+    // them). Live / completed / cancelled still win, because those drive the next
+    // action (join, view summary) and the action button already says so.
+    if (conclave.isRegistered &&
+        conclave.effectiveStatus != ConclaveStatus.running &&
+        conclave.effectiveStatus != ConclaveStatus.completed &&
+        conclave.effectiveStatus != ConclaveStatus.cancelled) {
+      return ('Registered', StatusTone.success, Icons.check_circle);
+    }
+    return switch (conclave.effectiveStatus) {
+      ConclaveStatus.running => ('Live', StatusTone.success, Icons.podcasts),
+      ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
+      ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
+      ConclaveStatus.registrationOpen =>
+        ('Registration open', StatusTone.info, Icons.how_to_reg),
+      _ => ('Upcoming', StatusTone.warning, Icons.schedule),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
