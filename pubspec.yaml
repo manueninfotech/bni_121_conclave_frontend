@@ -21,7 +21,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Bump the code for each internal-test build; bump the name only for a real
 # release. 1.0.0+1 was the flutter-create default and is what the dry-run debug
 # builds carried, so the signed line starts at +2.
-version: 1.2.0+23
+version: 1.2.0+24
 
 environment:
   sdk: ^3.10.4
@@ -67,7 +67,7 @@ dependencies:
   firebase_storage: ^13.4.6
   image_picker: ^1.2.3
   firebase_remote_config: ^6.5.6
-  flutter_contacts: ^1.1.9
+  flutter_contacts: 2.1.0
   flutter_local_notifications: ^22.3.0
   custom_refresh_indicator: ^4.0.2
   package_info_plus: ^8.3.0

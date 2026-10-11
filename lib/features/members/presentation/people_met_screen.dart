@@ -16,18 +16,17 @@ class PeopleMetScreen extends ConsumerWidget {
   const PeopleMetScreen({super.key, required this.conclaveId});
 
   Future<void> _save(BuildContext context, MetPerson p) async {
-    final contact = Contact()
-      ..name.first = p.name
-      ..organizations = [
-        Organization(company: p.businessName, title: p.businessCategory),
-      ]
-      ..notes = [Note('Met at a BNI 121 Conclave')];
-    if (p.phone.isNotEmpty) {
-      contact.phones = [Phone(p.phone)];
-    }
+    final contact = Contact(
+      name: Name(first: p.name),
+      organizations: [
+        Organization(name: p.businessName, jobTitle: p.businessCategory),
+      ],
+      notes: [Note(note: 'Met at a BNI 121 Conclave')],
+      phones: p.phone.isNotEmpty ? [Phone(number: p.phone)] : const [],
+    );
     try {
       // Opens the OS "add contact" screen prefilled — no permission needed.
-      await FlutterContacts.openExternalInsert(contact);
+      await FlutterContacts.native.showCreator(contact: contact);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
