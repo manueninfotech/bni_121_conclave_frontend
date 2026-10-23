@@ -76,13 +76,23 @@ void main() async {
   }
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await LocalNotifications.init();
+  // Notification setup must never block or abort startup. If the plugin throws
+  // (e.g. a release-build R8 strip) or a platform channel hangs, degrade to "no
+  // local notifications" rather than stranding the user on the splash forever.
+  try {
+    await LocalNotifications.init().timeout(const Duration(seconds: 6));
+  } catch (e) {
+    debugPrint('LocalNotifications.init failed (non-fatal): $e');
+  }
 
   // Timezone database + the device's local zone, so scheduled conclave reminders
-  // fire at the right wall-clock time. Falls back to UTC if the lookup fails.
+  // fire at the right wall-clock time. Falls back to UTC if the lookup fails or
+  // the platform channel does not answer promptly.
   tzdata.initializeTimeZones();
   try {
-    tz.setLocalLocation(tz.getLocation(await FlutterTimezone.getLocalTimezone()));
+    final name = await FlutterTimezone.getLocalTimezone()
+        .timeout(const Duration(seconds: 4));
+    tz.setLocalLocation(tz.getLocation(name));
   } catch (_) {
     tz.setLocalLocation(tz.getLocation('UTC'));
   }

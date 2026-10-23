@@ -124,3 +124,22 @@
 -keepclassmembers class * implements android.os.Parcelable {
     public static final ** CREATOR;
 }
+
+# ---------------------------------------------------------------------------
+# flutter_local_notifications (com.dexterous.*) — round alerts & 1-2-1 reminders
+# ---------------------------------------------------------------------------
+# NOT under io.flutter.plugins, so the generic Flutter keep above misses it.
+# The plugin (de)serialises notification details with Gson (reflection on field
+# names) and declares its receivers/services in the manifest, instantiated by
+# the system by name. R8 was renaming its fields and removing
+# ForegroundService / IsolatePreferences / ActionBroadcastReceiver — which broke
+# LocalNotifications.init() at startup in RELEASE only (debug has no R8), leaving
+# the app stuck on the splash. Keep the whole package and Gson's type machinery.
+-keep class com.dexterous.** { *; }
+-keep class com.dexterous.flutterlocalnotifications.** { *; }
+-keepclassmembers class com.dexterous.flutterlocalnotifications.models.** { *; }
+-keep class com.google.gson.** { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+-keep public class * implements java.lang.reflect.Type
+-keepattributes InnerClasses,EnclosingMethod
+-dontwarn com.dexterous.**
