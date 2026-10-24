@@ -1,0 +1,5 @@
+What's new in 1.2.1
+
+• Fixed: on some phones the app could get stuck on the splash screen and never open. It now starts reliably.
+• Crash reporting works again, so we can spot and fix problems faster.
+• Smoother startup and better battery use.
