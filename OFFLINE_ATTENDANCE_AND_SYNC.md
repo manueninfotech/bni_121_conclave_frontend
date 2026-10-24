@@ -241,5 +241,5 @@ network**.
 | Member's QR / round UI | `lib/features/active_conclave/presentation/active_round_screen.dart` |
 | Offline store | `lib/features/active_conclave/data/local_db.dart` |
 | Sync client | `lib/features/active_conclave/data/sync_service.dart` |
-| Sync endpoint | `bni-1-1/src/server/index.ts` → `POST /api/conclaves/:id/sync` |
+| Sync endpoint | `bni-engine-reference/src/server/index.ts` → `POST /api/conclaves/:id/sync` |
 | Tests | `test/attendance_qr_test.dart`, `test/active_conclave_models_test.dart` |

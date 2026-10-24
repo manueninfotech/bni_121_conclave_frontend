@@ -1,7 +1,7 @@
 # BNI 1-to-1 Conclave — Complete Engine & Spec Reference
 
 > **Purpose of this document:** This file captures the *complete* understanding of the
-> reference web project at `/Users/eb/Documents/web/bni-1-1`. Any AI model working on the
+> reference web project at `~/Documents/web/bni-engine-reference`. Any AI model working on the
 > Flutter app (`conclave_1_2_1`) should read this file first and build according to it.
 > **Do NOT modify the reference web project.**
 
@@ -448,7 +448,7 @@ Key indexes:
 ## 17. File Map of the Reference Project
 
 ```
-bni-1-1/
+bni-engine-reference/
 ├── BNI-1to1-Conclave-Spec.md       # Full product spec, rulebook, flow
 ├── initial-requirement-understanding.txt  # Original raw requirements
 ├── README.md                        # Project overview
@@ -488,4 +488,4 @@ bni-1-1/
 ---
 
 *This document was generated on 2026-07-03 from a complete read of all source files in
-`/Users/eb/Documents/web/bni-1-1`. No files in that directory were modified.*
+`~/Documents/web/bni-engine-reference`. No files in that directory were modified.*

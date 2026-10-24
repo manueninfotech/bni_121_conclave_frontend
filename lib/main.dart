@@ -7,7 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'core/config/remote_config_service.dart';
 import 'core/services/local_notifications.dart';
@@ -52,9 +52,20 @@ void main() async {
   // Crash reporting. Route every Flutter framework error and every uncaught
   // async error to Crashlytics, so a crash on a member's phone comes back
   // symbolicated with the device, OS and stack — not just a store-level count.
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  //
+  // A failed report must be swallowed, never rethrown: if Crashlytics itself
+  // errors, that error would land back in these handlers, get reported again,
+  // fail again — an endless loop that pins the main thread at 100% CPU and
+  // leaves the app stuck on the splash screen (shipped in 1.1.x–1.2.0).
+  FlutterError.onError = (details) {
+    FirebaseCrashlytics.instance
+        .recordFlutterFatalError(details)
+        .catchError((Object _) {});
+  };
   binding.platformDispatcher.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    FirebaseCrashlytics.instance
+        .recordError(error, stack, fatal: true)
+        .catchError((Object _) {});
     return true;
   };
 
@@ -88,13 +99,20 @@ void main() async {
   // Timezone database + the device's local zone, so scheduled conclave reminders
   // fire at the right wall-clock time. Falls back to UTC if the lookup fails or
   // the platform channel does not answer promptly.
+  //
+  // Uses the FULL database (latest_all): many Android phones in India report the
+  // legacy alias "Asia/Calcutta", which the trimmed `latest` set omits. The
+  // fallback is the built-in tz.UTC — never a by-name lookup, because "UTC" is
+  // also an alias and a throw here aborted main() before runApp, leaving those
+  // phones stuck on the splash screen forever (1.2.0+21..26).
   tzdata.initializeTimeZones();
   try {
     final name = await FlutterTimezone.getLocalTimezone()
         .timeout(const Duration(seconds: 4));
     tz.setLocalLocation(tz.getLocation(name));
-  } catch (_) {
-    tz.setLocalLocation(tz.getLocation('UTC'));
+  } catch (e) {
+    debugPrint('Timezone lookup failed, using UTC: $e');
+    tz.setLocalLocation(tz.UTC);
   }
 
   // Resolve the backend URL from Remote Config before anything makes a request,

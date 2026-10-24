@@ -105,6 +105,10 @@ dependency_overrides:
   firebase_remote_config: 6.5.6
   firebase_analytics: 12.4.6
   firebase_crashlytics: 5.2.7
+  # 5.2.7's native side still uses the old MethodChannel; interface 3.9.0+
+  # switched to Pigeon channels it doesn't listen on → every Crashlytics call
+  # failed with channel-error (and recordError looped). Pin the matching one.
+  firebase_crashlytics_platform_interface: 3.8.27
   firebase_performance: 0.11.4+6
   firebase_app_check: 0.4.6
 
@@ -125,6 +129,10 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # Keep iOS on CocoaPods — how every shipped build was made. Stops newer
+  # Flutter from silently migrating the iOS project to Swift Package Manager.
+  config:
+    enable-swift-package-manager: false
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
