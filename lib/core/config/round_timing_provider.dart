@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/active_conclave/domain/active_conclave_models.dart';
+import 'app_config_provider.dart';
 
-/// Admin-tuned talking cadence (seconds), from `settings/roundTiming`.
+/// Admin-tuned talking cadence (seconds), from the backend's app config.
 class RoundTimingConfig {
   final int bioSeconds;
   final int referralSeconds;
@@ -22,28 +22,24 @@ class RoundTimingConfig {
   );
 }
 
-final _roundTimingDocProvider = StreamProvider<RoundTimingConfig>((ref) {
-  return FirebaseFirestore.instance
-      .collection('settings')
-      .doc('roundTiming')
-      .snapshots()
-      .map((doc) {
-    final d = doc.data();
-    int pick(String k, int fb) {
-      final v = d?[k];
-      return (v is num && v > 0) ? v.toInt() : fb;
-    }
+/// The admin-tuned cadence from `GET /app-config` (cached), or null until known.
+final _roundTimingDocProvider = Provider<RoundTimingConfig?>((ref) {
+  final d = ref.watch(appConfigProvider).asData?.value.roundTiming;
+  if (d == null || d.isEmpty) return null;
+  int pick(String k, int fb) {
+    final v = d[k];
+    return (v is num && v > 0) ? v.toInt() : fb;
+  }
 
-    return RoundTimingConfig(
-      bioSeconds: pick('bioSeconds', RoundTiming.defaultBioSeconds),
-      referralSeconds: pick('referralSeconds', RoundTiming.defaultReferralSeconds),
-      bufferSeconds: pick('bufferSeconds', RoundTiming.defaultBufferSeconds),
-    );
-  });
+  return RoundTimingConfig(
+    bioSeconds: pick('bioSeconds', RoundTiming.defaultBioSeconds),
+    referralSeconds: pick('referralSeconds', RoundTiming.defaultReferralSeconds),
+    bufferSeconds: pick('bufferSeconds', RoundTiming.defaultBufferSeconds),
+  );
 });
 
 /// Always a usable config: the live settings when available, else the defaults.
 final roundTimingConfigProvider = Provider<RoundTimingConfig>((ref) {
-  return ref.watch(_roundTimingDocProvider).asData?.value ??
+  return ref.watch(_roundTimingDocProvider) ??
       RoundTimingConfig.fallback;
 });

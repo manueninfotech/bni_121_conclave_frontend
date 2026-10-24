@@ -1,13 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../../core/config/api_config.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/cached_stream.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/conclave_model.dart';
 
 final conclaveRepositoryProvider = Provider<ConclaveRepository>((ref) {
-  return ConclaveRepository(FirebaseFirestore.instance, FirebaseAuth.instance);
+  return ConclaveRepository(FirebaseAuth.instance);
 });
 
 final conclavesStreamProvider = StreamProvider<List<Conclave>>((ref) {
@@ -20,45 +19,36 @@ final conclavesStreamProvider = StreamProvider<List<Conclave>>((ref) {
 });
 
 class ConclaveRepository {
-  final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
-  final Dio _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10)));
 
-  ConclaveRepository(this._firestore, this._auth);
+  ConclaveRepository(this._auth);
 
+  /// Every conclave, newest first, flagged with this member's registration
+  /// (registered / role / table) — from `GET /conclaves`, cached on the device
+  /// so the list opens offline, refreshed every 30 seconds while on screen.
   Stream<List<Conclave>> getConclaves() {
-    return _firestore.collection('conclaves').snapshots().asyncMap((snapshot) async {
-      final user = _auth.currentUser;
-      final List<Conclave> conclaves = [];
-
-      for (var doc in snapshot.docs) {
-        var conclave = Conclave.fromFirestore(doc.data(), doc.id);
-
-        if (user != null) {
-          // Check if user is registered for this conclave
-          final registrationDoc = await _firestore
-              .collection('conclaves')
-              .doc(doc.id)
-              .collection('registrations')
-              .doc(user.uid)
-              .get();
-
-          if (registrationDoc.exists) {
-            final regData = registrationDoc.data()!;
-            conclave = conclave.copyWith(
+    return cachedStream<List<Conclave>>(
+      cacheKey: 'conclaves',
+      fetch: () => ApiClient.instance.getList('/conclaves'),
+      parse: (json) {
+        final list = <Conclave>[];
+        for (final raw in (json is List ? json : const [])) {
+          if (raw is! Map) continue;
+          final m = Map<String, dynamic>.from(raw);
+          var c = Conclave.fromFirestore(m, (m['id'] ?? '') as String);
+          if (m['isRegistered'] == true) {
+            c = c.copyWith(
               isRegistered: true,
-              userRole: ConclaveRole.fromString(regData['role'] ?? 'member'),
-              userTableNumber: regData['tableNumber'],
+              userRole: ConclaveRole.fromString((m['myRole'] ?? 'member') as String),
+              userTableNumber: (m['myTableNumber'] as num?)?.toInt(),
             );
           }
+          list.add(c);
         }
-        conclaves.add(conclave);
-      }
-      
-      // Sort by date descending
-      conclaves.sort((a, b) => b.date.compareTo(a.date));
-      return conclaves;
-    });
+        list.sort((a, b) => b.date.compareTo(a.date));
+        return list;
+      },
+    );
   }
 
   /// Registers the signed-in member for a conclave.
@@ -84,41 +74,21 @@ class ConclaveRepository {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Must be logged in to register.');
 
-    final token = await user.getIdToken();
-
     try {
-      await _dio.post(
-        '${ApiConfig.baseUrl}/conclaves/$conclaveId/register',
-        data: {
-          'payment': ?payment,
-          if (utrNumber != null && utrNumber.trim().isNotEmpty)
-            'utrNumber': utrNumber.trim(),
-        },
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
-    } on DioException catch (e) {
-      final data = e.response?.data;
+      await ApiClient.instance.send('POST', '/conclaves/$conclaveId/register', {
+        'payment': ?payment,
+        if (utrNumber != null && utrNumber.trim().isNotEmpty) 'utrNumber': utrNumber.trim(),
+      });
+    } on ApiException catch (e) {
       // Only a genuine clash — one that names the conflicting conclave — is a
       // RegistrationConflict. The backend returns 409 for other reasons too
-      // (e.g. registration closed), and those must NOT show the "Clashes with
-      // another conclave" dialog; they fall through to their own message below.
-      String? conflictName;
-      if (data is Map && data['conflictsWith'] is Map) {
-        conflictName = (data['conflictsWith'] as Map)['name'] as String?;
+      // (e.g. registration closed); those surface with their own message.
+      final conflict = e.details['conflictsWith'];
+      final conflictName = conflict is Map ? conflict['name'] as String? : null;
+      if (e.status == 409 && conflictName != null && conflictName.isNotEmpty) {
+        throw RegistrationConflict(e.message, conflictName: conflictName);
       }
-      if (e.response?.statusCode == 409 &&
-          conflictName != null &&
-          conflictName.isNotEmpty) {
-        throw RegistrationConflict(
-          (data['error'] ?? 'This conclave clashes with another registration.')
-              as String,
-          conflictName: conflictName,
-        );
-      }
-      if (data is Map && data['error'] != null) {
-        throw Exception(data['error']);
-      }
-      throw Exception('Could not reach the server to register. Try again.');
+      throw Exception(e.isOffline ? 'Could not reach the server to register. Try again.' : e.message);
     }
   }
 }
