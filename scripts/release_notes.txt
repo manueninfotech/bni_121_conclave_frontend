@@ -1,9 +1,5 @@
-What's new in 1.2.0
+What's new in 1.2.1
 
-• Add a conclave to your calendar when you register, with a reminder before it starts.
-• Get notified the moment you register — no need to open the app first.
-• A live round card in notifications: your table, who's speaking, the countdown.
-• Reminders before your 1-2-1 meetings.
-• See your next table between rounds; captains stay put.
-• Instant confirmation after you pay, with your "Registered" status shown up front.
-• Share quick feedback after a conclave.
+• Fixed: on some phones the app could get stuck on the splash screen and never open. It now starts reliably.
+• Crash reporting works again, so we can spot and fix problems faster.
+• Smoother startup and better battery use.
