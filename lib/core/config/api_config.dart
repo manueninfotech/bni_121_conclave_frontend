@@ -29,6 +29,17 @@ class ApiConfig {
     return _isDev ? rc.backendUrlDev : rc.backendUrlProd;
   }
 
+  /// Turns a server-relative link (e.g. `/api/files/avatars/…`, which the
+  /// backend returns for stored files) into a full URL on the backend's host.
+  /// Absolute links (older Firebase Storage photos) pass through unchanged.
+  static String? resolveUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final api = Uri.tryParse(baseUrl);
+    if (api == null || !api.hasScheme) return url;
+    return api.replace(path: url, query: null).toString();
+  }
+
   /// True when this build targets the development backend.
   static bool get isDev => _isDev;
 }

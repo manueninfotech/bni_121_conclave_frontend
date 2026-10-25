@@ -1,11 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/json_cache.dart';
+
 final sessionServiceProvider = Provider<SessionService>((ref) {
-  return SessionService(FirebaseAuth.instance, FirebaseFirestore.instance);
+  return SessionService(FirebaseAuth.instance);
 });
 
 /// Login sessions and what "active" means.
@@ -16,7 +18,7 @@ final sessionServiceProvider = Provider<SessionService>((ref) {
 /// room.
 ///
 /// The expiry is enforced on the device (it signs itself out) AND is derivable
-/// on the server from `users/{uid}.lastLoginAt`, so the admin can count active
+/// on the server from the member's last login time, so the admin can count active
 /// users without the phones having to report in. That matters at a venue where
 /// the phones may not be able to reach anything.
 class SessionService {
@@ -24,17 +26,16 @@ class SessionService {
   static const int defaultAutoLogoutHours = 5;
 
   final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
 
   int? _cachedAutoLogoutHours;
 
-  SessionService(this._auth, this._firestore);
+  SessionService(this._auth);
 
-  /// Records the login time LOCALLY only — no Firestore write.
+  /// Records the login time LOCALLY only — no server call.
   ///
   /// Used the instant a phone user authenticates via OTP, partway through
   /// registration: they are signed in but their profile does not exist yet, so
-  /// we must NOT create a `users/{uid}` doc (that would leave a half-built
+  /// we must NOT create their profile yet (that would leave a half-built
   /// profile). Writing the local timestamp is what stops [isExpired] from
   /// treating this brand-new session as expired and signing them out before they
   /// finish. [recordLogin] runs for real once the profile is saved.
@@ -45,8 +46,9 @@ class SessionService {
 
   /// Call on every successful login (and after registration, which logs in).
   ///
-  /// Writes the login time to Firestore so the admin can compute the active set,
-  /// and locally so expiry still works with no network.
+  /// Tells the server (GET /me records the login time, which the admin uses to
+  /// compute the active set) and records it locally so expiry still works with
+  /// no network.
   Future<void> recordLogin() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -54,12 +56,10 @@ class SessionService {
     await markLocalLogin();
 
     try {
-      await _firestore.collection('users').doc(user.uid).set({
-        'lastLoginAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await ApiClient.instance.getJson('/me');
     } catch (e) {
-      // Offline is fine: the local timestamp still drives auto-logout, and
-      // Firestore will flush this write when a connection returns.
+      // Offline is fine: the local timestamp still drives auto-logout, and the
+      // next successful call records the login on the server.
       debugPrint('Could not record login time remotely: $e');
     }
   }
@@ -75,13 +75,19 @@ class SessionService {
     return raw == null ? null : DateTime.tryParse(raw);
   }
 
-  /// How long a login stays active. Read from `settings/app.autoLogoutHours`,
+  /// How long a login stays active. From the backend's app config,
   /// cached, falling back to the default when unset or unreachable.
   Future<int> autoLogoutHours() async {
     if (_cachedAutoLogoutHours != null) return _cachedAutoLogoutHours!;
     try {
-      final doc = await _firestore.collection('settings').doc('app').get();
-      final hours = (doc.data()?['autoLogoutHours'] as num?)?.toInt();
+      // Fresh from the server, else the last copy the app saw (works offline).
+      Object? config;
+      try {
+        config = await ApiClient.instance.getJson('/app-config');
+      } catch (_) {
+        config = await JsonCache.read('app-config');
+      }
+      final hours = config is Map ? (config['autoLogoutHours'] as num?)?.toInt() : null;
       if (hours != null && hours > 0) {
         _cachedAutoLogoutHours = hours;
         return hours;

@@ -42,7 +42,6 @@ dependencies:
   firebase_core: ^4.11.0
   firebase_auth: ^6.5.4
   firebase_messaging: ^16.4.1
-  cloud_firestore: ^6.6.0
   # Drives sync-on-reconnect: the venue's network comes and goes, and pending
   # records must drain the moment it returns, not on the next 30s tick.
   connectivity_plus: ^7.0.0
@@ -64,7 +63,6 @@ dependencies:
   # Play's blocking full-screen update flow. Play is the source of truth — no
   # version numbers to maintain. Android/Play only; no-ops elsewhere.
   in_app_update: ^4.2.3
-  firebase_storage: ^13.4.6
   image_picker: ^1.2.3
   firebase_remote_config: ^6.5.6
   flutter_contacts: 2.1.0
@@ -100,8 +98,6 @@ dependency_overrides:
   firebase_core: 4.13.0
   firebase_auth: 6.5.7
   firebase_messaging: 16.5.0
-  cloud_firestore: 6.8.0
-  firebase_storage: 13.4.6
   firebase_remote_config: 6.5.6
   firebase_analytics: 12.4.6
   firebase_crashlytics: 5.2.7

@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/live_conclave_source.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/active_conclave_models.dart';
 import '../domain/referral_models.dart';
@@ -11,7 +11,6 @@ final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
   return ReferralRepository(
     ref.watch(localDbProvider),
     FirebaseAuth.instance,
-    FirebaseFirestore.instance,
   );
 });
 
@@ -28,9 +27,8 @@ final referralSummaryProvider =
 class ReferralRepository {
   final LocalDatabase _db;
   final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
 
-  ReferralRepository(this._db, this._auth, this._firestore);
+  ReferralRepository(this._db, this._auth);
 
   Future<ReferralSummary> summaryFor(String conclaveId) async {
     final uid = _auth.currentUser?.uid;
@@ -47,7 +45,7 @@ class ReferralRepository {
 
     // Referrals given before the recipient's name was stored locally have only a
     // uid. The conclave's participant snapshot still knows who that is, and it's
-    // served from Firestore's offline cache, so this works without a network.
+    // served from the on-device cache, so this works without a network.
     final roster = await _rosterFor(conclaveId);
 
     return buildReferralSummary(
@@ -59,8 +57,7 @@ class ReferralRepository {
   /// uid -> participant, from `conclaves/{id}.participants`.
   Future<Map<String, ScheduleParticipant>> _rosterFor(String conclaveId) async {
     try {
-      final doc = await _firestore.collection('conclaves').doc(conclaveId).get();
-      final data = doc.data();
+      final data = await readConclaveDoc(conclaveId);
       if (data == null) return const {};
 
       final schedule = ConclaveSchedule.fromConclaveDoc(data);

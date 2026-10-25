@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/live_conclave_source.dart';
 import '../../active_conclave/domain/active_conclave_models.dart';
 import '../../auth/data/auth_repository.dart';
 
@@ -32,11 +32,9 @@ final peopleMetProvider =
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return const [];
 
-  final doc = await FirebaseFirestore.instance
-      .collection('conclaves')
-      .doc(conclaveId)
-      .get();
-  final data = doc.data();
+  // Network if possible, else the on-device copy. The server includes phone
+  // numbers only for the people this member actually sat with.
+  final data = await readConclaveDoc(conclaveId);
   if (data == null) return const [];
 
   final schedule = ConclaveSchedule.fromConclaveDoc(data);

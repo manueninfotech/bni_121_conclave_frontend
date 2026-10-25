@@ -39,6 +39,9 @@ class RemoteConfigService {
         // App Store instead). Bump this ONLY when an old client can no longer
         // safely talk to the backend.
         'ios_min_version': '',
+        // Same for Android — a backstop to Play's in-app update, which a user
+        // can sometimes defer.
+        'android_min_version': '',
       });
       await _rc.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 8),
@@ -67,4 +70,7 @@ class RemoteConfigService {
   /// The lowest iOS marketing version (e.g. "1.2.0") the app may keep running.
   /// Empty when no forced update is in effect. See [AppUpdateService].
   String get iosMinVersion => _ready ? _rc.getString('ios_min_version').trim() : '';
+
+  /// The lowest Android version allowed to keep running. Empty = no forced gate.
+  String get androidMinVersion => _ready ? _rc.getString('android_min_version').trim() : '';
 }

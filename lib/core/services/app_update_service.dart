@@ -36,6 +36,8 @@ class AppUpdateService {
   static const String _appStoreId = '6809010007';
   static const String _appStoreUrl =
       'https://apps.apple.com/app/id$_appStoreId';
+  static const String _playStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.manuen.conclave_1_2_1';
 
   Future<void> enforceUpdate() async {
     if (kIsWeb) return;
@@ -50,6 +52,20 @@ class AppUpdateService {
   // ---- Android: Play immediate update ------------------------------------
 
   Future<void> _enforceAndroid() async {
+    // Forced gate first (Remote Config `android_min_version`): Play's
+    // immediate update can be unavailable or deferred, and a version that can
+    // no longer talk to the backend must not keep running.
+    if (!kDebugMode) {
+      try {
+        final current = (await PackageInfo.fromPlatform()).version.trim();
+        final minVersion = RemoteConfigService.instance.androidMinVersion;
+        if (current.isNotEmpty && minVersion.isNotEmpty && _isOlder(current, minVersion)) {
+          _showUpdateDialog(forced: true, storeUrl: _playStoreUrl, storeName: 'Play Store');
+        }
+      } catch (e) {
+        debugPrint('Android min-version check skipped: $e');
+      }
+    }
     try {
       final info = await InAppUpdate.checkForUpdate();
       final available =
@@ -111,7 +127,11 @@ class AppUpdateService {
     return null;
   }
 
-  void _showUpdateDialog({required bool forced}) {
+  void _showUpdateDialog({
+    required bool forced,
+    String storeUrl = _appStoreUrl,
+    String storeName = 'App Store',
+  }) {
     final context = rootNavigatorKey.currentContext;
     if (context == null) return; // No tree yet — caught again next launch.
 
@@ -127,7 +147,7 @@ class AppUpdateService {
             forced
                 ? 'This version is out of date and can no longer be used. '
                     'Please update to keep using the app.'
-                : 'A newer version is available on the App Store.',
+                : 'A newer version is available on the $storeName.',
           ),
           actions: [
             if (!forced)
@@ -138,7 +158,7 @@ class AppUpdateService {
             FilledButton(
               onPressed: () {
                 launchUrl(
-                  Uri.parse(_appStoreUrl),
+                  Uri.parse(storeUrl),
                   mode: LaunchMode.externalApplication,
                 );
                 // Soft nudge closes; a forced dialog stays up so a user who
