@@ -41,9 +41,7 @@ class Member {
   factory Member.fromJson(Map<String, dynamic> j) => Member(
         uid: (j['uid'] ?? '') as String,
         name: (j['name'] ?? '') as String,
-        photoUrl: (j['photoUrl'] as String?)?.isEmpty ?? true
-            ? null
-            : j['photoUrl'] as String,
+        photoUrl: ApiConfig.resolveUrl(j['photoUrl'] as String?),
         businessName: (j['businessName'] ?? '') as String,
         businessCategory: (j['businessCategory'] ?? '') as String,
         location: (j['location'] ?? '') as String,

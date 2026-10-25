@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
+import '../../../core/api/api_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/domain/phone.dart';
@@ -9,7 +9,6 @@ import 'session_service.dart';
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     FirebaseAuth.instance,
-    FirebaseFirestore.instance,
     ref.watch(sessionServiceProvider),
   );
 });
@@ -20,10 +19,9 @@ final authStateProvider = StreamProvider<User?>((ref) {
 
 class AuthRepository {
   final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
   final SessionService _session;
 
-  AuthRepository(this._auth, this._firestore, this._session);
+  AuthRepository(this._auth, this._session);
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -56,8 +54,8 @@ class AuthRepository {
       // Send verification email
       await user.sendEmailVerification();
 
-      // 2. Save additional profile data in Firestore
-      await _saveProfileToFirestore(
+      // 2. Save the profile on the backend
+      await _saveProfile(
         user.uid, email, name, businessName, businessCategory, location, chapter,
         email: email,
         phone: phone,
@@ -113,7 +111,7 @@ class AuthRepository {
 
       // Save profile. `identifier` stays the synthetic address (that IS how they
       // sign in); the real email is stored separately.
-      await _saveProfileToFirestore(
+      await _saveProfile(
         user.uid, pseudoEmail, name, businessName, businessCategory, location, chapter,
         email: email,
         phone: phone,
@@ -139,7 +137,7 @@ class AuthRepository {
   ///    contact should be, and nobody can reach the member.
   ///  - An email registration with no phone leaves the admin unable to call
   ///    anyone at the venue, which is what actually happens on the day.
-  Future<void> _saveProfileToFirestore(
+  Future<void> _saveProfile(
     String uid,
     String identifier,
     String name,
@@ -152,11 +150,9 @@ class AuthRepository {
     required String? region,
     required String membership,
   }) async {
-    await _firestore.collection('users').doc(uid).set({
-      'id': uid,
-      // How they sign in. Synthetic for phone accounts — never show it to a human.
-      'identifier': identifier,
-      // Real, reachable contacts.
+    // PUT /me creates the profile on first save. The sign-in identifier is
+    // taken by the server from the verified login, not from this request.
+    await ApiClient.instance.send('PUT', '/me', {
       'email': email.trim().toLowerCase(),
       'phone': phone.trim(),
       'name': name,
@@ -168,9 +164,7 @@ class AuthRepository {
       // "BNI" or "Non-BNI".
       'membership': membership,
       'country': 'India',
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    });
   }
 
   /// Signs in.
@@ -279,7 +273,7 @@ class AuthRepository {
   ///
   /// The backend (using the Admin SDK) removes the profile document, its
   /// notifications, and the Firebase Auth login in one authenticated call — the
-  /// client cannot delete its own Firestore document (security rules forbid it)
+  /// client cannot delete its own data directly
   /// and deleting the auth user client-side would need a fresh re-login. After it
   /// succeeds the local session is cleared, which drops the router to /login.
   ///

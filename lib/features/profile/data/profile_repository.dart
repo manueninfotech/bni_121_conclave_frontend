@@ -1,17 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/api/api_client.dart';
+import '../../../core/api/cached_stream.dart';
+import '../../../core/config/api_config.dart';
 
 import '../../auth/data/auth_repository.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepository(
-    FirebaseFirestore.instance,
-    FirebaseAuth.instance,
-    FirebaseStorage.instance,
-  );
+  return ProfileRepository(FirebaseAuth.instance);
 });
 
 /// The signed-in user's profile, as a live stream.
@@ -92,9 +93,7 @@ class UserProfile {
     return UserProfile(
       uid: uid,
       name: (m['name'] ?? '') as String,
-      photoUrl: (m['photoUrl'] as String?)?.isEmpty ?? true
-          ? null
-          : m['photoUrl'] as String,
+      photoUrl: ApiConfig.resolveUrl(m['photoUrl'] as String?),
       identifier: (m['identifier'] ?? '') as String,
       // Fall back to identifier for accounts created before both were collected.
       email: (m['email'] ?? '') as String,
@@ -115,58 +114,75 @@ class UserProfile {
 }
 
 class ProfileRepository {
-  final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
-  final FirebaseStorage _storage;
 
-  ProfileRepository(this._firestore, this._auth, this._storage);
+  ProfileRepository(this._auth);
 
-  /// Uploads a new profile photo and records it on the user document.
-  ///
-  /// The image is sent to `avatars/{uid}/profile.jpg` — a stable path, so a new
-  /// photo overwrites the old rather than accumulating files. The download URL
-  /// is written to `users/{uid}.photoUrl`; because the profile is a live stream,
-  /// every avatar in the app updates the moment this returns.
+  /// Pings listeners to refetch right after this device changes the profile,
+  /// so an edit shows up immediately (not on the next periodic refresh).
+  static final _changed = StreamController<void>.broadcast();
+
+  /// Uploads a new profile photo (JPEG). The server stores it, records the
+  /// link on the profile, deletes the previous photo, and audits the change.
   Future<void> uploadAvatar(XFile file) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('You are not signed in.');
-
+    if (_auth.currentUser == null) throw Exception('You are not signed in.');
     final bytes = await file.readAsBytes();
-    final ref = _storage.ref('avatars/$uid/profile.jpg');
-    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-    final url = await ref.getDownloadURL();
-
-    await _firestore.collection('users').doc(uid).set({
-      'photoUrl': url,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await _call(() => ApiClient.instance.send('PUT', '/me/photo', {
+          'dataUrl': 'data:image/jpeg;base64,${base64Encode(bytes)}',
+        }));
+    _changed.add(null);
   }
 
   /// Removes the profile photo, reverting to the initials avatar.
   Future<void> removeAvatar() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('You are not signed in.');
-
-    // Best-effort delete of the stored file; the source of truth is the doc
-    // field, so clearing that is what actually removes it from the app.
-    try {
-      await _storage.ref('avatars/$uid/profile.jpg').delete();
-    } catch (_) {}
-
-    await _firestore.collection('users').doc(uid).set({
-      'photoUrl': FieldValue.delete(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    if (_auth.currentUser == null) throw Exception('You are not signed in.');
+    await _call(() => ApiClient.instance.send('DELETE', '/me/photo'));
+    _changed.add(null);
   }
 
+  /// The signed-in member's profile: cached copy first (works offline), then
+  /// the server's, refreshed every minute and right after any local edit.
   Stream<UserProfile?> watchMyProfile() {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return Stream.value(null);
 
-    return _firestore.collection('users').doc(uid).snapshots().map((doc) {
-      final data = doc.data();
-      return data == null ? null : UserProfile.fromMap(uid, data);
-    });
+    final out = StreamController<UserProfile?>();
+    StreamSubscription<UserProfile?>? inner;
+    StreamSubscription<void>? edits;
+    void subscribe() {
+      inner?.cancel();
+      inner = cachedStream<UserProfile?>(
+        cacheKey: 'me-profile',
+        fetch: () async {
+          try {
+            return await ApiClient.instance.getJson('/me/profile');
+          } on ApiException catch (e) {
+            if (e.status == 404) return null; // no profile yet
+            rethrow;
+          }
+        },
+        parse: (json) => json is Map ? UserProfile.fromMap(uid, Map<String, dynamic>.from(json)) : null,
+        refresh: const Duration(minutes: 1),
+      ).listen(out.add, onError: out.addError);
+    }
+
+    out.onListen = () {
+      subscribe();
+      edits = _changed.stream.listen((_) => subscribe());
+    };
+    out.onCancel = () async {
+      await edits?.cancel();
+      await inner?.cancel();
+    };
+    return out.stream;
+  }
+
+  static Future<T> _call<T>(Future<T> Function() fn) async {
+    try {
+      return await fn();
+    } on ApiException catch (e) {
+      throw Exception(e.message);
+    }
   }
 
   /// Updates the editable parts of a profile.
@@ -196,8 +212,7 @@ class ProfileRepository {
     String lookingFor = '',
     String canOffer = '',
   }) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) throw Exception('You are not signed in.');
+    if (_auth.currentUser == null) throw Exception('You are not signed in.');
 
     if (name.trim().isEmpty) throw Exception('Name cannot be empty.');
     if (businessCategory.trim().isEmpty) {
@@ -207,21 +222,21 @@ class ProfileRepository {
       throw Exception('Choose BNI or Non-BNI.');
     }
 
-    await _firestore.collection('users').doc(uid).update({
-      'name': name.trim(),
-      'email': email.trim().toLowerCase(),
-      'phone': phone.trim(),
-      'businessName': businessName.trim(),
-      'businessCategory': businessCategory,
-      // Same normalisation as registration: "Guntur", "guntur" and "  GUNTUR  "
-      // must group as one place.
-      'location': location.trim().toLowerCase(),
-      'chapter': chapter?.trim().isEmpty ?? true ? null : chapter!.trim(),
-      'region': region?.trim().isEmpty ?? true ? null : region!.trim(),
-      'membership': membership,
-      'lookingFor': lookingFor.trim(),
-      'canOffer': canOffer.trim(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _call(() => ApiClient.instance.send('PUT', '/me', {
+          'name': name.trim(),
+          'email': email.trim().toLowerCase(),
+          'phone': phone.trim(),
+          'businessName': businessName.trim(),
+          'businessCategory': businessCategory,
+          // Same normalisation as registration: "Guntur", "guntur" and
+          // "  GUNTUR  " must group as one place.
+          'location': location.trim().toLowerCase(),
+          'chapter': chapter?.trim().isEmpty ?? true ? null : chapter!.trim(),
+          'region': region?.trim().isEmpty ?? true ? null : region!.trim(),
+          'membership': membership,
+          'lookingFor': lookingFor.trim(),
+          'canOffer': canOffer.trim(),
+        }));
+    _changed.add(null);
   }
 }

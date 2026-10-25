@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/live_conclave_source.dart';
 import '../../../core/config/round_timing_provider.dart';
 import '../../../core/time/server_clock.dart';
 import '../../auth/data/auth_repository.dart';
@@ -54,7 +54,6 @@ final activeConclaveRepositoryProvider = Provider<ActiveConclaveRepository>((ref
   // server-corrected 'now' — never the raw device clock, which can be minutes
   // off and would put two phones on different rounds.
   return ActiveConclaveRepository(
-    FirebaseFirestore.instance,
     FirebaseAuth.instance,
     () => ref.read(serverClockProvider).now(),
     () => ref.read(roundTimingConfigProvider),
@@ -63,9 +62,11 @@ final activeConclaveRepositoryProvider = Provider<ActiveConclaveRepository>((ref
 
 /// Streams the live state of one conclave, resolved for the signed-in user.
 ///
-/// Firestore's offline cache backs this stream, so once the conclave document
-/// has been seen at least once the schedule keeps resolving with no network —
-/// which is the whole point at a venue with 300+ people and no usable wifi.
+/// The on-device cache backs this stream (see [watchConclaveDoc]), so once the
+/// conclave has been loaded at least once the schedule keeps resolving with no
+/// network — the whole point at a venue with 300+ people and no usable wifi.
+/// Round changes (start, pause, resume) arrive live over the backend's event
+/// stream.
 final activeRoundProvider =
     StreamProvider.family<ActiveRoundState, String>((ref, conclaveId) {
   // Re-resolve when the signed-in user changes: the round is resolved FOR a
@@ -76,13 +77,11 @@ final activeRoundProvider =
 });
 
 class ActiveConclaveRepository {
-  final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final DateTime Function() _now;
   final RoundTimingConfig Function() _roundTiming;
 
-  ActiveConclaveRepository(
-      this._firestore, this._auth, this._now, this._roundTiming);
+  ActiveConclaveRepository(this._auth, this._now, this._roundTiming);
 
   Stream<ActiveRoundState> watchActiveRound(String conclaveId) {
     // Two things move the live round: the conclave document changing (schedule
@@ -93,7 +92,7 @@ class ActiveConclaveRepository {
     final controller = StreamController<ActiveRoundState>();
     Map<String, dynamic>? latest;
     var seenDoc = false;
-    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? sub;
+    StreamSubscription<Map<String, dynamic>>? sub;
     Timer? ticker;
 
     void emit() {
@@ -102,12 +101,8 @@ class ActiveConclaveRepository {
     }
 
     controller.onListen = () {
-      sub = _firestore
-          .collection('conclaves')
-          .doc(conclaveId)
-          .snapshots()
-          .listen((doc) {
-        latest = doc.data();
+      sub = watchConclaveDoc(conclaveId).listen((doc) {
+        latest = doc;
         seenDoc = true;
         emit();
       }, onError: controller.addError);
@@ -167,9 +162,7 @@ class ActiveConclaveRepository {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.notStarted);
     }
     final startedAt = data['currentRoundStartedAt'];
-    final anchor = startedAt is Timestamp
-        ? startedAt.toDate()
-        : (startedAt is String ? DateTime.tryParse(startedAt) : null);
+    final anchor = startedAt is String ? DateTime.tryParse(startedAt) : null;
     if (anchor == null) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.missingRoundStart);
     }
@@ -195,15 +188,28 @@ class ActiveConclaveRepository {
     // assuming round 1 keeps the app correct even if an admin starts a later
     // round by hand. Once we're past the last round, the conclave is over.
     final roundMs = timing.total.inMilliseconds;
-    final elapsedMs = now.difference(anchor).inMilliseconds;
+    // While the admin has the round paused, the clock stands still at the
+    // moment of the pause: the countdown freezes and nobody is moved on to the
+    // next table. (Resuming moves the anchor forward on the server.)
+    final paused = data['isRoundPaused'] == true;
+    final pausedElapsed = (data['roundElapsedMsBeforePause'] as num?)?.toInt();
+    final elapsedMs = paused && pausedElapsed != null
+        ? pausedElapsed
+        : now.difference(anchor).inMilliseconds;
     var currentRound =
         roundMs <= 0 ? storedRound : storedRound + (elapsedMs ~/ roundMs);
     if (currentRound < storedRound) currentRound = storedRound;
     if (currentRound > totalRounds) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
     }
-    final roundStart = anchor
+    var roundStart = anchor
         .add(Duration(milliseconds: roundMs * (currentRound - storedRound)));
+    if (paused && pausedElapsed != null) {
+      // Slide the round's start so "now − start" stays at the paused elapsed
+      // time: the countdown, re-resolved every second, shows the same value.
+      final intoRound = pausedElapsed - roundMs * (currentRound - storedRound);
+      roundStart = now.subtract(Duration(milliseconds: intoRound));
+    }
 
     final round = schedule.round(currentRound);
     final table = round?.tableFor(me.participantId);
