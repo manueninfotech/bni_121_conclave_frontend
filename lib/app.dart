@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -11,7 +12,7 @@ import 'core/theme/app_theme.dart';
 import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
 import 'features/active_conclave/data/notification_service.dart';
-import 'features/auth/data/session_service.dart';
+import 'core/services/presence_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
@@ -263,21 +264,23 @@ class ConclaveApp extends ConsumerStatefulWidget {
 
 class _ConclaveAppState extends ConsumerState<ConclaveApp>
     with WidgetsBindingObserver {
-  Timer? _sessionTimer;
+  StreamSubscription<User?>? _authSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Auto-logout after autoLogoutHours (default 5). Checked on resume — which
-    // is when a phone that sat in a pocket all day comes back — and on a slow
-    // timer to catch a session expiring while the app is open.
-    _enforceSessionExpiry();
-    _sessionTimer = Timer.periodic(
-      const Duration(minutes: 5),
-      (_) => _enforceSessionExpiry(),
-    );
+    // Presence instead of auto-logout: members stay signed in, and the app
+    // tells the server when it is open so the admin sees who is online.
+    PresenceService.instance.appOpened();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        PresenceService.instance.appOpened();
+      } else {
+        PresenceService.instance.stop();
+      }
+    });
 
     // Drain pending records whenever the network returns, from ANY screen.
     // Started here rather than on the round screen because at the venue signal
@@ -342,7 +345,8 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
 
   @override
   void dispose() {
-    _sessionTimer?.cancel();
+    _authSub?.cancel();
+    PresenceService.instance.stop();
     _reminderSub?.cancel();
     _openedSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -351,9 +355,15 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      PresenceService.instance.appClosed();
+      return;
+    }
     if (state != AppLifecycleState.resumed) return;
 
-    _enforceSessionExpiry();
+    PresenceService.instance.appOpened();
 
     // Coming back to the foreground is the other moment worth retrying: the
     // phone may have regained signal while the app was backgrounded, and
@@ -365,15 +375,6 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     ref.invalidate(myOneToOnesProvider);
     ref.invalidate(myReferralsProvider);
     ref.invalidate(notificationsProvider);
-  }
-
-  Future<void> _enforceSessionExpiry() async {
-    final expired = await ref.read(sessionServiceProvider).enforceExpiry();
-    if (expired) {
-      // The router's redirect watches auth state, so signing out lands the user
-      // back on /login by itself.
-      debugPrint('Session expired — signed out.');
-    }
   }
 
   @override
