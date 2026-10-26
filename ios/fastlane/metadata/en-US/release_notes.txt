@@ -1,6 +1,4 @@
-What's new in 1.3.0:
-• Faster live updates during a conclave — round changes, pauses and restarts show up instantly.
-• The round timer now freezes while a round is paused.
-• Works better with weak or no network at the venue: your last-seen schedule and tables stay on screen.
-• Referrals made early in a round are no longer lost.
-• Reliability and security improvements.
+What's new in 1.3.1:
+• You stay signed in — no more being logged out after a few hours, so no password needed at the venue.
+• Organisers can see who has the app open, to help seat everyone smoothly.
+• Small fixes and improvements.
