@@ -1,4 +1,5 @@
-What's new in 1.3.1:
-• You stay signed in — no more being logged out after a few hours, so no password needed at the venue.
-• Organisers can see who has the app open, to help seat everyone smoothly.
-• Small fixes and improvements.
+What's new in 1.3.2:
+• Rounds follow the organiser: everyone gives their bio first, then there's a referral slot for the whole table.
+• The Refer button opens during the referral slot and shows when it opens.
+• If the organiser adds extra time, the app shows it for one-to-ones.
+• Clear "move to your next table" and "waiting for the next round" screens.
