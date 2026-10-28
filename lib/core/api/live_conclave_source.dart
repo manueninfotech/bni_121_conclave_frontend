@@ -58,6 +58,12 @@ Stream<Map<String, dynamic>> watchConclaveDoc(String conclaveId) {
       'isScheduleLocked',
       'isRegistrationOpen',
       'updatedAt',
+      // Round clock inputs (see round_clock.dart).
+      'roundCount',
+      'personsPerTable',
+      'roundProgressionMode',
+      'roundExtensionSeconds',
+      'moveSeconds',
     ]) {
       if (state.containsKey(k)) current[k] = state[k];
     }
