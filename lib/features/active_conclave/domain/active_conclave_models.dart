@@ -9,6 +9,8 @@
 /// goes through [ConclaveSchedule].
 library;
 
+import 'round_clock.dart';
+
 /// A person in the conclave snapshot, as stored in `conclaves/{id}.participants`.
 class ScheduleParticipant {
   /// Dense engine id (1..A). Used inside the schedule.
@@ -154,87 +156,56 @@ class ConclaveSchedule {
   }
 }
 
-/// How long a round runs, derived from the table size.
-///
-/// The active (talking) portion is 1.5 minutes per person at the table. By
-/// default the round then adds a small fixed [transitionBuffer] for people to
-/// move to their next table — so a round's length *scales with headcount*
-/// instead of being padded out to a fixed block:
-///   P = 8 -> 12 min talking + 2 min move = 14 min
-///   P = 4 ->  6 min talking + 2 min move =  8 min
-/// This replaced the old fixed 15-minute block, whose transition ballooned to
-/// 9+ minutes of dead time for small tables.
-///
-/// A conclave may override this with a fixed total block ([fixedBlockMinutes]) —
-/// the transition is then whatever is left of that block after talking — for
-/// organisers who want to pin the cadence by hand.
-///
-/// Inside the active portion the talking is *sequenced* into two passes (see
-/// [ActiveRound.speakingTurns]): every person gets [bio] to introduce themselves
-/// in turn, then — once all bios are done — every person gets [referral] to pass
-/// business, in the same order.
-///
-/// The per-turn lengths ([bio], [referral]) and the [transition] buffer default
-/// to the constants below but can be tuned by the admin (settings/roundTiming),
-/// so they are carried on the INSTANCE, not as global constants — the speaking
-/// schedule reads them off `timing`.
+/// How one round runs (organisers' rules — see `round_clock.dart`):
+/// everyone's 1-min bio, then ONE referral slot of 30 s per person, sized by
+/// the conclave's people-per-table (max 8) so every table keeps the same clock;
+/// then any extra time the admin added; then (automatic mode only) the move
+/// break before the next round.
 class RoundTiming {
-  // Defaults, used when the admin has set no override.
-  static const int defaultBioSeconds = 60;
-  static const int defaultReferralSeconds = 30;
-  static const int defaultBufferSeconds = 120;
-
+  /// Table is in session: bios + referral slot + any extra time.
   final Duration active;
+
+  /// Automatic mode's move break after the round (zero in manual mode, where
+  /// the round simply ends and waits for the admin).
   final Duration transition;
 
-  /// Per-person bio / referral length this round runs at (admin-tunable).
+  /// Per-person bio / referral turn lengths (fixed: 60 s / 30 s).
   final Duration bio;
   final Duration referral;
+
+  /// The referral slot, relative to the round's start.
+  final Duration referralOpensAfter;
+  final Duration referralClosesAfter;
 
   const RoundTiming({
     required this.active,
     required this.transition,
     required this.bio,
     required this.referral,
+    required this.referralOpensAfter,
+    required this.referralClosesAfter,
   });
 
   Duration get total => active + transition;
 
-  /// [bioSeconds]/[referralSeconds]/[bufferSeconds] come from settings (with the
-  /// defaults above). [fixedBlockMinutes], when set on the conclave, pins the
-  /// total round to that many minutes instead of auto-scaling as
-  /// talking + buffer.
-  factory RoundTiming.forPersonsPerTable(
-    int personsPerTable, {
-    int? fixedBlockMinutes,
-    int bioSeconds = defaultBioSeconds,
-    int referralSeconds = defaultReferralSeconds,
-    int bufferSeconds = defaultBufferSeconds,
+  factory RoundTiming.forRound({
+    required int personsPerTable,
+    Duration extension = Duration.zero,
+    Duration move = Duration.zero,
+    bool automatic = false,
   }) {
-    final p = personsPerTable < 1 ? 1 : personsPerTable;
-    final bio = Duration(seconds: bioSeconds < 1 ? 1 : bioSeconds);
-    final referral =
-        Duration(seconds: referralSeconds < 1 ? 1 : referralSeconds);
-    final active = (bio + referral) * p;
-
-    if (fixedBlockMinutes != null && fixedBlockMinutes > 0) {
-      final block = Duration(minutes: fixedBlockMinutes);
-      // Clamp rather than produce a negative transition when talking alone
-      // already fills (or overruns) the fixed block.
-      final transition = active >= block ? Duration.zero : block - active;
-      return RoundTiming(
-        active: active,
-        transition: transition,
-        bio: bio,
-        referral: referral,
-      );
-    }
-
+    final p = personsPerTable.clamp(1, maxPersonsPerTable);
+    const bio = Duration(seconds: bioSecondsPerPerson);
+    const referral = Duration(seconds: referralSecondsPerPerson);
+    final bios = bio * p;
+    final talk = bios + referral * p;
     return RoundTiming(
-      active: active,
-      transition: Duration(seconds: bufferSeconds < 0 ? 0 : bufferSeconds),
+      active: talk + extension,
+      transition: automatic ? move : Duration.zero,
       bio: bio,
       referral: referral,
+      referralOpensAfter: bios,
+      referralClosesAfter: talk,
     );
   }
 }
@@ -371,8 +342,15 @@ class ActiveRound {
     }
   }
 
-  /// Attendance and referrals are only accepted while the table is in session.
+  /// Attendance is accepted while the table is in session.
   bool canRecordAt(DateTime now) => phaseAt(now) == RoundPhase.active;
+
+  DateTime get referralOpensAt => startTime.add(timing.referralOpensAfter);
+  DateTime get referralClosesAt => startTime.add(timing.referralClosesAfter);
+
+  /// Referrals only in the referral slot, after everyone's bio.
+  bool isReferralOpenAt(DateTime now) =>
+      !now.isBefore(referralOpensAt) && now.isBefore(referralClosesAt);
 
   /// The other people at the table — the ones the user can refer.
   List<TableSeat> get others => seats.where((s) => !s.isSelf).toList();
@@ -389,9 +367,8 @@ class ActiveRound {
   }
 
   /// The full sequenced schedule: pass 1 is everyone's [RoundTiming.bio] in
-  /// order, pass 2 is everyone's [RoundTiming.referral] in the same order. The
-  /// last turn ends exactly at [activeEndsAt], so the schedule fills the active
-  /// phase and nothing else shifts.
+  /// order; pass 2, the referral slot, starts at [referralOpensAt] — the same
+  /// moment at every table (a table one short of full simply waits a minute).
   List<SpeakingTurn> get speakingTurns {
     final order = speakingOrder;
     final turns = <SpeakingTurn>[];
@@ -406,6 +383,7 @@ class ActiveRound {
       ));
       cursor = cursor.add(timing.bio);
     }
+    cursor = referralOpensAt;
     for (var i = 0; i < order.length; i++) {
       turns.add(SpeakingTurn(
         speaker: order[i],

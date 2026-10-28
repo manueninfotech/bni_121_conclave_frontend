@@ -98,8 +98,10 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
         final who =
             turn.speaker.isSelf ? 'Your turn to speak' : 'Now: ${turn.speaker.name}';
         line = '$who · ${turn.kind == TurnKind.bio ? 'Bio' : 'Referrals'}';
+      } else if (now.isBefore(round.referralOpensAt)) {
+        line = 'Referrals start soon';
       } else {
-        line = 'Round ${round.roundNumber} in progress';
+        line = 'Extra time · one-to-ones';
       }
     } else if (phase == RoundPhase.transition) {
       final next = round.nextTableNumber;
@@ -179,7 +181,8 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
   /// text field put a form between the user and the single action the whole
   /// event exists for.
   Future<void> _giveReferral(ActiveRound round, TableSeat seat) async {
-    if (!round.canRecordAt(_serverNow())) return;
+    // Referrals only in the referral slot, after everyone's bio.
+    if (!round.isReferralOpenAt(_serverNow())) return;
 
     final written = await ref.read(localDbProvider).addReferral(
           conclaveId: round.conclaveId,
@@ -392,6 +395,7 @@ class _RoundView extends StatelessWidget {
   Widget build(BuildContext context) {
     final phase = round.phaseAt(now);
     final canRecord = round.canRecordAt(now);
+    final referralOpen = round.isReferralOpenAt(now);
     final order = round.speakingOrder;
     final currentTurn = round.currentTurnAt(now);
 
@@ -423,6 +427,9 @@ class _RoundView extends StatelessWidget {
                     delegate: SliverChildListDelegate([
                       if (!canRecord) ...[
                         _PhaseNotice(phase: phase, round: round),
+                        const SizedBox(height: Gap.lg),
+                      ] else if (!referralOpen) ...[
+                        _ReferralSlotHint(round: round, now: now),
                         const SizedBox(height: Gap.lg),
                       ],
 
@@ -487,7 +494,7 @@ class _RoundView extends StatelessWidget {
                                   : null,
                               canMark: canRecord &&
                                   (order[i].isSelf || round.isCaptain),
-                              canRefer: canRecord &&
+                              canRefer: referralOpen &&
                                   !order[i].isSelf &&
                                   !referred.contains(order[i].userId),
                               alreadyReferred:
@@ -613,6 +620,28 @@ class _TimerVM {
         // The last ten seconds of any turn pulse — the cue to wrap up before the
         // floor passes to the next person.
         urgent: remaining.inSeconds <= 10 && remaining.inSeconds > 0,
+      );
+    }
+
+    // In session but nobody's turn: a table one short of full waiting for the
+    // referral slot, or the extra time the organiser added for one-to-ones.
+    if (phase == RoundPhase.active) {
+      final beforeReferrals = now.isBefore(round.referralOpensAt);
+      final ends = beforeReferrals ? round.referralOpensAt : round.activeEndsAt;
+      return _TimerVM(
+        phase: phase,
+        fg: c.onSuccessContainer,
+        bg: c.successContainer,
+        icon: beforeReferrals ? Icons.hourglass_top : Icons.forum_outlined,
+        kicker: beforeReferrals ? 'Referrals start soon' : 'Extra time',
+        remaining: ends.difference(now).isNegative ? Duration.zero : ends.difference(now),
+        total: beforeReferrals
+            ? round.timing.referralOpensAfter
+            : round.activeEndsAt.difference(round.referralClosesAt),
+        nowName: beforeReferrals ? null : 'One-to-ones',
+        selfNow: false,
+        nextName: null,
+        urgent: false,
       );
     }
 
@@ -1069,14 +1098,54 @@ class _PhaseNotice extends StatelessWidget {
           Expanded(
             child: Text(
               isTransition
-                  ? 'Talking time is over. Attendance and referrals are closed for '
-                      'round ${round.roundNumber}.'
-                  : 'This round has ended — moving on…',
+                  ? 'Round ${round.roundNumber} is over. Move to your next table — '
+                      'the next round starts automatically.'
+                  : (round.roundNumber >= round.totalRounds
+                      ? 'That was the last round.'
+                      : 'Round ${round.roundNumber} has ended. Round '
+                          '${round.roundNumber + 1} starts when the organiser starts it.'),
               style: context.text.bodySmall?.copyWith(
                 color: isTransition
                     ? c.onWarningContainer
                     : context.scheme.onSurfaceVariant,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Before the referral slot: when it opens. After it (extra time): closed.
+class _ReferralSlotHint extends StatelessWidget {
+  final ActiveRound round;
+  final DateTime now;
+
+  const _ReferralSlotHint({required this.round, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final before = now.isBefore(round.referralOpensAt);
+    final wait = round.referralOpensAt.difference(now);
+    final mm = wait.inMinutes;
+    final ss = (wait.inSeconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: context.scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.schedule, size: 18, color: context.scheme.onSurfaceVariant),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              before
+                  ? 'Referrals open after everyone\'s bio — in $mm:$ss.'
+                  : 'Referral time is over for this round. Extra time for one-to-ones.',
+              style: context.text.bodySmall?.copyWith(color: context.scheme.onSurfaceVariant),
             ),
           ),
         ],

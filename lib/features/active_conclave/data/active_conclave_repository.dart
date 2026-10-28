@@ -4,9 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/live_conclave_source.dart';
-import '../../../core/config/round_timing_provider.dart';
 import '../../../core/time/server_clock.dart';
 import '../../auth/data/auth_repository.dart';
+import '../domain/round_clock.dart';
 import '../domain/active_conclave_models.dart';
 
 /// Why the active round could not be resolved. The screen renders each of these
@@ -56,7 +56,6 @@ final activeConclaveRepositoryProvider = Provider<ActiveConclaveRepository>((ref
   return ActiveConclaveRepository(
     FirebaseAuth.instance,
     () => ref.read(serverClockProvider).now(),
-    () => ref.read(roundTimingConfigProvider),
   );
 });
 
@@ -79,9 +78,7 @@ final activeRoundProvider =
 class ActiveConclaveRepository {
   final FirebaseAuth _auth;
   final DateTime Function() _now;
-  final RoundTimingConfig Function() _roundTiming;
-
-  ActiveConclaveRepository(this._auth, this._now, this._roundTiming);
+  ActiveConclaveRepository(this._auth, this._now);
 
   Stream<ActiveRoundState> watchActiveRound(String conclaveId) {
     // Two things move the live round: the conclave document changing (schedule
@@ -153,10 +150,9 @@ class ActiveConclaveRepository {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.notStarted);
     }
 
-    // The anchor is when the admin started the conclave (round 1). Rounds then
-    // auto-advance from here by the clock — no per-round admin action — so we
-    // DERIVE the live round rather than trust a stored counter that stops moving
-    // after round 1.
+    // Which round, and which part of it, comes from the shared round clock
+    // (the server's rules): manual mode waits for the admin between rounds;
+    // automatic mode moves on after the conclave's move break.
     final storedRound = (data['currentRound'] as num?)?.toInt() ?? 0;
     if (storedRound < 1) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.notStarted);
@@ -167,48 +163,24 @@ class ActiveConclaveRepository {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.missingRoundStart);
     }
 
-    final personsPerTable = (data['personsPerTable'] as num?)?.toInt() ?? 7;
-    final totalRounds =
-        (data['roundCount'] as num?)?.toInt() ?? schedule.rounds.length;
-    // Optional per-conclave override: when the admin pins a fixed round length,
-    // honour it; otherwise the round auto-scales with the table size.
-    final fixedBlockMinutes = (data['roundBlockMinutes'] as num?)?.toInt();
-    final cfg = _roundTiming();
-    final timing = RoundTiming.forPersonsPerTable(
-      personsPerTable,
-      fixedBlockMinutes: fixedBlockMinutes,
-      bioSeconds: cfg.bioSeconds,
-      referralSeconds: cfg.referralSeconds,
-      bufferSeconds: cfg.bufferSeconds,
-    );
-
-    // Auto-advance from whatever round was last STARTED (its start time is the
-    // anchor): the current round is that round plus however many whole
-    // round-lengths have since elapsed. Basing it on storedRound rather than
-    // assuming round 1 keeps the app correct even if an admin starts a later
-    // round by hand. Once we're past the last round, the conclave is over.
-    final roundMs = timing.total.inMilliseconds;
-    // While the admin has the round paused, the clock stands still at the
-    // moment of the pause: the countdown freezes and nobody is moved on to the
-    // next table. (Resuming moves the anchor forward on the server.)
-    final paused = data['isRoundPaused'] == true;
-    final pausedElapsed = (data['roundElapsedMsBeforePause'] as num?)?.toInt();
-    final elapsedMs = paused && pausedElapsed != null
-        ? pausedElapsed
-        : now.difference(anchor).inMilliseconds;
-    var currentRound =
-        roundMs <= 0 ? storedRound : storedRound + (elapsedMs ~/ roundMs);
-    if (currentRound < storedRound) currentRound = storedRound;
-    if (currentRound > totalRounds) {
+    final clock = RoundClock.fromDoc(data, fallbackRoundCount: schedule.rounds.length);
+    final totalRounds = clock.roundCount;
+    final live = clock.live(now);
+    final currentRound = live.round;
+    if (currentRound < 1 || currentRound > totalRounds || live.roundStart == null) {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
     }
-    var roundStart = anchor
-        .add(Duration(milliseconds: roundMs * (currentRound - storedRound)));
-    if (paused && pausedElapsed != null) {
-      // Slide the round's start so "now − start" stays at the paused elapsed
-      // time: the countdown, re-resolved every second, shows the same value.
-      final intoRound = pausedElapsed - roundMs * (currentRound - storedRound);
-      roundStart = now.subtract(Duration(milliseconds: intoRound));
+    final timing = RoundTiming.forRound(
+      personsPerTable: clock.personsPerTable,
+      extension: live.extension,
+      move: clock.move,
+      automatic: clock.automatic,
+    );
+    // While paused the clock stands still: slide the round's start so
+    // "now − start" stays at the paused point and the countdown freezes.
+    var roundStart = live.roundStart!;
+    if (clock.paused) {
+      roundStart = now.subtract(clock.clockNow(now).difference(live.roundStart!));
     }
 
     final round = schedule.round(currentRound);
