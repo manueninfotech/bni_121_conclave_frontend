@@ -18,13 +18,35 @@ import '../domain/referral_models.dart';
 /// At a venue with no working internet, "did my day survive?" is the question
 /// people genuinely have. They should be able to answer it themselves rather
 /// than trust us, so the sync state leads.
-class ConclaveSummaryScreen extends ConsumerWidget {
+class ConclaveSummaryScreen extends ConsumerStatefulWidget {
   final String conclaveId;
 
   const ConclaveSummaryScreen({super.key, required this.conclaveId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConclaveSummaryScreen> createState() =>
+      _ConclaveSummaryScreenState();
+}
+
+class _ConclaveSummaryScreenState extends ConsumerState<ConclaveSummaryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Reconcile with the server the moment the summary opens. The summary is
+    // built from the LOCAL db, which is missing anything that lived on another
+    // phone — referrals given TO this member, and attendance a captain recorded
+    // — so without this the screen can read 0 while the backend (and Profile)
+    // show the real totals (#18). syncNow pulls those down and marks our own
+    // records synced; then we refresh the view. Fire-and-forget + best-effort.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(syncServiceProvider).syncNow(widget.conclaveId);
+      if (mounted) ref.invalidate(conclaveSummaryProvider(widget.conclaveId));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final conclaveId = widget.conclaveId;
     final summary = ref.watch(conclaveSummaryProvider(conclaveId));
 
     return Scaffold(

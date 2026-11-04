@@ -95,8 +95,11 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
     if (phase == RoundPhase.active) {
       final turn = round.currentTurnAt(now);
       if (turn != null) {
-        final who =
-            turn.speaker.isSelf ? 'Your turn to speak' : 'Now: ${turn.speaker.name}';
+        final who = turn.speaker.isSelf
+            ? (turn.kind == TurnKind.bio
+                ? 'Your turn to speak'
+                : 'Your turn to give a referral')
+            : 'Now: ${turn.speaker.name}';
         line = '$who · ${turn.kind == TurnKind.bio ? 'Bio' : 'Referrals'}';
       } else if (now.isBefore(round.referralOpensAt)) {
         line = 'Referrals start soon';
@@ -161,6 +164,13 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
     });
   }
 
+  /// Push a freshly-captured record to the server right away instead of waiting
+  /// for the 30s timer or a connectivity change. Fire-and-forget: syncNow leaves
+  /// anything it can't push unsynced, and the timer/foreground flush retries (#8).
+  void _pushSoon(String conclaveId) {
+    unawaited(ref.read(syncServiceProvider).syncNow(conclaveId));
+  }
+
   Future<void> _setAttendance(ActiveRound round, TableSeat seat, bool present) async {
     if (!round.canRecordAt(_serverNow())) return;
 
@@ -173,6 +183,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
           markedBy: round.currentUserId,
         );
     await _loadLocal(round);
+    _pushSoon(round.conclaveId);
   }
 
   /// Gives a referral immediately — one tap, no dialog.
@@ -193,7 +204,10 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
           toBusinessName: seat.businessName,
         );
 
-    if (written) Analytics.referralPassed();
+    if (written) {
+      Analytics.referralPassed();
+      _pushSoon(round.conclaveId);
+    }
     await _loadLocal(round);
     if (!mounted) return;
 
@@ -209,6 +223,12 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
       ..showSnackBar(
         SnackBar(
           content: Text('Referred ${seat.name}'),
+          // Short-lived, floating and with an explicit close: the confirmation
+          // must get out of the way on its own and be dismissible without having
+          // to tap "Add note" (a note is optional). (#9)
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          showCloseIcon: true,
           action: SnackBarAction(
             label: 'Add note',
             onPressed: () => _editNote(round, seat),
@@ -288,6 +308,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
           notes: controller.text,
         );
     await _loadLocal(round);
+    _pushSoon(round.conclaveId);
     _toast('Note saved.');
   }
 
@@ -313,7 +334,12 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        showCloseIcon: true,
+      ));
   }
 
   @override
@@ -569,6 +595,7 @@ class _TimerVM {
   final Duration total;
   final String? nowName; // current speaker; null off the active phase
   final bool selfNow; // the current speaker is the signed-in user
+  final bool isReferral; // the current turn is a referral, not a bio (#10)
   final String? nextName; // next speaker; null when the last person is up
   final bool urgent;
   // The prominent line for the non-speaking phases — e.g. the transition
@@ -587,6 +614,7 @@ class _TimerVM {
     required this.selfNow,
     required this.nextName,
     required this.urgent,
+    this.isReferral = false,
     this.headline,
   });
 
@@ -614,6 +642,7 @@ class _TimerVM {
         total: turn.length,
         nowName: turn.speaker.isSelf ? 'You' : turn.speaker.name,
         selfNow: turn.speaker.isSelf,
+        isReferral: turn.kind == TurnKind.referral,
         nextName: next == null
             ? null
             : (next.speaker.isSelf ? 'You' : next.speaker.name),
@@ -868,7 +897,11 @@ class _TimerExpanded extends StatelessWidget {
             const SizedBox(height: Gap.md),
             if (vm.nowName != null) ...[
               Text(
-                vm.selfNow ? 'Your turn to speak' : 'Now: ${vm.nowName}',
+                vm.selfNow
+                    ? (vm.isReferral
+                        ? 'Your turn to give a referral'
+                        : 'Your turn to speak')
+                    : 'Now: ${vm.nowName}',
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1098,8 +1131,14 @@ class _PhaseNotice extends StatelessWidget {
           Expanded(
             child: Text(
               isTransition
-                  ? 'Round ${round.roundNumber} is over. Move to your next table — '
-                      'the next round starts automatically.'
+                  // Captains anchor their table — they must NOT be told to move,
+                  // which contradicted the "Stay at your table" timer (#11).
+                  ? (round.isCaptain
+                      ? 'Round ${round.roundNumber} is over. Stay at your table — '
+                          'your next group is arriving and the next round starts '
+                          'automatically.'
+                      : 'Round ${round.roundNumber} is over. Move to your next table — '
+                          'the next round starts automatically.')
                   : (round.roundNumber >= round.totalRounds
                       ? 'That was the last round.'
                       : 'Round ${round.roundNumber} has ended. Round '
@@ -1446,7 +1485,11 @@ class _SpeakingPill extends StatelessWidget {
           ),
           const SizedBox(width: Gap.sm),
           Text(
-            self ? 'Your turn · $label' : 'Speaking now · $label',
+            self
+                ? 'Your turn · $label'
+                // "Speaking" is wrong during the referral turn — they're giving
+                // a referral, not speaking (#10).
+                : '${kind == TurnKind.bio ? 'Speaking now' : 'Referring now'} · $label',
             style: context.text.labelSmall?.copyWith(
               color: fg,
               fontWeight: FontWeight.w800,
@@ -1593,15 +1636,20 @@ class _AttendanceToggle extends StatelessWidget {
                     onTap: () => onChanged(true),
                   ),
                 ),
-                Expanded(
-                  child: _Segment(
-                    label: 'Absent',
-                    icon: Icons.close_rounded,
-                    selected: markedAbsent,
-                    color: c.danger,
-                    onTap: () => onChanged(false),
+                // You cannot mark YOURSELF absent — if you're in the app at the
+                // table, you're here. Absent is only ever a captain recording
+                // someone else who didn't show (#7). (A captain can still mark a
+                // member absent; that member then sees "I'm here" to correct it.)
+                if (!isSelf)
+                  Expanded(
+                    child: _Segment(
+                      label: 'Absent',
+                      icon: Icons.close_rounded,
+                      selected: markedAbsent,
+                      color: c.danger,
+                      onTap: () => onChanged(false),
+                    ),
                   ),
-                ),
               ],
             ),
           ),

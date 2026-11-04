@@ -20,6 +20,18 @@
          attendance never syncs. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+    <!-- Conclave / 1-2-1 reminders are one-off scheduled notifications. On
+         Android 12 SCHEDULE_EXACT_ALARM lets them fire at the minute instead of
+         being batched by Doze (which is why a reminder could arrive late or not
+         at all). On 13+ it may be revoked — the scheduler falls back to an
+         inexact alarm then, so a reminder still fires. We deliberately do NOT
+         declare USE_EXACT_ALARM (that is only for alarm-clock/calendar apps and
+         Play would flag it here). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <!-- Re-arm scheduled reminders after a reboot; without this the OS drops
+         every pending alarm on restart and the member gets no reminder. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
     <!-- The camera is a CAPTAIN's tool. Members only display a QR code, so a
          device without a camera is still perfectly usable. mobile_scanner already
          declares this as optional; repeating it here keeps the intent visible —
@@ -79,6 +91,22 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
+
+        <!-- flutter_local_notifications: delivers scheduled (zoned) reminders and
+             re-arms them after a reboot/app-update, so a conclave or 1-2-1
+             reminder survives a restart instead of being silently lost (#1). -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

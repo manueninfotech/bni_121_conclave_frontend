@@ -20,12 +20,29 @@ class ConclavesListScreen extends ConsumerStatefulWidget {
 }
 
 class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _tabController =
       TabController(length: 3, vsync: this);
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Returning to the app must not leave a stale list up (e.g. a conclave that
+    // went live, or ended, while we were backgrounded). Re-fetch on resume so
+    // the status is current without waiting on the 30s poll or a manual pull (#13).
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(conclavesStreamProvider);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }

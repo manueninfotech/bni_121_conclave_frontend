@@ -34,7 +34,15 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        // The greeting IS the title — no point echoing the "Home" tab label in
+        // the bar above it (#17). This also frees the vertical space the old
+        // standalone greeting took at the top of the list (#13).
+        titleSpacing: NavigationToolbar.kMiddleSpacing,
+        title: Text(
+          firstName.isEmpty ? _greeting() : '${_greeting()}, $firstName',
+          style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: const [_NotificationBell()],
       ),
       body: AppRefresh(
@@ -49,12 +57,6 @@ class HomeScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: context.tabScrollInsets,
             children: [
-              Text(
-                firstName.isEmpty ? _greeting() : '${_greeting()}, $firstName',
-                style: context.text.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: Gap.lg),
               const _NextConclave(),
               const SizedBox(height: Gap.md),
               const _StatsRow(),

@@ -6,6 +6,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/services/local_notifications.dart';
+import 'core/services/conclave_calendar.dart';
 import 'core/services/analytics_service.dart';
 import 'core/navigation.dart';
 import 'core/theme/app_theme.dart';
@@ -22,6 +23,8 @@ import 'features/onboarding/presentation/onboarding_screen.dart';
 import 'features/profile/data/profile_repository.dart';
 import 'features/profile/presentation/profile_screen.dart';
 import 'features/profile/presentation/edit_profile_screen.dart';
+import 'features/conclaves/data/conclave_repository.dart';
+import 'features/conclaves/domain/conclave_model.dart';
 import 'features/conclaves/presentation/conclaves_list_screen.dart';
 import 'features/conclaves/presentation/conclave_detail_screen.dart';
 import 'features/conclaves/presentation/conclave_register_screen.dart';
@@ -391,6 +394,28 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
         notifications.subscribeUser(uid);
       } else {
         notifications.unsubscribeUser();
+      }
+    });
+
+    // Re-arm conclave reminders every time the list updates — which, with the
+    // list's resume-refresh, now includes app-open. A reminder is otherwise
+    // scheduled only once at registration, so a reboot, an OS that dropped the
+    // alarm, or an inexact alarm that slipped by would leave the member with no
+    // reminder. Re-scheduling is idempotent (stable id per conclave), so this
+    // just keeps the pending alarm fresh (#1).
+    ref.listen(conclavesStreamProvider, (previous, next) {
+      final list = next.asData?.value;
+      if (list == null) return;
+      final now = DateTime.now();
+      for (final c in list) {
+        if (!c.isRegistered) continue;
+        if (c.effectiveStatus == ConclaveStatus.completed ||
+            c.effectiveStatus == ConclaveStatus.cancelled) {
+          continue;
+        }
+        if (ConclaveCalendar.eventStart(c).isAfter(now)) {
+          ConclaveCalendar.scheduleReminder(c);
+        }
       }
     });
 

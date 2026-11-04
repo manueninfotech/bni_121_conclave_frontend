@@ -155,6 +155,15 @@ class Conclave {
         status == ConclaveStatus.cancelled) {
       return status;
     }
+    // A `running` conclave is live *right now* — the backend's round engine
+    // owns its lifecycle and will mark it completed when the last round ends.
+    // Never let the date heuristic below demote a live event into the Past
+    // list, even if its scheduled day has technically rolled over (#5).
+    if (status == ConclaveStatus.running) {
+      return status;
+    }
+    // For the pre-running states nobody rewrites when the day simply passes,
+    // fall back to the clock: once the last day is over, treat it as completed.
     final lastDay = endDate ?? date;
     final endOfLastDay =
         DateTime(lastDay.year, lastDay.month, lastDay.day, 23, 59, 59);

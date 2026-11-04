@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -136,6 +137,45 @@ class LocalNotifications {
     );
   }
 
+  // ---- Resilient scheduling ------------------------------------------------
+
+  /// Schedule at the exact time when the OS allows it, falling back to an
+  /// inexact alarm when exact alarms are not permitted (Android 13+ without the
+  /// permission), so a reminder still fires — just not to the minute — rather
+  /// than silently not scheduling at all. Failures are logged, never thrown.
+  static Future<void> _scheduleResilient({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+    required NotificationDetails details,
+    String? payload,
+  }) async {
+    for (final mode in const [
+      AndroidScheduleMode.exactAllowWhileIdle,
+      AndroidScheduleMode.inexactAllowWhileIdle,
+    ]) {
+      try {
+        await _plugin.zonedSchedule(
+          id: id,
+          title: title,
+          body: body,
+          scheduledDate: scheduledDate,
+          notificationDetails: details,
+          androidScheduleMode: mode,
+          payload: payload,
+        );
+        return;
+      } on PlatformException catch (e) {
+        // 'exact_alarms_not_permitted' is the expected first-pass failure on
+        // Android 13+; loop round and try the inexact mode.
+        debugPrint('schedule($id) failed in $mode: ${e.code} — ${e.message}');
+      } catch (e) {
+        debugPrint('schedule($id) failed in $mode: $e');
+      }
+    }
+  }
+
   // ---- Conclave reminder (scheduled) --------------------------------------
 
   static int _conclaveReminderId(String conclaveId) =>
@@ -165,17 +205,17 @@ class LocalNotifications {
         presentBadge: true,
         presentSound: true,
       );
-      await _plugin.zonedSchedule(
+      await _scheduleResilient(
         id: _conclaveReminderId(conclaveId),
         title: 'Conclave coming up 📅',
         body: '$conclaveName is almost here — get ready to network.',
         scheduledDate: tz.TZDateTime.from(remindAt, tz.local),
-        notificationDetails: const NotificationDetails(android: android, iOS: ios),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        details: const NotificationDetails(android: android, iOS: ios),
         payload: 'conclave:$conclaveId',
       );
-    } catch (_) {
+    } catch (e) {
       // Permissions, a past date on a slow clock, etc. — never block the user.
+      debugPrint('scheduleConclaveReminder failed: $e');
     }
   }
 
@@ -282,17 +322,17 @@ class LocalNotifications {
         presentBadge: true,
         presentSound: true,
       );
-      await _plugin.zonedSchedule(
+      await _scheduleResilient(
         id: _oneToOneReminderId(meetingId),
         title: '☕ 1-2-1 with $otherName',
         body: 'Coming up at $timeLabel$place — a good moment to line up a referral.',
         scheduledDate: tz.TZDateTime.from(remindAt, tz.local),
-        notificationDetails: const NotificationDetails(android: android, iOS: ios),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        details: const NotificationDetails(android: android, iOS: ios),
         payload: meetingId,
       );
-    } catch (_) {
+    } catch (e) {
       // Permissions, a cancelled meeting, a past time — never surface to the user.
+      debugPrint('scheduleOneToOneReminder failed: $e');
     }
   }
 
