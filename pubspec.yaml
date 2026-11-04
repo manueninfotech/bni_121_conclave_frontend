@@ -38,7 +38,7 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   firebase_core: ^4.11.0
   firebase_auth: ^6.5.4
   firebase_messaging: ^16.4.1
@@ -49,7 +49,7 @@ dependencies:
   flutter_riverpod: ^3.3.2
   shared_preferences: ^2.5.5
   dio: ^5.10.0
-  go_router: ^17.3.0
+  go_router: ^18.1.2
   sqflite: ^2.4.2+1
   intl: ^0.20.3
   path: ^1.9.1
@@ -62,19 +62,19 @@ dependencies:
   # Forced updates via Google Play. When a newer build is live, the app shows
   # Play's blocking full-screen update flow. Play is the source of truth — no
   # version numbers to maintain. Android/Play only; no-ops elsewhere.
-  in_app_update: ^4.2.3
+  in_app_update: ^5.0.0
   image_picker: ^1.2.3
   firebase_remote_config: ^6.5.6
-  flutter_contacts: 2.1.0
+  flutter_contacts: ^2.6.0
   flutter_local_notifications: ^22.3.0
   custom_refresh_indicator: ^4.0.2
-  package_info_plus: ^8.3.0
+  package_info_plus: ^10.2.2
   url_launcher: ^6.3.1
   # "Add to calendar" when a member registers (opens the native calendar editor
   # on iOS + Android). timezone/flutter_timezone back scheduled local reminders.
   add_2_calendar: ^3.0.1
   timezone: ^0.11.1
-  flutter_timezone: ^4.1.0
+  flutter_timezone: ^5.1.1
   firebase_analytics: ^12.5.0
   firebase_crashlytics: ^5.3.0
   firebase_performance: ^0.11.5

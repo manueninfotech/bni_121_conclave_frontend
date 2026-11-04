@@ -106,9 +106,11 @@ void main() async {
   // phones stuck on the splash screen forever (1.2.0+21..26).
   tzdata.initializeTimeZones();
   try {
-    final name = await FlutterTimezone.getLocalTimezone()
+    // flutter_timezone 5.x returns a TimezoneInfo (was a plain String); the IANA
+    // name we feed to tz.getLocation is its `identifier`.
+    final info = await FlutterTimezone.getLocalTimezone()
         .timeout(const Duration(seconds: 4));
-    tz.setLocalLocation(tz.getLocation(name));
+    tz.setLocalLocation(tz.getLocation(info.identifier));
   } catch (e) {
     debugPrint('Timezone lookup failed, using UTC: $e');
     tz.setLocalLocation(tz.UTC);
