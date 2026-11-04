@@ -23,6 +23,9 @@ class ServerClock {
 
   Duration _offset = Duration.zero;
   bool _loaded = false;
+  // Whether a real NTP correction (not just a restored persisted offset) has
+  // happened this session. The first one snaps; later ones slew (see syncWith).
+  bool _everCorrected = false;
 
   /// Server time minus device time. Zero until we've heard from the server.
   Duration get offset => _offset;
@@ -71,11 +74,27 @@ class ServerClock {
     final backward = serverSentAt.difference(receivedAt); // t2 - t3
     final newOffset = (forward + backward) ~/ 2;
 
-    _offset = newOffset;
+    // Smooth the correction so a routine re-sync never makes the on-screen
+    // countdown visibly jump or stall (#15). The RAW offset wobbles by a few
+    // hundred ms each sync from network jitter; snapping to it every time (and,
+    // now, on every sync-on-write) made the timer skip seconds. So we snap only
+    // on the FIRST correction or on a genuinely large shift (device clock
+    // actually changed), and otherwise ease toward the new offset in small
+    // steps. The residual error stays well inside the server's clock slack, so
+    // round gates are unaffected.
+    const maxStepMs = 250;
+    const snapThresholdMs = 5000;
+    final deltaMs = (newOffset - _offset).inMilliseconds;
+    if (!_everCorrected || deltaMs.abs() > snapThresholdMs) {
+      _offset = newOffset;
+    } else {
+      _offset += Duration(milliseconds: deltaMs.clamp(-maxStepMs, maxStepMs));
+    }
+    _everCorrected = true;
     _loaded = true;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_offsetKey, newOffset.inMilliseconds);
+    await prefs.setInt(_offsetKey, _offset.inMilliseconds);
 
     final roundTrip = receivedAt.difference(sentAt) - serverSentAt.difference(serverReceivedAt);
     debugPrint(

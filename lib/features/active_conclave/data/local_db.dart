@@ -190,6 +190,51 @@ class LocalDatabase {
     );
   }
 
+  /// Persist authoritative attendance that the SERVER already holds — the rows
+  /// the sync pull returns for this member, including rounds a CAPTAIN recorded
+  /// on their own phone. Without this the post-conclave summary, which reads
+  /// local attendance, shows nothing for a member whose presence only the
+  /// captain marked (bug #18).
+  ///
+  /// These rows land as `synced = 1` (the server is already their source), and
+  /// we never overwrite a row still waiting to go UP (`synced = 0`): a pending
+  /// self-mark is a local change that must win and push, not be clobbered by a
+  /// possibly-older server snapshot.
+  Future<void> upsertServerAttendance(List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final r in rows) {
+      final conclaveId = r['conclaveId'] as String;
+      final roundNumber = r['roundNumber'] as int;
+      final userId = r['userId'] as String;
+      final id = '$conclaveId-$roundNumber-$userId';
+      batch.rawInsert(
+        '''
+        INSERT INTO attendance
+          (id, conclaveId, roundNumber, tableNumber, userId, isPresent, markedBy, synced, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          isPresent = excluded.isPresent,
+          tableNumber = excluded.tableNumber,
+          synced = 1
+        WHERE attendance.synced = 1
+        ''',
+        [
+          id,
+          conclaveId,
+          roundNumber,
+          r['tableNumber'] as int? ?? 0,
+          userId,
+          (r['isPresent'] == true) ? 1 : 0,
+          (r['markedBy'] as String?) ?? 'server',
+          (r['timestamp'] as String?) ?? DateTime.now().toIso8601String(),
+        ],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
   // --- Referrals ----------------------------------------------------------
 
   /// Records that [fromUserId] promised business to [toUserId].

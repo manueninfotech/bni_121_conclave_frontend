@@ -451,13 +451,29 @@ class _RoundView extends StatelessWidget {
                   ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      if (!canRecord) ...[
-                        _PhaseNotice(phase: phase, round: round),
-                        const SizedBox(height: Gap.lg),
-                      ] else if (!referralOpen) ...[
-                        _ReferralSlotHint(round: round, now: now),
-                        const SizedBox(height: Gap.lg),
-                      ],
+                      // Cross-fade the phase banner (walk/ended notice ↔ referral
+                      // hint ↔ nothing) rather than popping it in and out (#14).
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        child: !canRecord
+                            ? Padding(
+                                key: const ValueKey('phase-notice'),
+                                padding: const EdgeInsets.only(bottom: Gap.lg),
+                                child: _PhaseNotice(phase: phase, round: round),
+                              )
+                            : !referralOpen
+                                ? Padding(
+                                    key: const ValueKey('referral-hint'),
+                                    padding:
+                                        const EdgeInsets.only(bottom: Gap.lg),
+                                    child: _ReferralSlotHint(
+                                        round: round, now: now),
+                                  )
+                                : const SizedBox(
+                                    key: ValueKey('none'), width: double.infinity),
+                      ),
 
                       // A member's code is the thing a captain scans, so it is the
                       // member's primary object — not buried below the roster.
@@ -811,7 +827,11 @@ class _TimerExpanded extends StatelessWidget {
           'Round ${round.roundNumber} of ${round.totalRounds}, '
           'table ${round.tableNumber}.',
       excludeSemantics: true,
-      child: Container(
+      // Ease the card between phases (bio → referral → walk → ended) instead of
+      // hard-cutting its colour, which read as a jarring flash each change (#14).
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
         width: double.infinity,
         padding:
             const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: Gap.lg),

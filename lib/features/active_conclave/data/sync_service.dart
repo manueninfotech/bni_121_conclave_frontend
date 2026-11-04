@@ -107,6 +107,43 @@ class SyncService {
     _connectivitySub = null;
   }
 
+  /// Pull THIS member's own attendance out of the sync response's `mySchedule`
+  /// — one row per round where their attendance has been marked (by themselves
+  /// or the captain) — shaped for [LocalDatabase.upsertServerAttendance].
+  List<Map<String, dynamic>> _myAttendanceFrom(
+    Map<String, dynamic> data,
+    String uid,
+    String conclaveId,
+  ) {
+    final rounds = data['mySchedule'];
+    if (rounds is! List) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final r in rounds) {
+      if (r is! Map) continue;
+      final roundNumber = (r['number'] as num?)?.toInt();
+      if (roundNumber == null) continue;
+      final tableNumber = (r['tableNumber'] as num?)?.toInt() ?? 0;
+      final participants = r['participants'];
+      if (participants is! List) continue;
+      for (final p in participants) {
+        if (p is! Map) continue;
+        if (p['uid'] != uid) continue;
+        // Only rows the server actually has a mark for — an unmarked round
+        // isn't an "absent" record, just unknown.
+        if (p['isAttendanceMarked'] != true) continue;
+        out.add({
+          'conclaveId': conclaveId,
+          'roundNumber': roundNumber,
+          'tableNumber': tableNumber,
+          'userId': uid,
+          'isPresent': p['isPresent'] == true,
+          'markedBy': 'server',
+        });
+      }
+    }
+    return out;
+  }
+
   Future<void> syncNow(String conclaveId) async {
     if (_isSyncing) return;
     _isSyncing = true;
@@ -189,10 +226,20 @@ class SyncService {
         );
       }
 
+      // This member's own attendance as the SERVER holds it — pulled from the
+      // schedule the response returns. A member's presence is often recorded by
+      // the CAPTAIN on the captain's phone, so without pulling it down the
+      // post-conclave summary (which reads local attendance) shows nothing (#18).
+      final myAttendance = _myAttendanceFrom(data, user.uid, conclaveId);
+      if (myAttendance.isNotEmpty) {
+        await _db.upsertServerAttendance(myAttendance);
+      }
+
       debugPrint(
         'Synced ${syncedAttendanceIds.length} attendance, '
         '${syncedReferralIds.length} referrals; '
-        'pulled ${received.length} received referrals.',
+        'pulled ${received.length} received referrals, '
+        '${myAttendance.length} server attendance rows.',
       );
     } catch (e) {
       // Offline is the expected state at the venue, not an error. Rows stay
