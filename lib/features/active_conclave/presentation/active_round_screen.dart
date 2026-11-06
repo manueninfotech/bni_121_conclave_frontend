@@ -131,7 +131,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
       } else if (round.isCaptain || next == round.tableNumber) {
         line = 'Stay at Table $next · your next group is arriving';
       } else {
-        line = 'Go to Table $next';
+        line = 'Move to Table $next';
       }
     } else {
       line = 'Round ended';
@@ -496,6 +496,31 @@ class _RoundView extends StatelessWidget {
                                     key: ValueKey('none'), width: double.infinity),
                       ),
 
+                      // Where the member is in the running order, and who's up
+                      // now — so they know when they're on without counting the
+                      // roster themselves (#4). Only during the bio turns, where
+                      // a speaking order actually applies.
+                      if (phase == RoundPhase.active &&
+                          currentTurn?.kind == TurnKind.bio) ...[
+                        Builder(builder: (context) {
+                          final myIndex =
+                              order.indexWhere((s) => s.isSelf);
+                          if (myIndex < 0) return const SizedBox.shrink();
+                          final speaker = currentTurn?.speaker;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: Gap.lg),
+                            child: _SpeakingOrderBanner(
+                              position: myIndex + 1,
+                              total: order.length,
+                              isMyTurn: speaker?.isSelf ?? false,
+                              nowSpeakingName: speaker == null
+                                  ? null
+                                  : (speaker.isSelf ? 'You' : speaker.name),
+                            ),
+                          );
+                        }),
+                      ],
+
                       // A member's code is the thing a captain scans, so it is the
                       // member's primary object — not buried below the roster.
                       if (!round.isCaptain) ...[
@@ -729,7 +754,7 @@ class _TimerVM {
         icon = Icons.chair_alt_outlined;
       } else {
         kicker = 'Move to your next table';
-        headline = 'Go to Table $next';
+        headline = 'Move to Table $next';
         icon = Icons.directions_walk;
       }
       return _TimerVM(
@@ -1178,7 +1203,8 @@ class _PhaseNotice extends StatelessWidget {
                       ? 'Round ${round.roundNumber} is over. Stay at your table — '
                           'your next group is arriving and the next round starts '
                           'automatically.'
-                      : 'Round ${round.roundNumber} is over. Move to your next table — '
+                      : 'Round ${round.roundNumber} is over. Move to Table '
+                          '${round.nextTableNumber ?? 'your next table'} — '
                           'the next round starts automatically.')
                   : (round.roundNumber >= round.totalRounds
                       ? 'That was the last round.'
@@ -1483,6 +1509,74 @@ class _OrderChip extends StatelessWidget {
           fontWeight: FontWeight.w800,
           height: 1,
         ),
+      ),
+    );
+  }
+}
+
+/// Tells the member their place in the running order and who's up now, so they
+/// aren't caught off guard when it's their turn (#4).
+class _SpeakingOrderBanner extends StatelessWidget {
+  final int position;
+  final int total;
+  final bool isMyTurn;
+  final String? nowSpeakingName;
+
+  const _SpeakingOrderBanner({
+    required this.position,
+    required this.total,
+    required this.isMyTurn,
+    this.nowSpeakingName,
+  });
+
+  static String _ordinal(int n) {
+    if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
+    switch (n % 10) {
+      case 1:
+        return '${n}st';
+      case 2:
+        return '${n}nd';
+      case 3:
+        return '${n}rd';
+      default:
+        return '${n}th';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final fg = isMyTurn ? c.onSuccessContainer : context.scheme.onSurface;
+    final bg =
+        isMyTurn ? c.successContainer : context.scheme.surfaceContainerHigh;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isMyTurn
+                ? Icons.campaign_rounded
+                : Icons.format_list_numbered_rounded,
+            size: 18,
+            color: fg,
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Text(
+              isMyTurn
+                  ? "It's your turn to speak"
+                  : 'You speak ${_ordinal(position)} of $total'
+                      '${nowSpeakingName != null ? '  ·  Now: $nowSpeakingName' : ''}',
+              style: context.text.labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w700, color: fg),
+            ),
+          ),
+        ],
       ),
     );
   }
