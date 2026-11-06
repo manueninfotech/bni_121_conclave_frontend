@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +29,24 @@ class NotificationService {
   static String topicFor(String conclaveId) => 'conclave_$conclaveId';
   static String userTopicFor(String uid) => 'user_$uid';
 
+  /// iOS only: FCM `subscribeToTopic` silently does nothing until the device's
+  /// APNs token has been registered with FCM. Subscribing right after
+  /// `requestPermission` (before iOS finishes APNs registration) therefore left
+  /// members subscribed to NOTHING — they got the server-side in-app record but
+  /// never the push. Wait briefly for the APNs token, and mint the FCM token
+  /// (which forces APNs registration to complete), before any subscription.
+  Future<void> _ensureApnsReady() async {
+    if (kIsWeb || !Platform.isIOS) return;
+    var apns = await _messaging.getAPNSToken();
+    for (var i = 0; apns == null && i < 8; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      apns = await _messaging.getAPNSToken();
+    }
+    try {
+      await _messaging.getToken();
+    } catch (_) {}
+  }
+
   /// Subscribe to this member's personal topic, so the backend can push them
   /// direct, event-driven notifications (a 1-2-1 request, a response) without a
   /// scheduler. Called on sign-in.
@@ -34,6 +54,7 @@ class NotificationService {
     if (_subscribedUid == uid) return;
     try {
       await _messaging.requestPermission();
+      await _ensureApnsReady();
       final previous = _subscribedUid;
       if (previous != null && previous != uid) {
         await _messaging.unsubscribeFromTopic(userTopicFor(previous));
@@ -69,6 +90,7 @@ class NotificationService {
   Future<void> subscribeAtRegistration(String conclaveId) async {
     try {
       await _messaging.requestPermission();
+      await _ensureApnsReady();
       await _messaging.subscribeToTopic(topicFor(conclaveId));
       debugPrint('Subscribed to alerts at registration for $conclaveId');
     } catch (e) {
@@ -82,6 +104,7 @@ class NotificationService {
 
     try {
       await _messaging.requestPermission();
+      await _ensureApnsReady();
 
       // Leaving the previous conclave's topic stops stale alerts from an event
       // the user has finished with.
