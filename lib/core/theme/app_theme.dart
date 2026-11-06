@@ -363,6 +363,22 @@ class _FadePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(opacity: animation, child: child);
+    // The FIRST route — the native-splash → first-screen handoff — must never
+    // slide: a slide there split the screen into an old half and a new half
+    // (the reason this app used a plain fade everywhere). So fade the handoff…
+    if (route.isFirst) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    // …and slide every PUSHED page in from the right (iOS-style), with the page
+    // underneath parallaxing slightly left — "slide to the right to enter".
+    final incoming = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    final outgoing = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic);
+    return SlideTransition(
+      position: Tween(begin: Offset.zero, end: const Offset(-0.22, 0)).animate(outgoing),
+      child: SlideTransition(
+        position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(incoming),
+        child: child,
+      ),
+    );
   }
 }

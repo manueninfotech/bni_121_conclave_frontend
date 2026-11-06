@@ -424,6 +424,38 @@ class _NextConclave extends ConsumerWidget {
                 style: context.text.bodySmall
                     ?.copyWith(color: context.scheme.onSurfaceVariant),
               ),
+              // As soon as the schedule is locked, the member's Round-1 table is
+              // known — surface it here so they see where to go before Round 1
+              // even starts (manager's R2), not only once the round is live.
+              if (c.isRegistered && c.userTableNumber != null) ...[
+                const SizedBox(height: Gap.md),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandRed.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(Radii.md),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.chair_alt_outlined,
+                          size: 18, color: AppColors.brandRed),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(
+                          live
+                              ? 'Your table — Table ${c.userTableNumber}'
+                              : 'Go to Table ${c.userTableNumber} for Round 1',
+                          style: context.text.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: context.scheme.onSurface),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: Gap.md),
               SizedBox(
                 width: double.infinity,

@@ -179,3 +179,54 @@ class ConclaveListSkeleton extends StatelessWidget {
     );
   }
 }
+
+/// One member row's loading placeholder — avatar + name + sub-line.
+class MemberCardSkeleton extends StatelessWidget {
+  const MemberCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: context.scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: context.colors.hairline),
+      ),
+      child: Row(
+        children: [
+          const SkeletonCircle(size: 44),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SkeletonBox(width: 150, height: 15),
+                const SizedBox(height: Gap.sm),
+                SkeletonBox(
+                    width: MediaQuery.sizeOf(context).width * 0.4, height: 12),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MembersListSkeleton extends StatelessWidget {
+  const MembersListSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer(
+      child: ListView.separated(
+        padding: const EdgeInsets.all(Gap.lg),
+        itemCount: 8,
+        physics: const NeverScrollableScrollPhysics(),
+        separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
+        itemBuilder: (_, _) => const MemberCardSkeleton(),
+      ),
+    );
+  }
+}

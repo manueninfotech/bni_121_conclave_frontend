@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/widgets/shimmer.dart';
 import '../../../core/widgets/category_picker.dart';
 import '../../../core/config/categories_provider.dart';
 import '../../../core/widgets/responsive.dart';
@@ -104,7 +105,7 @@ class _MembersDirectoryScreenState
       // No app bar: a tinted header with the member count leads the screen, then
       // the search box — a title bar would just repeat the nav word (#17 / #13).
       body: members.when(
-        loading: () => const LoadingView(),
+        loading: () => const MembersListSkeleton(),
         error: (e, _) => ErrorView(
           message: 'Could not load members.',
           detail: e.toString(),
