@@ -65,45 +65,100 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
   @override
   Widget build(BuildContext context) {
     final conclaves = ref.watch(conclavesStreamProvider);
+    final all = conclaves.asData?.value ?? const <Conclave>[];
+    final live =
+        all.where((c) => c.effectiveStatus == ConclaveStatus.running).length;
+    final upcoming =
+        all.where((c) => !_ongoing.contains(c.effectiveStatus) && !_past.contains(c.effectiveStatus)).length;
 
     return Scaffold(
-      appBar: AppBar(
-        // No title — the bottom nav already says "Conclaves" and the tabs below
-        // identify the screen. toolbarHeight:0 drops the empty bar the title
-        // used to fill, so the tab strip sits just under the status bar (#17).
-        toolbarHeight: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Ongoing'),
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Past'),
+      // No app bar: a tinted header leads the screen (fills the bare top), with
+      // the tab strip directly beneath it (#17 / #13).
+      body: Column(
+        children: [
+          _ConclavesHeader(live: live, upcoming: upcoming),
+          Material(
+            color: context.scheme.surface,
+            child: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: 'Ongoing'),
+                Tab(text: 'Upcoming'),
+                Tab(text: 'Past'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: conclaves.when(
+              // A skeleton, not a spinner: it says what is coming and how much of
+              // it, and the layout doesn't jump when the data lands.
+              loading: () => const ConclaveListSkeleton(),
+              error: (e, _) => ErrorView(
+                message: 'Could not load conclaves.',
+                detail: e.toString(),
+                onRetry: () => ref.invalidate(conclavesStreamProvider),
+              ),
+              data: (all) => TabBarView(
+                controller: _tabController,
+                children: List.generate(3, (tab) => _ConclaveList(
+                      conclaves: _filter(all, tab),
+                      tab: tab,
+                      onRefresh: () async {
+                        ref.invalidate(conclavesStreamProvider);
+                        await ref.read(conclavesStreamProvider.future);
+                      },
+                    )),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tinted header for the Conclaves tab: the title plus a live/upcoming count,
+/// flowing straight into the tab strip.
+class _ConclavesHeader extends StatelessWidget {
+  final int live;
+  final int upcoming;
+  const _ConclavesHeader({required this.live, required this.upcoming});
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    final parts = <String>[
+      if (live > 0) '$live live',
+      if (upcoming > 0) '$upcoming upcoming',
+    ];
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          context.pagePadding, topInset + Gap.md, context.pagePadding, Gap.md),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.brandRed.withValues(alpha: 0.13),
+            AppColors.brandRed.withValues(alpha: 0.02),
           ],
         ),
       ),
-      body: conclaves.when(
-        // A skeleton, not a spinner: it says what is coming and how much of it,
-        // and the layout doesn't jump when the data lands.
-        loading: () => const ConclaveListSkeleton(),
-        error: (e, _) => ErrorView(
-          message: 'Could not load conclaves.',
-          detail: e.toString(),
-          onRetry: () => ref.invalidate(conclavesStreamProvider),
-        ),
-        data: (all) => TabBarView(
-          controller: _tabController,
-          children: List.generate(3, (tab) => _ConclaveList(
-                conclaves: _filter(all, tab),
-                tab: tab,
-                onRefresh: () async {
-                  ref.invalidate(conclavesStreamProvider);
-                  // Wait for the rebuilt stream to actually produce a value —
-                  // otherwise the spinner vanishes before the data arrives, which
-                  // is what the old `Future.delayed(1s)` was papering over.
-                  await ref.read(conclavesStreamProvider.future);
-                },
-              )),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Conclaves',
+            style: context.text.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          Text(
+            parts.isEmpty ? 'Your networking events' : parts.join('  ·  '),
+            style: context.text.bodySmall
+                ?.copyWith(color: context.scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../conclaves/data/conclave_repository.dart';
 import '../../conclaves/domain/conclave_model.dart';
 import '../../members/data/my_referrals_repository.dart';
@@ -33,18 +34,8 @@ class HomeScreen extends ConsumerWidget {
     final firstName = (profile?.name ?? '').split(' ').first;
 
     return Scaffold(
-      appBar: AppBar(
-        // The greeting IS the title — no point echoing the "Home" tab label in
-        // the bar above it (#17). This also frees the vertical space the old
-        // standalone greeting took at the top of the list (#13).
-        titleSpacing: NavigationToolbar.kMiddleSpacing,
-        title: Text(
-          firstName.isEmpty ? _greeting() : '${_greeting()}, $firstName',
-          style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: const [_NotificationBell()],
-      ),
+      // No app bar — a tinted greeting header (with the notification bell) leads
+      // the screen and runs edge-to-edge behind the status bar (#17 / #13).
       body: AppRefresh(
         onRefresh: () async {
           ref.invalidate(conclavesStreamProvider);
@@ -52,16 +43,308 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(myReferralsProvider);
           ref.invalidate(notificationsProvider);
         },
-        child: ContentWidth(
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: context.tabScrollInsets,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.only(bottom: context.bottomInset + Gap.xl),
+          children: [
+            _HomeHeader(
+              greeting: _greeting(),
+              firstName: firstName,
+              profile: profile,
+            ),
+            const SizedBox(height: Gap.lg),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
+              child: ContentWidth(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _NextConclave(),
+                    const SizedBox(height: Gap.lg),
+                    const _HomeSectionLabel('Your impact'),
+                    const SizedBox(height: Gap.sm),
+                    const _ImpactCard(),
+                    const SizedBox(height: Gap.lg),
+                    const _HomeSectionLabel('Quick actions'),
+                    const SizedBox(height: Gap.sm),
+                    const _QuickActions(),
+                    const SizedBox(height: Gap.lg),
+                    const _PendingOneToOnes(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tinted greeting hero — avatar, time-of-day greeting, first name and the
+/// notification bell. The premium top surface that replaces the plain app bar.
+class _HomeHeader extends StatelessWidget {
+  final String greeting;
+  final String firstName;
+  final UserProfile? profile;
+  const _HomeHeader({
+    required this.greeting,
+    required this.firstName,
+    required this.profile,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          context.pagePadding, topInset + Gap.md, context.pagePadding, Gap.xl),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.brandRed.withValues(alpha: 0.13),
+            AppColors.brandRed.withValues(alpha: 0.02),
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(36)),
+      ),
+      child: Row(
+        children: [
+          UserAvatar(
+            name: profile?.name ?? '',
+            photoUrl: profile?.photoUrl,
+            radius: 26,
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: context.text.bodyMedium
+                      ?.copyWith(color: context.scheme.onSurfaceVariant),
+                ),
+                Text(
+                  firstName.isEmpty ? 'Welcome' : firstName,
+                  style: context.text.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const _NotificationBell(),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeSectionLabel extends StatelessWidget {
+  final String text;
+  const _HomeSectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: context.text.labelSmall?.copyWith(
+        color: context.scheme.onSurfaceVariant,
+        letterSpacing: 0.9,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+/// Referral impact — given, received, business closed — from real data.
+class _ImpactCard extends ConsumerWidget {
+  const _ImpactCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final referrals = ref.watch(myReferralsProvider).asData?.value;
+    final given = referrals?.given.length ?? 0;
+    final received = referrals?.received.length ?? 0;
+    final closed = (referrals?.received ?? const [])
+        .where((r) => r.outcome == ReferralOutcome.closed)
+        .fold<int>(0, (s, r) => s + r.closedAmount);
+
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(vertical: Gap.md, horizontal: Gap.sm),
+      decoration: BoxDecoration(
+        color: context.scheme.surface,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: context.colors.hairline),
+      ),
+      child: Row(
+        children: [
+          _ImpactStat(
+              icon: Icons.call_made_rounded,
+              value: '$given',
+              label: 'Given',
+              onTap: () => context.push('/profile/referrals')),
+          _ImpactDivider(),
+          _ImpactStat(
+              icon: Icons.call_received_rounded,
+              value: '$received',
+              label: 'Received',
+              onTap: () => context.push('/profile/referrals')),
+          _ImpactDivider(),
+          _ImpactStat(
+            icon: Icons.verified_outlined,
+            value: closed == 0
+                ? '₹0'
+                : NumberFormat.compactCurrency(
+                        locale: 'en_IN', symbol: '₹', decimalDigits: 0)
+                    .format(closed),
+            label: 'Closed',
+            onTap: () => context.push('/profile/referrals'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImpactStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final VoidCallback onTap;
+  const _ImpactStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const _NextConclave(),
-              const SizedBox(height: Gap.md),
-              const _StatsRow(),
-              const SizedBox(height: Gap.md),
-              const _PendingOneToOnes(),
+              Icon(icon, size: 18, color: AppColors.brandRed),
+              const SizedBox(height: Gap.xs),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                label,
+                style: context.text.labelSmall
+                    ?.copyWith(color: context.scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImpactDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 34, color: context.colors.hairline);
+}
+
+/// Common shortcuts, surfaced so the hub actually sends people somewhere.
+class _QuickActions extends StatelessWidget {
+  const _QuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _HomeActionTile(
+              icon: Icons.qr_code_2_rounded,
+              label: 'My card',
+              onTap: () => context.push('/profile/card'),
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: _HomeActionTile(
+              icon: Icons.groups_2_outlined,
+              label: 'Members',
+              onTap: () => context.go('/members'),
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: _HomeActionTile(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Referrals',
+              onTap: () => context.push('/profile/referrals'),
+            ),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: _HomeActionTile(
+              icon: Icons.coffee_outlined,
+              label: '1-2-1s',
+              onTap: () => context.push('/profile/one-to-ones'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _HomeActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: Gap.xs, vertical: Gap.md),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: context.scheme.primary),
+              const SizedBox(height: Gap.sm),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.labelMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
             ],
           ),
         ),
@@ -162,45 +445,6 @@ class _NextConclave extends ConsumerWidget {
   }
 }
 
-class _StatsRow extends ConsumerWidget {
-  const _StatsRow();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final oneToOnes = ref.watch(myOneToOnesProvider).asData?.value ?? const [];
-    final pending = oneToOnes
-        .where((m) => !m.sent && m.status == OneToOneStatus.pending)
-        .length;
-
-    final referrals = ref.watch(myReferralsProvider).asData?.value;
-    final closed = (referrals?.received ?? const [])
-        .where((r) => r.outcome == ReferralOutcome.closed)
-        .fold<int>(0, (s, r) => s + r.closedAmount);
-
-    return Row(
-      children: [
-        Expanded(
-          child: _StatTile(
-            value: '$pending',
-            label: 'Pending 1-2-1s',
-            icon: Icons.coffee_outlined,
-            onTap: () => context.push('/profile/one-to-ones'),
-          ),
-        ),
-        const SizedBox(width: Gap.md),
-        Expanded(
-          child: _StatTile(
-            value: '₹${NumberFormat.decimalPattern('en_IN').format(closed)}',
-            label: 'Business closed',
-            icon: Icons.verified_outlined,
-            onTap: () => context.push('/profile/referrals'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _PendingOneToOnes extends ConsumerWidget {
   const _PendingOneToOnes();
 
@@ -271,47 +515,3 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  final String value;
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _StatTile({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 18, color: context.scheme.primary),
-              const SizedBox(height: Gap.sm),
-              Text(
-                value,
-                style: context.text.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: context.scheme.primary,
-                ),
-              ),
-              Text(
-                label,
-                style: context.text.labelSmall
-                    ?.copyWith(color: context.scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

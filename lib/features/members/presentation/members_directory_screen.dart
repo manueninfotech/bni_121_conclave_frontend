@@ -101,10 +101,9 @@ class _MembersDirectoryScreenState
     final myUid = ref.watch(authStateProvider).asData?.value?.uid;
 
     return Scaffold(
-      // No app bar: the bottom nav already says "Members" and the search box
-      // below leads the screen, so a title bar would just repeat the word (#17).
-      body: SafeArea(
-        child: members.when(
+      // No app bar: a tinted header with the member count leads the screen, then
+      // the search box — a title bar would just repeat the nav word (#17 / #13).
+      body: members.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: 'Could not load members.',
@@ -123,6 +122,7 @@ class _MembersDirectoryScreenState
           }
           return Column(
             children: [
+              _MembersHeader(count: all.length),
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   context.pagePadding,
@@ -194,7 +194,50 @@ class _MembersDirectoryScreenState
             ],
           );
         },
-      )),
+      ),
+    );
+  }
+}
+
+/// Tinted header for the directory: title + how many members are in the network.
+class _MembersHeader extends StatelessWidget {
+  final int count;
+  const _MembersHeader({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          context.pagePadding, topInset + Gap.md, context.pagePadding, Gap.md),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.brandRed.withValues(alpha: 0.13),
+            AppColors.brandRed.withValues(alpha: 0.02),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Members',
+            style: context.text.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          Text(
+            count == 0
+                ? 'Your network'
+                : '$count ${count == 1 ? 'member' : 'members'} in your network',
+            style: context.text.bodySmall
+                ?.copyWith(color: context.scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 }
