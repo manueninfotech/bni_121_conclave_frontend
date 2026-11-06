@@ -38,7 +38,8 @@ class ActiveRoundScreen extends ConsumerStatefulWidget {
   ConsumerState<ActiveRoundScreen> createState() => _ActiveRoundScreenState();
 }
 
-class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
+class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
+    with WidgetsBindingObserver {
   Timer? _ticker;
   DateTime _now = DateTime.now();
 
@@ -61,6 +62,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
   void initState() {
     super.initState();
     _now = _serverNow();
+    WidgetsBinding.instance.addObserver(this);
 
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = _serverNow());
@@ -75,7 +77,23 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The live round rides a Server-Sent-Events stream. When the phone is locked
+    // or pocketed — which is exactly when a round ends and the admin advances —
+    // iOS suspends the app and freezes that stream, so the move instruction
+    // ("Go to Table N") for the next round can arrive late or not at all until
+    // the SSE reconnects on its own (backoff up to ~30s). On foreground we force
+    // an immediate catch-up: re-subscribe the live stream (refetches the current
+    // round) and flush/clock-sync, so the right round and move table show at once.
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(activeRoundProvider(widget.conclaveId));
+      ref.read(syncServiceProvider).syncNow(widget.conclaveId);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     // Leaving the screen clears the ongoing round sticky — it tracks a live round,
     // and a stale one left in the shade would be worse than none.
@@ -355,6 +373,9 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen> {
         ],
       ),
       body: state.when(
+        // Keep the current round on screen while a resume-triggered refresh
+        // re-subscribes the live stream, rather than flashing the loader.
+        skipLoadingOnReload: true,
         loading: () => const LoadingView(label: 'Finding your table…'),
         error: (e, _) => ErrorView(
           message: 'Could not load the round.',
