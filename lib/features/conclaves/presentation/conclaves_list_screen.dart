@@ -68,7 +68,10 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Conclaves'),
+        // No title — the bottom nav already says "Conclaves" and the tabs below
+        // identify the screen. toolbarHeight:0 drops the empty bar the title
+        // used to fill, so the tab strip sits just under the status bar (#17).
+        toolbarHeight: 0,
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

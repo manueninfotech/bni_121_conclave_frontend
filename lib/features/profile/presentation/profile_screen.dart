@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_spinner.dart';
@@ -9,6 +10,7 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../members/data/my_referrals_repository.dart';
 import '../data/profile_repository.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -93,16 +95,8 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(myProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: () => _confirmLogout(context, ref),
-          ),
-        ],
-      ),
+      // No app bar — the tinted header below carries the identity and the
+      // sign-out/edit actions, and runs edge-to-edge behind the status bar (#17).
       body: profile.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -124,133 +118,134 @@ class ProfileScreen extends ConsumerWidget {
             );
           }
 
-          // The short facts that read well as compact tiles.
-          final facts = <Widget>[
+          // Identity facts, rendered as clean labelled rows (not a boxy grid).
+          final facts = <({IconData icon, String label, String value})>[
             if (p.membership.isNotEmpty)
-              _FactTile(
+              (
                 icon: p.isBni ? Icons.verified_outlined : Icons.person_outline,
                 label: 'Membership',
-                value: p.membership,
+                value: p.membership
               ),
             if (p.businessCategory.isNotEmpty)
-              _FactTile(
+              (
                 icon: Icons.category_outlined,
                 label: 'Category',
-                value: p.businessCategory,
+                value: p.businessCategory
               ),
             if (p.location.isNotEmpty)
-              _FactTile(
+              (
                 icon: Icons.place_outlined,
                 label: 'Location',
-                value: _titleCase(p.location),
+                value: _titleCase(p.location)
               ),
             if (p.chapter != null && p.chapter!.isNotEmpty)
-              _FactTile(
+              (
                 icon: Icons.groups_2_outlined,
                 label: 'Chapter',
-                value: p.chapter!,
+                value: p.chapter!
               ),
             if (p.region != null && p.region!.isNotEmpty)
-              _FactTile(
-                icon: Icons.map_outlined,
-                label: 'Region',
-                value: p.region!,
-              ),
-            _FactTile(
-              icon: Icons.public,
-              label: 'Country',
-              value: p.country,
-            ),
+              (icon: Icons.map_outlined, label: 'Region', value: p.region!),
+            (icon: Icons.public, label: 'Country', value: p.country),
           ];
 
           return AppRefresh(
             onRefresh: () async => ref.invalidate(myProfileProvider),
-            child: ContentWidth(
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: context.tabScrollInsets,
-                children: [
-                  FadeSlideIn(index: 0, child: _IdentityCard(profile: p)),
-                  const SizedBox(height: Gap.md),
-
-                  FadeSlideIn(index: 1, child: _FactGrid(tiles: facts)),
-                  const SizedBox(height: Gap.md),
-
-                  if (p.lookingFor.isNotEmpty || p.canOffer.isNotEmpty) ...[
-                    FadeSlideIn(
-                      index: 2,
-                      child: _NetworkingCard(profile: p),
-                    ),
-                    const SizedBox(height: Gap.md),
-                  ],
-
-                  FadeSlideIn(index: 2, child: _ContactCard(profile: p)),
-                  const SizedBox(height: Gap.md),
-
-                  FadeSlideIn(
-                    index: 3,
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: context.scheme.secondaryContainer,
-                          child: Icon(Icons.coffee_outlined,
-                              color: context.scheme.onSecondaryContainer),
-                        ),
-                        title: const Text('My 1-2-1s'),
-                        subtitle: const Text('One-to-one meetings you\'ve set up'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () => context.push('/profile/one-to-ones'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: Gap.md),
-
-                  FadeSlideIn(
-                    index: 4,
-                    child: Row(
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.only(bottom: context.bottomInset + Gap.xl),
+              children: [
+                _ProfileHeader(
+                  profile: p,
+                  onSignOut: () => _confirmLogout(context, ref),
+                ),
+                const SizedBox(height: Gap.lg),
+                Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: context.pagePadding),
+                  child: ContentWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _ActionTile(
-                            icon: Icons.swap_horiz_rounded,
-                            label: 'Referrals',
-                            onTap: () => context.push('/profile/referrals'),
+                        // Key actions surfaced right under the header — not
+                        // buried at the bottom where people miss them.
+                        FadeSlideIn(
+                          index: 1,
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _ActionTile(
+                                    icon: Icons.qr_code_2_rounded,
+                                    label: 'My card',
+                                    onTap: () => context.push('/profile/card'),
+                                  ),
+                                ),
+                                const SizedBox(width: Gap.md),
+                                Expanded(
+                                  child: _ActionTile(
+                                    icon: Icons.swap_horiz_rounded,
+                                    label: 'Referrals',
+                                    onTap: () =>
+                                        context.push('/profile/referrals'),
+                                  ),
+                                ),
+                                const SizedBox(width: Gap.md),
+                                Expanded(
+                                  child: _ActionTile(
+                                    icon: Icons.coffee_outlined,
+                                    label: '1-2-1s',
+                                    onTap: () =>
+                                        context.push('/profile/one-to-ones'),
+                                  ),
+                                ),
+                                const SizedBox(width: Gap.md),
+                                Expanded(
+                                  child: _ActionTile(
+                                    icon: Icons.edit_outlined,
+                                    label: 'Edit',
+                                    onTap: () => context.push('/profile/edit'),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: Gap.md),
-                        Expanded(
-                          child: _ActionTile(
-                            icon: Icons.qr_code_2_rounded,
-                            label: 'My card',
-                            onTap: () => context.push('/profile/card'),
-                          ),
-                        ),
-                        const SizedBox(width: Gap.md),
-                        Expanded(
-                          child: _ActionTile(
-                            icon: Icons.edit_outlined,
-                            label: 'Edit',
-                            onTap: () => context.push('/profile/edit'),
+                        const SizedBox(height: Gap.lg),
+                        _SectionLabel('About'),
+                        const SizedBox(height: Gap.sm),
+                        FadeSlideIn(index: 2, child: _AboutCard(rows: facts)),
+                        if (p.lookingFor.isNotEmpty ||
+                            p.canOffer.isNotEmpty) ...[
+                          const SizedBox(height: Gap.lg),
+                          _SectionLabel('Networking'),
+                          const SizedBox(height: Gap.sm),
+                          FadeSlideIn(
+                              index: 3, child: _NetworkingCard(profile: p)),
+                        ],
+                        const SizedBox(height: Gap.lg),
+                        _SectionLabel('Contact'),
+                        const SizedBox(height: Gap.sm),
+                        FadeSlideIn(index: 4, child: _ContactCard(profile: p)),
+                        const SizedBox(height: Gap.lg),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () =>
+                                _confirmDeleteAccount(context, ref),
+                            icon: Icon(Icons.delete_outline,
+                                color: context.colors.danger),
+                            label: Text(
+                              'Delete account',
+                              style: TextStyle(color: context.colors.danger),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: Gap.lg),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () => _confirmDeleteAccount(context, ref),
-                      icon: Icon(Icons.delete_outline,
-                          color: context.colors.danger),
-                      label: Text(
-                        'Delete account',
-                        style: TextStyle(color: context.colors.danger),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
@@ -264,96 +259,259 @@ String _titleCase(String s) => s
     .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
     .join(' ');
 
-/// Avatar + identity in one compact horizontal card.
-class _IdentityCard extends StatelessWidget {
+/// The hero header: a soft brand-tinted banner that runs edge-to-edge behind
+/// the status bar, with the avatar, identity and the member's impact stats —
+/// the premium "this is me" surface that replaces the old plain app bar.
+class _ProfileHeader extends ConsumerWidget {
   final UserProfile profile;
-  const _IdentityCard({required this.profile});
+  final VoidCallback onSignOut;
+
+  const _ProfileHeader({
+    required this.profile,
+    required this.onSignOut,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
-        child: Row(
-          children: [
-            Hero(
-              tag: 'profile-avatar',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = context.scheme;
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    final referrals = ref.watch(myReferralsProvider).asData?.value;
+    final given = referrals?.given.length ?? 0;
+    final received = referrals?.received.length ?? 0;
+    final closed = (referrals?.received ?? const [])
+        .where((r) => r.outcome == ReferralOutcome.closed)
+        .fold<int>(0, (s, r) => s + r.closedAmount);
+
+    final tagline = [
+      if (profile.businessCategory.isNotEmpty) profile.businessCategory,
+      if (profile.membership.isNotEmpty) profile.membership,
+    ].join('  ·  ');
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+          context.pagePadding, topInset + Gap.xs, context.pagePadding, Gap.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.brandRed.withValues(alpha: 0.13),
+            AppColors.brandRed.withValues(alpha: 0.02),
+          ],
+        ),
+        borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(36)),
+      ),
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Sign out',
+              onPressed: onSignOut,
+            ),
+          ),
+          Hero(
+            tag: 'profile-avatar',
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
               child: UserAvatar(
                 name: profile.name,
                 photoUrl: profile.photoUrl,
-                radius: 34,
+                radius: 46,
               ),
             ),
-            const SizedBox(width: Gap.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    profile.name.isEmpty ? 'Unnamed' : profile.name,
-                    style: context.text.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (profile.businessName.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      profile.businessName,
-                      style: context.text.bodyMedium
-                          ?.copyWith(color: context.scheme.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
+          ),
+          const SizedBox(height: Gap.md),
+          Text(
+            profile.name.isEmpty ? 'Unnamed' : profile.name,
+            style: context.text.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
+            textAlign: TextAlign.center,
+          ),
+          if (tagline.isNotEmpty) ...[
+            const SizedBox(height: Gap.xs),
+            Text(
+              tagline,
+              style: context.text.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
             ),
           ],
-        ),
+          if (profile.location.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.place_outlined,
+                    size: 14, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    _titleCase(profile.location),
+                    style: context.text.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: Gap.lg),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                vertical: Gap.md, horizontal: Gap.sm),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(Radii.lg),
+              border: Border.all(color: context.colors.hairline),
+            ),
+            child: Row(
+              children: [
+                _HeaderStat(
+                    icon: Icons.call_made_rounded,
+                    value: '$given',
+                    label: 'Given',
+                    onTap: () => context.push('/profile/referrals')),
+                _HeaderStatDivider(),
+                _HeaderStat(
+                    icon: Icons.call_received_rounded,
+                    value: '$received',
+                    label: 'Received',
+                    onTap: () => context.push('/profile/referrals')),
+                _HeaderStatDivider(),
+                _HeaderStat(
+                  icon: Icons.verified_outlined,
+                  value: closed == 0
+                      ? '₹0'
+                      : NumberFormat.compactCurrency(
+                              locale: 'en_IN', symbol: '₹', decimalDigits: 0)
+                          .format(closed),
+                  label: 'Closed',
+                  onTap: () => context.push('/profile/referrals'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// A short fact as a small stat card.
-class _FactTile extends StatelessWidget {
+class _HeaderStat extends StatelessWidget {
   final IconData icon;
-  final String label;
   final String value;
+  final String label;
+  final VoidCallback? onTap;
 
-  const _FactTile({
+  const _HeaderStat({
     required this.icon,
-    required this.label,
     required this.value,
+    required this.label,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: AppColors.brandRed),
+              const SizedBox(height: Gap.xs),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                label,
+                style: context.text.labelSmall
+                    ?.copyWith(color: context.scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderStatDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 34,
+      color: context.colors.hairline,
+    );
+  }
+}
+
+/// A small all-caps label that heads a section.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: context.text.labelSmall?.copyWith(
+        color: context.scheme.onSurfaceVariant,
+        letterSpacing: 0.9,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+/// Identity facts as clean labelled rows in a single card — replaces the old
+/// boxy two-column grid.
+class _AboutCard extends StatelessWidget {
+  final List<({IconData icon, String label, String value})> rows;
+  const _AboutCard({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18, color: context.scheme.onSurfaceVariant),
-            const SizedBox(height: Gap.sm),
-            Text(
-              label.toUpperCase(),
-              style: context.text.labelSmall?.copyWith(
-                color: context.scheme.onSurfaceVariant,
-                letterSpacing: 0.6,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0)
+                Divider(
+                    height: 1,
+                    indent: Gap.lg,
+                    endIndent: Gap.lg,
+                    color: context.colors.hairline),
+              _AboutRow(row: rows[i]),
+            ],
           ],
         ),
       ),
@@ -361,35 +519,38 @@ class _FactTile extends StatelessWidget {
   }
 }
 
-/// Lays fact tiles out two per row. Cheap and predictable — no GridView inside a
-/// scroll view, no intrinsic-height passes.
-class _FactGrid extends StatelessWidget {
-  final List<Widget> tiles;
-  const _FactGrid({required this.tiles});
+class _AboutRow extends StatelessWidget {
+  final ({IconData icon, String label, String value}) row;
+  const _AboutRow({required this.row});
 
   @override
   Widget build(BuildContext context) {
-    final rows = <Widget>[];
-    for (var i = 0; i < tiles.length; i += 2) {
-      final left = tiles[i];
-      final right = i + 1 < tiles.length ? tiles[i + 1] : null;
-      // IntrinsicHeight bounds the row's height (the ListView gives it an
-      // unbounded one), which is what lets the two tiles share a height via
-      // stretch instead of each demanding infinite height.
-      rows.add(IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: left),
-            const SizedBox(width: Gap.md),
-            // An empty slot keeps a lone tile at half width instead of stretching.
-            Expanded(child: right ?? const SizedBox()),
-          ],
-        ),
-      ));
-      if (i + 2 < tiles.length) rows.add(const SizedBox(height: Gap.md));
-    }
-    return Column(children: rows);
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+      child: Row(
+        children: [
+          Icon(row.icon, size: 18, color: context.scheme.onSurfaceVariant),
+          const SizedBox(width: Gap.md),
+          Text(
+            row.label,
+            style: context.text.bodyMedium
+                ?.copyWith(color: context.scheme.onSurfaceVariant),
+          ),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              row.value,
+              textAlign: TextAlign.right,
+              style:
+                  context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -453,16 +614,21 @@ class _ActionTile extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md,
+            horizontal: Gap.sm,
             vertical: Gap.lg,
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, color: context.scheme.primary),
               const SizedBox(height: Gap.sm),
               Text(
                 label,
-                style: context.text.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),

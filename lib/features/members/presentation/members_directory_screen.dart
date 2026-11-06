@@ -101,8 +101,10 @@ class _MembersDirectoryScreenState
     final myUid = ref.watch(authStateProvider).asData?.value?.uid;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Members')),
-      body: members.when(
+      // No app bar: the bottom nav already says "Members" and the search box
+      // below leads the screen, so a title bar would just repeat the word (#17).
+      body: SafeArea(
+        child: members.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: 'Could not load members.',
@@ -192,7 +194,7 @@ class _MembersDirectoryScreenState
             ],
           );
         },
-      ),
+      )),
     );
   }
 }
