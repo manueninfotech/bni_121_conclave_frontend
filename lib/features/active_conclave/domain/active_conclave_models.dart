@@ -271,6 +271,10 @@ class TableSeat {
   /// True when this seat is the signed-in user.
   final bool isSelf;
 
+  /// True when the signed-in user already shared a table with this person in an
+  /// earlier round of THIS conclave — surfaced as a "met before" flag (#9).
+  final bool metBefore;
+
   const TableSeat({
     required this.userId,
     required this.participantId,
@@ -279,6 +283,7 @@ class TableSeat {
     required this.category,
     required this.isCaptain,
     required this.isSelf,
+    this.metBefore = false,
   });
 }
 
@@ -301,6 +306,11 @@ class ActiveRound {
   final RoundTiming timing;
   final List<TableSeat> seats;
 
+  /// The people at the user's NEXT table — shown as an "Upcoming table" preview
+  /// during the move window so they know who they're about to meet (#2). Empty
+  /// on the last round.
+  final List<TableSeat> upcomingSeats;
+
   /// True when the signed-in user anchors this table.
   final bool isCaptain;
 
@@ -316,6 +326,7 @@ class ActiveRound {
     required this.startTime,
     required this.timing,
     required this.seats,
+    this.upcomingSeats = const [],
     required this.isCaptain,
     required this.currentUserId,
     required this.currentParticipantId,

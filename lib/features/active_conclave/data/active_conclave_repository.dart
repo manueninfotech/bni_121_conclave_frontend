@@ -197,22 +197,47 @@ class ActiveConclaveRepository {
           schedule.round(currentRound + 1)?.tableFor(me.participantId)?.tableNumber;
     }
 
-    // Occupants come back captain-first, which is the order we want on screen.
-    final seats = <TableSeat>[];
-    for (final pid in table.occupantIds) {
-      final p = schedule.byParticipantId[pid];
-      if (p == null) continue; // schedule references someone not in the snapshot
-      seats.add(
-        TableSeat(
-          userId: p.uid,
-          participantId: p.participantId,
-          name: p.name,
-          businessName: p.businessName,
-          category: p.businessCategory,
-          isCaptain: pid == table.captainId,
-          isSelf: pid == me.participantId,
-        ),
+    // Everyone this user already shared a table with in an EARLIER round — used
+    // to flag repeat pairings in the roster (#9).
+    final metBefore = <int>{};
+    for (var r = 1; r < currentRound; r++) {
+      final priorTable = schedule.round(r)?.tableFor(me.participantId);
+      if (priorTable != null) metBefore.addAll(priorTable.occupantIds);
+    }
+    metBefore.remove(me.participantId);
+
+    TableSeat seatFor(int pid, ScheduleTable t) {
+      final p = schedule.byParticipantId[pid]!;
+      return TableSeat(
+        userId: p.uid,
+        participantId: p.participantId,
+        name: p.name,
+        businessName: p.businessName,
+        category: p.businessCategory,
+        isCaptain: pid == t.captainId,
+        isSelf: pid == me.participantId,
+        metBefore: metBefore.contains(pid),
       );
+    }
+
+    // Occupants come back captain-first, which is the order we want on screen.
+    final seats = <TableSeat>[
+      for (final pid in table.occupantIds)
+        if (schedule.byParticipantId[pid] != null) seatFor(pid, table),
+    ];
+
+    // The incoming group at the user's next table — for the "Upcoming table"
+    // preview during the move window (#2).
+    final upcomingSeats = <TableSeat>[];
+    if (currentRound < totalRounds) {
+      final nextTable = schedule.round(currentRound + 1)?.tableFor(me.participantId);
+      if (nextTable != null) {
+        for (final pid in nextTable.occupantIds) {
+          if (schedule.byParticipantId[pid] != null) {
+            upcomingSeats.add(seatFor(pid, nextTable));
+          }
+        }
+      }
     }
 
     return ActiveRoundState.ready(
@@ -225,6 +250,7 @@ class ActiveConclaveRepository {
         startTime: roundStart,
         timing: timing,
         seats: seats,
+        upcomingSeats: upcomingSeats,
         // Role comes from the schedule itself, not from a hardcoded flag: the
         // user is a captain exactly when they anchor this table.
         isCaptain: table.captainId == me.participantId,

@@ -445,6 +445,11 @@ class _RoundView extends StatelessWidget {
     final referralOpen = round.isReferralOpenAt(now);
     final order = round.speakingOrder;
     final currentTurn = round.currentTurnAt(now);
+    // During the move window, preview WHO is at the next table instead of the
+    // group that just finished — so the member knows who they're about to meet
+    // (#2). Reverts to the live roster once the next round starts.
+    final showUpcoming =
+        phase == RoundPhase.transition && round.upcomingSeats.isNotEmpty;
 
     return Column(
       children: [
@@ -531,20 +536,22 @@ class _RoundView extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            'At your table',
+                            showUpcoming ? 'Upcoming table' : 'At your table',
                             style: context.text.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(width: Gap.sm),
                           Text(
-                            'speaking order',
+                            showUpcoming
+                                ? 'Table ${round.nextTableNumber}'
+                                : 'speaking order',
                             style: context.text.labelSmall?.copyWith(
                               color: context.scheme.onSurfaceVariant,
                             ),
                           ),
                           const Spacer(),
-                          if (round.isCaptain)
+                          if (round.isCaptain && !showUpcoming)
                             Text(
                               '${attendance.values.where((p) => p).length} of ${order.length} present',
                               style: context.text.labelSmall?.copyWith(
@@ -555,9 +562,22 @@ class _RoundView extends StatelessWidget {
                       ),
                       const SizedBox(height: Gap.sm),
 
+                      // During the move window: a non-interactive preview of the
+                      // group at the next table (#2).
+                      if (showUpcoming)
+                        for (var i = 0; i < round.upcomingSeats.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: Gap.sm),
+                            child: FadeSlideIn(
+                              index: i,
+                              child: _UpcomingSeatCard(
+                                  seat: round.upcomingSeats[i]),
+                            ),
+                          )
                       // Ordered by who speaks when — members first, captain last —
                       // so the roster reads top-to-bottom as the running order.
-                      for (var i = 0; i < order.length; i++)
+                      else
+                        for (var i = 0; i < order.length; i++)
                         Padding(
                           padding: const EdgeInsets.only(bottom: Gap.sm),
                           child: FadeSlideIn(
@@ -1320,6 +1340,100 @@ class _MyQrCard extends StatelessWidget {
   }
 }
 
+/// A small "met before" flag for a tablemate you already sat with this
+/// conclave, so repeats are obvious at a glance (#9).
+class _MetBeforeBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: c.warningContainer,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.history_rounded, size: 11, color: c.onWarningContainer),
+          const SizedBox(width: 3),
+          Text(
+            'Met before',
+            style: context.text.labelSmall?.copyWith(
+              color: c.onWarningContainer,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A read-only roster card for the "Upcoming table" preview during the move
+/// window — who you're about to meet, no attendance/referral actions yet (#2).
+class _UpcomingSeatCard extends StatelessWidget {
+  final TableSeat seat;
+  const _UpcomingSeatCard({required this.seat});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final scheme = context.scheme;
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: c.hairline),
+      ),
+      child: Row(
+        children: [
+          _Avatar(seat: seat, attendance: null),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        seat.isSelf ? 'You' : seat.name,
+                        style: context.text.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (seat.isCaptain) ...[
+                      const SizedBox(width: Gap.sm),
+                      Icon(Icons.star_rounded, size: 15, color: c.info),
+                    ],
+                    if (!seat.isSelf && seat.metBefore) ...[
+                      const SizedBox(width: Gap.sm),
+                      _MetBeforeBadge(),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  seat.businessName.isEmpty
+                      ? seat.category
+                      : '${seat.businessName} · ${seat.category}',
+                  style: context.text.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SeatCard extends StatelessWidget {
   final TableSeat seat;
 
@@ -1410,6 +1524,10 @@ class _SeatCard extends StatelessWidget {
                           if (seat.isCaptain) ...[
                             const SizedBox(width: Gap.sm),
                             Icon(Icons.star_rounded, size: 15, color: c.info),
+                          ],
+                          if (!seat.isSelf && seat.metBefore) ...[
+                            const SizedBox(width: Gap.sm),
+                            _MetBeforeBadge(),
                           ],
                         ],
                       ),
