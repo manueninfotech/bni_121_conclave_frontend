@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -293,6 +294,35 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
                   ?.copyWith(color: ctx.scheme.onSurfaceVariant),
             ),
             const SizedBox(height: Gap.lg),
+            // A referral is a business lead — pull the person's name + number
+            // straight from the phone's contacts instead of typing it (#7). Uses
+            // the OS picker, so no contacts permission prompt. Tap again to add
+            // more than one.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final contact = await FlutterContacts.native.showPicker();
+                  if (contact == null) return;
+                  final name = (contact.displayName ?? '').trim();
+                  final number = contact.phones.isNotEmpty
+                      ? contact.phones.first.number.trim()
+                      : '';
+                  final entry = [name, number]
+                      .where((s) => s.isNotEmpty)
+                      .join(' — ');
+                  if (entry.isEmpty) return;
+                  final current = controller.text.trimRight();
+                  controller.text =
+                      current.isEmpty ? entry : '$current\n$entry';
+                  controller.selection = TextSelection.collapsed(
+                      offset: controller.text.length);
+                },
+                icon: const Icon(Icons.contacts_outlined, size: 18),
+                label: const Text('Add from contacts'),
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
             TextField(
               controller: controller,
               autofocus: true,
