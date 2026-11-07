@@ -14,6 +14,7 @@ import 'core/theme/app_theme.dart';
 import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
 import 'features/active_conclave/data/notification_service.dart';
+import 'features/active_conclave/data/round_sticky.dart';
 import 'core/services/presence_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -422,6 +423,13 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
         }
       }
     });
+
+    // Keep the ongoing Android "live round" sticky driven from here — above any
+    // screen — so it persists and keeps updating while the member is on another
+    // tab or has the phone pocketed. The provider returns void and dedupes its
+    // own reposts, so this watch keeps it (and the live stream) alive without
+    // rebuilding the app each second.
+    ref.watch(roundStickyDriverProvider);
 
     final router = ref.watch(routerProvider);
 

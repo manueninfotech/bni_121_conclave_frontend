@@ -225,6 +225,12 @@ class LocalNotifications {
   /// rather than stacking a new one each round.
   static const _roundStickyId = 0x5713C07;
 
+  /// The content currently on the sticky. The app-level driver recomputes the
+  /// round state every second; re-posting an identical notification each tick is
+  /// wasteful (and can make the shade flicker on some OEMs), so a repost is
+  /// skipped when nothing the user can see has changed.
+  static String? _roundStickySig;
+
   /// Shows (or updates) the ongoing "live round" notification — the Zomato-style
   /// status card that keeps the round, the member's table and a live countdown in
   /// the shade while the phone is pocketed. Android only: it leans on an ongoing
@@ -241,12 +247,25 @@ class LocalNotifications {
     required int tableNumber,
     required String line,
     required DateTime segmentEnd,
+    bool paused = false,
   }) async {
     if (!Platform.isAndroid) return;
     try {
-      await init();
-      final countdown = segmentEnd.isAfter(DateTime.now());
+      // A paused round holds its countdown still — the live chronometer would
+      // keep ticking regardless, so suppress it and say so instead.
+      final countdown = !paused && segmentEnd.isAfter(DateTime.now());
       final title = 'Round $round of $totalRounds · Table $tableNumber';
+      final shownLine = paused ? '$line · Paused' : line;
+
+      // Skip the repost when the visible content and the countdown target are
+      // unchanged (the driver recomputes every second). segmentEnd is a fixed
+      // wall-clock instant, so it only moves when the phase/round changes.
+      final sig = '$title|$shownLine|$countdown|'
+          '${countdown ? segmentEnd.millisecondsSinceEpoch ~/ 1000 : 0}';
+      if (sig == _roundStickySig) return;
+      _roundStickySig = sig;
+
+      await init();
       final android = AndroidNotificationDetails(
         channelRoundAlerts,
         'Round alerts',
@@ -264,12 +283,12 @@ class LocalNotifications {
         showWhen: countdown,
         usesChronometer: countdown,
         chronometerCountDown: countdown,
-        styleInformation: BigTextStyleInformation(line, contentTitle: title),
+        styleInformation: BigTextStyleInformation(shownLine, contentTitle: title),
       );
       await _plugin.show(
         id: _roundStickyId,
         title: title,
-        body: line,
+        body: shownLine,
         notificationDetails: NotificationDetails(android: android),
         payload: 'conclave_round',
       );
@@ -279,9 +298,14 @@ class LocalNotifications {
     }
   }
 
-  /// Clears the live-round sticky — on leaving the active-round screen, or when
-  /// the conclave is over. Safe to call when none is showing.
+  /// Clears the live-round sticky — when the conclave is over, cancelled, or the
+  /// member is no longer in a running conclave. Safe to call when none is
+  /// showing. Driven every second, so it must stay cheap when already clear.
   static Future<void> cancelRoundSticky() async {
+    // Already cleared: nothing in the shade, so don't hit the platform channel
+    // on every idle tick.
+    if (_roundStickySig == null) return;
+    _roundStickySig = null;
     try {
       await _plugin.cancel(id: _roundStickyId);
     } catch (_) {}
