@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -312,10 +313,13 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
           return;
       }
 
-      // Everything else (round started, referral passed, generic updates): FCM
-      // does not show a notification message while the app is open, so mirror it
-      // into the tray ourselves — otherwise the user, who is IN the app exactly
-      // when a round starts, sees nothing at all.
+      // Everything else (round started, referral passed, generic updates): on
+      // Android, FCM does not show a notification message while the app is open,
+      // so mirror it into the tray ourselves — otherwise the user, who is IN the
+      // app exactly when a round starts, sees nothing at all. On iOS we instead
+      // let FCM present it natively (setForegroundNotificationPresentationOptions
+      // in main()); mirroring there too would show the banner twice.
+      if (defaultTargetPlatform == TargetPlatform.iOS) return;
       final title = message.notification?.title ?? message.data['title'] as String?;
       final body = message.notification?.body ?? message.data['body'] as String?;
       if (title == null || body == null) return;

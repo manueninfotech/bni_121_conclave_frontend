@@ -86,6 +86,19 @@ void main() async {
   }
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // iOS does NOT show a banner for a foreground push on its own — the member who
+  // is IN the app when a round starts would see nothing. Tell FCM to present the
+  // alert/badge/sound natively while the app is foregrounded. This is a no-op on
+  // Android (there the Dart onMessage handler mirrors the push into the tray).
+  try {
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+  } catch (e) {
+    debugPrint('setForegroundNotificationPresentationOptions failed: $e');
+  }
   // Notification setup must never block or abort startup. If the plugin throws
   // (e.g. a release-build R8 strip) or a platform channel hangs, degrade to "no
   // local notifications" rather than stranding the user on the splash forever.
