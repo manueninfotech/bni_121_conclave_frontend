@@ -15,6 +15,7 @@ import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
 import 'features/active_conclave/data/notification_service.dart';
 import 'features/active_conclave/data/round_sticky.dart';
+import 'features/active_conclave/data/active_conclave_repository.dart';
 import 'core/services/presence_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -69,6 +70,28 @@ final _navStateProvider = Provider<_NavState>((ref) {
   );
 });
 
+/// The conclave the member is currently LOCKED into, or null when free to roam.
+///
+/// Rapido-style: once a conclave the member is registered in is running AND its
+/// live round actually resolves to a table for them, the app holds them on the
+/// active-round screen until it ends — they can't wander off mid-event. A member
+/// who is registered but has no seat yet (late registrant, or the round has not
+/// started) is deliberately NOT locked, so they are never trapped on a screen
+/// that has no table to show.
+///
+/// Uses `.value` (not asData) so a momentary stream reload — e.g. the resume
+/// refetch — keeps the last resolved round rather than briefly unlocking and
+/// bouncing the member off the screen and back.
+final lockedConclaveIdProvider = Provider<String?>((ref) {
+  final all = ref.watch(conclavesStreamProvider).value ?? const [];
+  for (final c in all) {
+    if (!c.isRegistered || c.status != ConclaveStatus.running) continue;
+    final round = ref.watch(activeRoundProvider(c.id)).value?.round;
+    if (round != null) return c.id;
+  }
+  return null;
+});
+
 final routerProvider = Provider<GoRouter>((ref) {
   final navNotifier = ValueNotifier<_NavState>(_NavState.authLoading);
   ref.listen<_NavState>(
@@ -77,10 +100,21 @@ final routerProvider = Provider<GoRouter>((ref) {
     fireImmediately: true,
   );
 
+  // Second signal that re-runs the router's redirect: the id of the conclave the
+  // member is locked into (or null). Riverpod only fires this listener when the
+  // value actually changes, so the redirect runs on lock engage/release — not on
+  // the per-second round ticks underneath.
+  final lockNotifier = ValueNotifier<String?>(null);
+  ref.listen<String?>(
+    lockedConclaveIdProvider,
+    (_, next) => lockNotifier.value = next,
+    fireImmediately: true,
+  );
+
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
-    refreshListenable: navNotifier,
+    refreshListenable: Listenable.merge([navNotifier, lockNotifier]),
     // Logs a screen_view to Analytics on every navigation.
     observers: [Analytics.observer],
     redirect: (context, state) {
@@ -117,6 +151,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           return path == '/register' ? null : '/register';
 
         case _NavState.ready:
+          // Rapido-style lock: while a round the member is seated in is live,
+          // the active-round screen is the ONLY reachable place. Any other route
+          // — a tab, a deep link, a back-pop landing elsewhere — is redirected
+          // straight back to it until the conclave ends and the lock releases.
+          final locked = lockNotifier.value;
+          if (locked != null) {
+            final activePath = '/conclaves/$locked/active';
+            return path == activePath ? null : activePath;
+          }
           return preAuth.contains(path) ? '/home' : null;
       }
     },
