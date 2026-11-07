@@ -9,64 +9,87 @@ import '../../conclaves/data/conclave_repository.dart';
 import '../../conclaves/domain/conclave_model.dart';
 import '../domain/active_conclave_models.dart';
 import 'active_conclave_repository.dart';
+import 'live_activity.dart';
 
-/// The conclave the signed-in member should have a live sticky for right now: a
-/// conclave that is RUNNING and that they are registered in. Null when none.
-final _liveStickyConclaveIdProvider = Provider<String?>((ref) {
-  final all = ref.watch(conclavesStreamProvider).asData?.value ?? const [];
-  final live = all.where(
-    (c) => c.status == ConclaveStatus.running && c.isRegistered,
-  );
-  return live.isEmpty ? null : live.first.id;
-});
-
-/// Drives the ongoing Android "live round" notification from APP-LEVEL state, so
-/// it persists and keeps updating while the member is on any screen or has the
-/// phone pocketed — not only while the active-round screen happens to be on top.
-/// (Owning it from the screen tore the sticky down the moment they navigated
-/// away or backgrounded the app, which defeats the point of a sticky.)
+/// Drives the ongoing "live round" surface from APP-LEVEL state, so it persists
+/// and keeps updating while the member is on any screen or has the phone
+/// pocketed — not only while the active-round screen happens to be on top.
 ///
-/// Android only. iOS has no ongoing notification; a Live Activity is the iOS
-/// answer and is deliberately out of scope here, so this is a no-op there.
+/// One driver, both platforms:
+///   • Android → an ongoing notification (LocalNotifications.showRoundSticky)
+///   • iOS     → a Live Activity, lock screen + Dynamic Island (LiveActivity)
+/// Both show the same thing: round · table · live countdown, the current speaker
+/// during the round and the move instruction ("Move to Table N") between rounds.
 ///
 /// Kept alive for the whole signed-in session by a single `ref.watch` in the
-/// root app widget. Watching [activeRoundProvider] here also keeps that live
-/// stream connected off-screen; it re-emits every second, and those emissions
-/// are what advance the speaker/phase line below.
+/// root app widget. Watching [activeRoundProvider] also keeps that live stream
+/// connected off-screen; it re-emits every second, which advances the line here.
 final roundStickyDriverProvider = Provider<void>((ref) {
-  if (kIsWeb || !Platform.isAndroid) return;
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
-  final conclaveId = ref.watch(_liveStickyConclaveIdProvider);
-  if (conclaveId == null) {
-    LocalNotifications.cancelRoundSticky();
+  // The conclave the member should have a live surface for: one they are
+  // registered in that is running. A member with no seat yet (late registrant,
+  // or the round hasn't started) resolves to no round below and stays clear.
+  final all = ref.watch(conclavesStreamProvider).value ?? const <Conclave>[];
+  Conclave? live;
+  for (final c in all) {
+    if (c.isRegistered && c.status == ConclaveStatus.running) {
+      live = c;
+      break;
+    }
+  }
+  if (live == null) {
+    _clear();
     return;
   }
 
-  final round = ref.watch(activeRoundProvider(conclaveId)).asData?.value.round;
+  final round = ref.watch(activeRoundProvider(live.id)).value?.round;
   if (round == null) {
-    LocalNotifications.cancelRoundSticky();
+    _clear();
     return;
   }
 
   // While paused the clock is frozen: evaluate at the frozen instant and hold
-  // the countdown steady (no chronometer) rather than letting it keep ticking.
+  // the countdown steady rather than letting it keep ticking.
   final paused = round.frozenAt != null;
   final now = round.frozenAt ?? ref.read(serverClockProvider).now();
+  final line = stickyLineFor(round, now);
+  // remaining shrinks as `now` advances, so now+remaining is the FIXED
+  // wall-clock end of this segment — a stable anchor both platforms count down
+  // to, and a stable signature so the surface isn't re-pushed each tick.
+  final segmentEnd = now.add(round.remainingAt(now));
 
-  LocalNotifications.showRoundSticky(
-    round: round.roundNumber,
-    totalRounds: round.totalRounds,
-    tableNumber: round.tableNumber,
-    line: stickyLineFor(round, now),
-    // remaining shrinks as `now` advances, so now+remaining is the FIXED
-    // wall-clock end of this segment — a stable anchor the system counts down
-    // to, and a stable signature so the notification isn't re-posted each tick.
-    segmentEnd: now.add(round.remainingAt(now)),
-    paused: paused,
-  );
+  if (Platform.isAndroid) {
+    LocalNotifications.showRoundSticky(
+      round: round.roundNumber,
+      totalRounds: round.totalRounds,
+      tableNumber: round.tableNumber,
+      line: line,
+      segmentEnd: segmentEnd,
+      paused: paused,
+    );
+  } else {
+    LiveActivity.sync(
+      conclaveName: live.name,
+      round: round.roundNumber,
+      totalRounds: round.totalRounds,
+      tableNumber: round.tableNumber,
+      line: line,
+      segmentEnd: segmentEnd,
+      paused: paused,
+    );
+  }
 });
 
-/// The one-line status shown on the sticky, mirroring the on-screen round
+void _clear() {
+  if (Platform.isAndroid) {
+    LocalNotifications.cancelRoundSticky();
+  } else if (Platform.isIOS) {
+    LiveActivity.end();
+  }
+}
+
+/// The one-line status shown on the live surface, mirroring the on-screen round
 /// header: who's speaking during the round, and the move instruction (next
 /// table) during the transition between rounds.
 String stickyLineFor(ActiveRound round, DateTime now) {
