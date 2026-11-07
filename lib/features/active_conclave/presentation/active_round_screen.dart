@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -10,6 +12,7 @@ import '../../../core/time/server_clock.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/active_conclave_repository.dart';
+import '../data/live_lock.dart';
 import '../data/local_db.dart';
 import '../data/notification_service.dart';
 import '../data/sync_service.dart';
@@ -239,15 +242,28 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: () async {
-                  final contact = await FlutterContacts.native.showPicker();
+                  // Ask the picker for the phone number too — a referral is a
+                  // lead, so the note needs "name;number", not just the name.
+                  // iOS returns the number permissionlessly; Android needs
+                  // READ_CONTACTS, so request it there first (falls through to a
+                  // name-only picker if the member declines).
+                  if (Platform.isAndroid) {
+                    await FlutterContacts.permissions
+                        .request(PermissionType.read);
+                  }
+                  Contact? contact;
+                  try {
+                    contact = await FlutterContacts.native
+                        .showPicker(properties: {ContactProperty.phone});
+                  } on PlatformException {
+                    contact = await FlutterContacts.native.showPicker();
+                  }
                   if (contact == null) return;
                   final name = (contact.displayName ?? '').trim();
                   final number = contact.phones.isNotEmpty
                       ? contact.phones.first.number.trim()
                       : '';
-                  final entry = [name, number]
-                      .where((s) => s.isNotEmpty)
-                      .join(' — ');
+                  final entry = number.isEmpty ? name : '$name;$number';
                   if (entry.isEmpty) return;
                   final current = controller.text.trimRight();
                   controller.text =
@@ -330,9 +346,17 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(activeRoundProvider(widget.conclaveId));
+    // Rapido lock: while this conclave's round is the live one, block the
+    // Android back button/gesture and drop the appbar back arrow, so the member
+    // can't leave the active round. (The router redirect would bounce them back
+    // anyway; this prevents the visible flash.)
+    final locked = ref.watch(liveConclaveProvider)?.id == widget.conclaveId;
 
-    return Scaffold(
+    return PopScope(
+      canPop: !locked,
+      child: Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !locked,
         title: const Text('Active round'),
         actions: [
           _SyncButton(pending: _pendingSync, onTap: _syncNow),
@@ -378,6 +402,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
             onScan: () => _openScanner(round),
           );
         },
+      ),
       ),
     );
   }

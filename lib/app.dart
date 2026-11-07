@@ -15,7 +15,7 @@ import 'core/services/app_update_service.dart';
 import 'features/active_conclave/data/sync_service.dart';
 import 'features/active_conclave/data/notification_service.dart';
 import 'features/active_conclave/data/round_sticky.dart';
-import 'features/active_conclave/data/active_conclave_repository.dart';
+import 'features/active_conclave/data/live_lock.dart';
 import 'core/services/presence_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -70,28 +70,6 @@ final _navStateProvider = Provider<_NavState>((ref) {
   );
 });
 
-/// The conclave the member is currently LOCKED into, or null when free to roam.
-///
-/// Rapido-style: once a conclave the member is registered in is running AND its
-/// live round actually resolves to a table for them, the app holds them on the
-/// active-round screen until it ends — they can't wander off mid-event. A member
-/// who is registered but has no seat yet (late registrant, or the round has not
-/// started) is deliberately NOT locked, so they are never trapped on a screen
-/// that has no table to show.
-///
-/// Uses `.value` (not asData) so a momentary stream reload — e.g. the resume
-/// refetch — keeps the last resolved round rather than briefly unlocking and
-/// bouncing the member off the screen and back.
-final lockedConclaveIdProvider = Provider<String?>((ref) {
-  final all = ref.watch(conclavesStreamProvider).value ?? const [];
-  for (final c in all) {
-    if (!c.isRegistered || c.status != ConclaveStatus.running) continue;
-    final round = ref.watch(activeRoundProvider(c.id)).value?.round;
-    if (round != null) return c.id;
-  }
-  return null;
-});
-
 final routerProvider = Provider<GoRouter>((ref) {
   final navNotifier = ValueNotifier<_NavState>(_NavState.authLoading);
   ref.listen<_NavState>(
@@ -106,7 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // the per-second round ticks underneath.
   final lockNotifier = ValueNotifier<String?>(null);
   ref.listen<String?>(
-    lockedConclaveIdProvider,
+    liveConclaveProvider.select((c) => c?.id),
     (_, next) => lockNotifier.value = next,
     fireImmediately: true,
   );

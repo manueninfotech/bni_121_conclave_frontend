@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Captains scan members' QR codes to record attendance. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Referral note "add from contacts" reads the picked contact's phone
+         number (name;number). iOS uses the permissionless native picker. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- connectivity_plus: the app watches for a connection returning to drain
          the offline attendance queue. Without this the check throws and queued

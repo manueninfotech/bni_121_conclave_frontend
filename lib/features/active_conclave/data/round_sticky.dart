@@ -5,11 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/local_notifications.dart';
 import '../../../core/time/server_clock.dart';
-import '../../conclaves/data/conclave_repository.dart';
-import '../../conclaves/domain/conclave_model.dart';
 import '../domain/active_conclave_models.dart';
 import 'active_conclave_repository.dart';
 import 'live_activity.dart';
+import 'live_lock.dart';
 
 /// Drives the ongoing "live round" surface from APP-LEVEL state, so it persists
 /// and keeps updating while the member is on any screen or has the phone
@@ -27,17 +26,9 @@ import 'live_activity.dart';
 final roundStickyDriverProvider = Provider<void>((ref) {
   if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
 
-  // The conclave the member should have a live surface for: one they are
-  // registered in that is running. A member with no seat yet (late registrant,
-  // or the round hasn't started) resolves to no round below and stays clear.
-  final all = ref.watch(conclavesStreamProvider).value ?? const <Conclave>[];
-  Conclave? live;
-  for (final c in all) {
-    if (c.isRegistered && c.status == ConclaveStatus.running) {
-      live = c;
-      break;
-    }
-  }
+  // The conclave the member has a live round in right now (shared with the
+  // Rapido lock). Null when there's nothing live — clear the surface.
+  final live = ref.watch(liveConclaveProvider);
   if (live == null) {
     _clear();
     return;
