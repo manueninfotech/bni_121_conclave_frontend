@@ -23,6 +23,7 @@ class ScheduleParticipant {
   final String phone;
   final String businessName;
   final String businessCategory;
+  final String? photoUrl;
 
   const ScheduleParticipant({
     required this.participantId,
@@ -31,9 +32,11 @@ class ScheduleParticipant {
     required this.phone,
     required this.businessName,
     required this.businessCategory,
+    this.photoUrl,
   });
 
   factory ScheduleParticipant.fromMap(Map<String, dynamic> m) {
+    final photo = (m['photoUrl'] ?? m['photo_url']) as String?;
     return ScheduleParticipant(
       participantId: (m['id'] as num).toInt(),
       uid: (m['_originalUid'] ?? '') as String,
@@ -41,6 +44,7 @@ class ScheduleParticipant {
       phone: (m['phone'] ?? '') as String,
       businessName: (m['businessName'] ?? '') as String,
       businessCategory: (m['businessCategory'] ?? '') as String,
+      photoUrl: (photo != null && photo.isNotEmpty) ? photo : null,
     );
   }
 }
@@ -275,6 +279,9 @@ class TableSeat {
   /// earlier round of THIS conclave — surfaced as a "met before" flag (#9).
   final bool metBefore;
 
+  /// Profile photo, when the schedule carries one (#5/#6); else null → initials.
+  final String? photoUrl;
+
   const TableSeat({
     required this.userId,
     required this.participantId,
@@ -284,6 +291,7 @@ class TableSeat {
     required this.isCaptain,
     required this.isSelf,
     this.metBefore = false,
+    this.photoUrl,
   });
 }
 

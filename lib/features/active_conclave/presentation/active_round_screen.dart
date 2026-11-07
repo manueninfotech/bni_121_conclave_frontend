@@ -1275,15 +1275,19 @@ class _PhaseNotice extends StatelessWidget {
           Expanded(
             child: Text(
               isTransition
-                  // Captains anchor their table — they must NOT be told to move,
-                  // which contradicted the "Stay at your table" timer (#11).
-                  ? (round.isCaptain
-                      ? 'Round ${round.roundNumber} is over. Stay at your table — '
-                          'your next group is arriving and the next round starts '
-                          'automatically.'
-                      : 'Round ${round.roundNumber} is over. Move to Table '
-                          '${round.nextTableNumber ?? 'your next table'} — '
-                          'the next round starts automatically.')
+                  // No next table means this was the FINAL round — don't tell
+                  // anyone to move to a next table that doesn't exist.
+                  ? (round.nextTableNumber == null
+                      ? 'That was the last round — the conclave is wrapping up.'
+                      // Captains anchor their table — they must NOT be told to
+                      // move, which contradicted the "Stay" timer (#11).
+                      : round.isCaptain
+                          ? 'Round ${round.roundNumber} is over. Stay at your '
+                              'table — your next group is arriving and the next '
+                              'round starts automatically.'
+                          : 'Round ${round.roundNumber} is over. Move to Table '
+                              '${round.nextTableNumber} — the next round starts '
+                              'automatically.')
                   : (round.roundNumber >= round.totalRounds
                       ? 'That was the last round.'
                       : 'Round ${round.roundNumber} has ended. Round '
@@ -1821,6 +1825,18 @@ class _SpeakingPill extends StatelessWidget {
   }
 }
 
+/// The initials glyph used when a seat has no photo (or it fails to load).
+Widget _initialAvatarText(BuildContext context, TableSeat seat) {
+  final scheme = context.scheme;
+  return Text(
+    seat.name.isEmpty ? '?' : seat.name[0].toUpperCase(),
+    style: context.text.titleMedium?.copyWith(
+      color: seat.isSelf ? scheme.onSecondaryContainer : scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w700,
+    ),
+  );
+}
+
 /// The avatar doubles as the attendance indicator once an answer exists.
 class _Avatar extends StatelessWidget {
   final TableSeat seat;
@@ -1842,6 +1858,7 @@ class _Avatar extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: seat.isSelf
                   ? scheme.secondaryContainer
@@ -1849,15 +1866,17 @@ class _Avatar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Text(
-              seat.name.isEmpty ? '?' : seat.name[0].toUpperCase(),
-              style: context.text.titleMedium?.copyWith(
-                color: seat.isSelf
-                    ? scheme.onSecondaryContainer
-                    : scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            // Show the member's photo when the schedule carries one, falling
+            // back to initials on a missing/failed image (#5).
+            child: (seat.photoUrl != null)
+                ? Image.network(
+                    seat.photoUrl!,
+                    width: 44,
+                    height: 44,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _initialAvatarText(context, seat),
+                  )
+                : _initialAvatarText(context, seat),
           ),
           if (attendance != null)
             Positioned(

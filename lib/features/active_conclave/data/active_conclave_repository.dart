@@ -217,6 +217,7 @@ class ActiveConclaveRepository {
         isCaptain: pid == t.captainId,
         isSelf: pid == me.participantId,
         metBefore: metBefore.contains(pid),
+        photoUrl: p.photoUrl,
       );
     }
 
