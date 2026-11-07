@@ -106,8 +106,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
   /// only when that state changes (not on every one-second rebuild). The system
   /// runs the countdown from [ActiveRound.remainingAt], so a pocketed phone keeps
   /// a correct live card without the app posting each tick.
-  void _syncRoundSticky(ActiveRound round) {
-    final now = _now;
+  void _syncRoundSticky(ActiveRound round, DateTime now) {
     final phase = round.phaseAt(now);
 
     String line;
@@ -426,12 +425,17 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
                 .addPostFrameCallback((_) => _loadLocal(round));
           }
 
+          // While paused, evaluate everything at the round's frozen instant so
+          // the countdown holds steady instead of flickering against the live
+          // clock. Running: use the live tick.
+          final effectiveNow = round.frozenAt ?? _now;
+
           // Keep the ongoing round sticky in step with what's on screen.
-          _syncRoundSticky(round);
+          _syncRoundSticky(round, effectiveNow);
 
           return _RoundView(
             round: round,
-            now: _now,
+            now: effectiveNow,
             attendance: _attendance,
             referred: _referred,
             onAttendance: (seat, present) => _setAttendance(round, seat, present),

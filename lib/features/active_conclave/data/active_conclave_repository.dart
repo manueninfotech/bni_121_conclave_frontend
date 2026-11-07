@@ -176,12 +176,13 @@ class ActiveConclaveRepository {
       move: clock.move,
       automatic: clock.automatic,
     );
-    // While paused the clock stands still: slide the round's start so
-    // "now − start" stays at the paused point and the countdown freezes.
-    var roundStart = live.roundStart!;
-    if (clock.paused) {
-      roundStart = now.subtract(clock.clockNow(now).difference(live.roundStart!));
-    }
+    // Keep the round's REAL start, and — while paused — hand the UI a single
+    // frozen instant to evaluate the countdown at. Previously we slid the start
+    // against a live clock each tick; the screen evaluated it against ITS own,
+    // out-of-phase clock, so the paused countdown flickered ±1s on both
+    // platforms. A fixed frozen instant removes the jitter entirely.
+    final roundStart = live.roundStart!;
+    final frozenAt = clock.paused ? clock.clockNow(now) : null;
 
     final round = schedule.round(currentRound);
     final table = round?.tableFor(me.participantId);
@@ -249,6 +250,7 @@ class ActiveConclaveRepository {
         tableNumber: table.tableNumber,
         nextTableNumber: nextTableNumber,
         startTime: roundStart,
+        frozenAt: frozenAt,
         timing: timing,
         seats: seats,
         upcomingSeats: upcomingSeats,

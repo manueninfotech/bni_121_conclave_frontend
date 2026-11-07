@@ -311,6 +311,12 @@ class ActiveRound {
   /// When the admin started this round.
   final DateTime startTime;
 
+  /// While the round is PAUSED, the frozen clock instant to evaluate the timer
+  /// at — so "remaining" is a fixed value instead of being recomputed against a
+  /// live clock every tick (which made the countdown flicker ±1s). Null while
+  /// running, in which case the caller passes the live `now`.
+  final DateTime? frozenAt;
+
   final RoundTiming timing;
   final List<TableSeat> seats;
 
@@ -332,6 +338,7 @@ class ActiveRound {
     required this.tableNumber,
     this.nextTableNumber,
     required this.startTime,
+    this.frozenAt,
     required this.timing,
     required this.seats,
     this.upcomingSeats = const [],
