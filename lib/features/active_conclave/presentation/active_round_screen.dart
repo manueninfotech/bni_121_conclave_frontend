@@ -475,11 +475,14 @@ class _RoundView extends StatelessWidget {
     final referralOpen = round.isReferralOpenAt(now);
     final order = round.speakingOrder;
     final currentTurn = round.currentTurnAt(now);
-    // During the move window, preview WHO is at the next table instead of the
-    // group that just finished — so the member knows who they're about to meet
-    // (#2). Reverts to the live roster once the next round starts.
-    final showUpcoming =
-        phase == RoundPhase.transition && round.upcomingSeats.isNotEmpty;
+    // From the moment the talk ends (move window) and all through the wait for
+    // the next round, preview WHO is at the next table instead of the group that
+    // just finished — so the member knows where to go and who they'll meet (#2).
+    // Reverts to the live roster once the next round actually starts.
+    final showUpcoming = (phase == RoundPhase.transition ||
+            phase == RoundPhase.ended) &&
+        round.nextTableNumber != null &&
+        round.upcomingSeats.isNotEmpty;
 
     return Column(
       children: [
@@ -820,6 +823,31 @@ class _TimerVM {
         nextName: null,
         urgent: false,
         headline: headline,
+      );
+    }
+
+    // Round block fully elapsed. In manual mode this gap can last a while before
+    // the organiser starts the next round — so if there IS a next round, keep
+    // telling the member where to go and that their next group is forming,
+    // instead of a blank "Round ended". (#2 / move guidance)
+    final endedNext = round.nextTableNumber;
+    if (endedNext != null) {
+      final staying = round.isCaptain || endedNext == round.tableNumber;
+      return _TimerVM(
+        phase: phase,
+        fg: c.onWarningContainer,
+        bg: c.warningContainer,
+        icon: staying ? Icons.chair_alt_outlined : Icons.directions_walk,
+        kicker: staying ? 'Stay at your table' : 'Move to your next table',
+        remaining: Duration.zero,
+        total: round.timing.transition,
+        nowName: null,
+        selfNow: false,
+        nextName: null,
+        urgent: false,
+        headline: staying
+            ? 'Table $endedNext · your next group is arriving'
+            : 'Move to Table $endedNext',
       );
     }
 
