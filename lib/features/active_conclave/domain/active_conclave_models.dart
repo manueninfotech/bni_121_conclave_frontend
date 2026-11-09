@@ -335,7 +335,8 @@ class ActiveRound {
   /// it, or the admin marked them stand-in. Gates scanning.
   final bool isCaptain;
 
-  /// False in a conclave without captains: no attendance is taken at all.
+  /// False in a conclave without captains: nobody scans; members only mark
+  /// themselves present.
   final bool attendanceEnabled;
 
   /// True when the user captains their NEXT table — they scan the arriving

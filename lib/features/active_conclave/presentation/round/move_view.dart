@@ -81,6 +81,7 @@ class MoveView extends StatelessWidget {
       conclaveId: round.conclaveId,
       uid: round.currentUserId,
     ).encode();
+    final group = round.upcomingSeats.where((s) => !s.isSelf).toList();
     return [
       _Kicker('MOVE TO'),
       _BigTable(next),
@@ -88,40 +89,51 @@ class MoveView extends StatelessWidget {
       _Sub(walking
           ? 'Head over now — Round ${round.roundNumber + 1} starts soon.'
           : 'Take your seat — the organiser will start Round ${round.roundNumber + 1}.'),
+      if (group.isNotEmpty) ...[
+        const SizedBox(height: Gap.lg),
+        _ArrivingRow(seats: group),
+      ],
+      const SizedBox(height: Gap.md),
+      _FirstSpeaker(round: round),
       const Spacer(flex: 2),
-      // Bottom half: the code the captain scans on arrival (no captains, no
-      // scanning — just the table).
-      if (round.attendanceEnabled) Center(
-        child: Container(
-          padding: const EdgeInsets.all(Gap.lg),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+      // Bottom: the code the captain scans on arrival (no captains, no
+      // scanning — just the table and the group).
+      if (round.attendanceEnabled)
+        Flexible(
+          flex: 6,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Container(
+              padding: const EdgeInsets.all(Gap.lg),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              QrImageView(data: payload, size: 200, backgroundColor: Colors.white),
-              const SizedBox(height: Gap.sm),
-              Text(
-                'Show this to the captain at Table $next',
-                textAlign: TextAlign.center,
-                style: context.text.bodyMedium?.copyWith(
-                  color: const Color(0xFF8A1020),
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  QrImageView(data: payload, size: 200, backgroundColor: Colors.white),
+                  const SizedBox(height: Gap.sm),
+                  Text(
+                    'Show this to the captain at Table $next',
+                    textAlign: TextAlign.center,
+                    style: context.text.bodyMedium?.copyWith(
+                      color: const Color(0xFF8A1020),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
     ];
   }
 
@@ -137,6 +149,8 @@ class MoveView extends StatelessWidget {
           : "You're captain there next round — scan everyone in"),
       const SizedBox(height: Gap.xl),
       _ArrivingRow(seats: arriving),
+      const SizedBox(height: Gap.md),
+      _FirstSpeaker(round: round),
       const Spacer(flex: 2),
       SizedBox(
         height: 56,
@@ -366,6 +380,47 @@ class _Arrival extends StatelessWidget {
               ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ]),
+    );
+  }
+}
+
+/// Who opens the next round, so they're ready the moment it starts (a late
+/// first speaker eats their own bio time). Loud when it's you.
+class _FirstSpeaker extends StatelessWidget {
+  final ActiveRound round;
+  const _FirstSpeaker({required this.round});
+
+  @override
+  Widget build(BuildContext context) {
+    final order = round.arrivalsRound()?.speakingOrder ?? const <TableSeat>[];
+    if (order.isEmpty) return const SizedBox.shrink();
+    final first = order.first;
+    final you = first.isSelf;
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: you ? Colors.white : Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.record_voice_over_rounded,
+              size: 18, color: you ? kDeckBottom : Colors.white),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              you
+                  ? 'You speak first — be ready to start'
+                  : 'First to speak: ${first.name.split(' ').first}',
+              overflow: TextOverflow.ellipsis,
+              style: context.text.labelLarge?.copyWith(
+                color: you ? kDeckBottom : Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }

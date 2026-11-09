@@ -187,10 +187,13 @@ class _RoundDeckViewState extends State<RoundDeckView> {
                       attendance: (round.isCaptain || seat.isSelf)
                           ? widget.attendance[seat.userId]
                           : null,
+                      // Everyone may mark themselves present; marking others
+                      // (scanning) is the captain's job, so not in a
+                      // captainless conclave.
                       canMark: !showUpcoming &&
                           canRecord &&
-                          round.attendanceEnabled &&
-                          (seat.isSelf || round.isCaptain),
+                          (seat.isSelf ||
+                              (round.isCaptain && round.attendanceEnabled)),
                       canRefer: !showUpcoming &&
                           referralOpen &&
                           !seat.isSelf &&
