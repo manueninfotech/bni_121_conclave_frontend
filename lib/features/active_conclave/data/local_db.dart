@@ -356,6 +356,24 @@ class LocalDatabase {
     return rows.map((r) => r['toUserId'] as String).toSet();
   }
 
+  /// Tablemates this user has already written a referral note for this round, so
+  /// the UI can say "Edit note" instead of "Add note".
+  Future<Set<String>> getNotedUserIdsForRound({
+    required String conclaveId,
+    required int roundNumber,
+    required String fromUserId,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'referrals',
+      columns: ['toUserId'],
+      where:
+          "conclaveId = ? AND roundNumber = ? AND fromUserId = ? AND notes IS NOT NULL AND notes != ''",
+      whereArgs: [conclaveId, roundNumber, fromUserId],
+    );
+    return rows.map((r) => r['toUserId'] as String).toSet();
+  }
+
   /// Unsynced referrals for ONE conclave. See [getUnsyncedAttendance].
   Future<List<Map<String, dynamic>>> getUnsyncedReferrals({
     required String conclaveId,

@@ -135,6 +135,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # GPU fragment shaders (the live-round silk backdrop).
+  shaders:
+    - shaders/silk.frag
+
   # Plus Jakarta Sans, bundled rather than fetched at runtime.
   #
   # google_fonts downloads on first launch — which at a venue with no signal

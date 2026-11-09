@@ -80,10 +80,15 @@ class ScanOutcome {
   bool get isAccepted => result == ScanResult.accepted;
 }
 
+/// [arrivals] is the move-window scan for the NEXT round ([round] is then
+/// [ActiveRound.arrivalsRound]): its talk hasn't started, so the "is the round
+/// open" check doesn't apply — the seat check below still restricts scans to the
+/// incoming group.
 ScanOutcome validateScan({
   required String raw,
   required ActiveRound round,
   required DateTime now,
+  bool arrivals = false,
 }) {
   final parsed = AttendanceQr.tryParse(raw);
   if (parsed == null) return const ScanOutcome(ScanResult.notOurCode);
@@ -92,7 +97,7 @@ ScanOutcome validateScan({
     return const ScanOutcome(ScanResult.wrongConclave);
   }
 
-  if (!round.canRecordAt(now)) {
+  if (!arrivals && !round.canRecordAt(now)) {
     return const ScanOutcome(ScanResult.roundClosed);
   }
 

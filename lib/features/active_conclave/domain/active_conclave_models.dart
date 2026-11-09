@@ -381,6 +381,27 @@ class ActiveRound {
   /// The other people at the table — the ones the user can refer.
   List<TableSeat> get others => seats.where((s) => !s.isSelf).toList();
 
+  /// The NEXT round as this member will sit in it — their next table and the
+  /// group arriving there. Used during the move window so a captain can scan
+  /// arrivals straight into the round they're arriving for. Null on the last
+  /// round (no next table).
+  ActiveRound? arrivalsRound() {
+    final next = nextTableNumber;
+    if (next == null || upcomingSeats.isEmpty) return null;
+    return ActiveRound(
+      conclaveId: conclaveId,
+      roundNumber: roundNumber + 1,
+      totalRounds: totalRounds,
+      tableNumber: next,
+      startTime: startTime,
+      timing: timing,
+      seats: upcomingSeats,
+      isCaptain: isCaptain,
+      currentUserId: currentUserId,
+      currentParticipantId: currentParticipantId,
+    );
+  }
+
   /// Speaking order for the table: members introduce first, the captain always
   /// goes last. Sorted by participant id so the order is stable and identical on
   /// every device at the table.

@@ -21,7 +21,15 @@ import '../domain/attendance_qr.dart';
 class CaptainScannerScreen extends ConsumerStatefulWidget {
   final ActiveRound round;
 
-  const CaptainScannerScreen({super.key, required this.round});
+  /// Scanning the incoming group during the move window; [round] is the next
+  /// round ([ActiveRound.arrivalsRound]).
+  final bool arrivals;
+
+  const CaptainScannerScreen({
+    super.key,
+    required this.round,
+    this.arrivals = false,
+  });
 
   @override
   ConsumerState<CaptainScannerScreen> createState() => _CaptainScannerScreenState();
@@ -61,6 +69,7 @@ class _CaptainScannerScreenState extends ConsumerState<CaptainScannerScreen> {
         // Server-corrected: a drifted phone must not keep scanning people in
         // after the round has actually closed.
         now: ref.read(serverClockProvider).now(),
+        arrivals: widget.arrivals,
       );
 
       if (!outcome.isAccepted) {

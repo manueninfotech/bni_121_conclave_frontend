@@ -4,34 +4,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/time/server_clock.dart';
 import '../../../core/widgets/app_widgets.dart';
-import '../../../core/widgets/responsive.dart';
 import '../data/active_conclave_repository.dart';
 import '../data/live_lock.dart';
 import '../data/local_db.dart';
 import '../data/notification_service.dart';
 import '../data/sync_service.dart';
 import '../domain/active_conclave_models.dart';
-import '../domain/attendance_qr.dart';
 import 'captain_scanner_screen.dart';
+import 'round/round_deck_view.dart';
 
 /// The screen people actually use at the event.
 ///
-/// Design constraints that drove this layout, all of them physical:
-///
-///  - It is used STANDING UP, in a noisy room, under a countdown. The remaining
-///    time is the single most important thing on screen, so it is the anchor and
-///    it is legible at arm's length.
-///  - The primary action (scan, for a captain; show your code, for a member) has
-///    to be reachable with a thumb, so it is pinned to the bottom rather than
-///    buried in a scrolling list.
-///  - Phase is never signalled by colour alone — a phone in direct sunlight at a
-///    venue washes colour out completely.
+/// This widget is the controller: it owns the ticking clock, the offline record
+/// state, the Rapido lock, and the write actions (attendance, referral, note,
+/// scan, sync). The live-round UI itself is the swipeable card deck under
+/// `round/` — see [RoundDeckView].
 class ActiveRoundScreen extends ConsumerStatefulWidget {
   final String conclaveId;
 
@@ -53,6 +45,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
   /// Local (offline) state for the round currently on screen.
   Map<String, bool> _attendance = {};
   Set<String> _referred = {};
+  Set<String> _noted = {};
   int _pendingSync = 0;
   int? _loadedRound;
 
@@ -112,12 +105,18 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
       roundNumber: round.roundNumber,
       fromUserId: round.currentUserId,
     );
+    final noted = await db.getNotedUserIdsForRound(
+      conclaveId: round.conclaveId,
+      roundNumber: round.roundNumber,
+      fromUserId: round.currentUserId,
+    );
     final pending = await db.pendingRecordCount();
 
     if (!mounted) return;
     setState(() {
       _attendance = attendance;
       _referred = referred;
+      _noted = noted;
       _pendingSync = pending;
       _loadedRound = round.roundNumber;
     });
@@ -130,7 +129,8 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
     unawaited(ref.read(syncServiceProvider).syncNow(conclaveId));
   }
 
-  Future<void> _setAttendance(ActiveRound round, TableSeat seat, bool present) async {
+  Future<void> _setAttendance(
+      ActiveRound round, TableSeat seat, bool present) async {
     if (!round.canRecordAt(_serverNow())) return;
 
     await ref.read(localDbProvider).markAttendance(
@@ -236,12 +236,14 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
             const SizedBox(height: Gap.lg),
             // A referral is a business lead — pull the person's name + number
             // straight from the phone's contacts instead of typing it (#7). Uses
-            // the OS picker, so no contacts permission prompt. Tap again to add
-            // more than one.
+            // the OS picker. Tap again to add more than one.
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: () async {
+                  // Drop the keyboard before the OS picker takes over, and keep
+                  // it down when we come back with the contact.
+                  FocusManager.instance.primaryFocus?.unfocus();
                   // Ask the picker for the phone number too — a referral is a
                   // lead, so the note needs "name;number", not just the name.
                   // iOS returns the number permissionlessly; Android needs
@@ -270,6 +272,8 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
                       current.isEmpty ? entry : '$current\n$entry';
                   controller.selection = TextSelection.collapsed(
                       offset: controller.text.length);
+                  // Don't re-raise the keyboard after picking a contact.
+                  FocusManager.instance.primaryFocus?.unfocus();
                 },
                 icon: const Icon(Icons.contacts_outlined, size: 18),
                 label: const Text('Add from contacts'),
@@ -290,7 +294,10 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  Navigator.pop(ctx, true);
+                },
                 child: const Text('Save note'),
               ),
             ),
@@ -298,6 +305,10 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
         ),
       ),
     );
+
+    // The sheet can be dismissed by swipe/tap-out with the keyboard still up —
+    // drop focus so it doesn't linger over the deck.
+    if (mounted) FocusManager.instance.primaryFocus?.unfocus();
 
     if (saved != true) return;
 
@@ -318,6 +329,19 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
       MaterialPageRoute(builder: (_) => CaptainScannerScreen(round: round)),
     );
     await _loadLocal(round);
+  }
+
+  /// Captain, during the move window: scan the incoming group straight into the
+  /// NEXT round (its table and group), so arrivals are recorded as they walk up.
+  Future<void> _openArrivalsScanner(ActiveRound round) async {
+    final next = round.arrivalsRound();
+    if (next == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CaptainScannerScreen(round: next, arrivals: true),
+      ),
+    );
+    _pushSoon(round.conclaveId);
   }
 
   Future<void> _syncNow() async {
@@ -347,1771 +371,66 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(activeRoundProvider(widget.conclaveId));
     // Rapido lock: while this conclave's round is the live one, block the
-    // Android back button/gesture and drop the appbar back arrow, so the member
-    // can't leave the active round. (The router redirect would bounce them back
-    // anyway; this prevents the visible flash.)
+    // Android back button/gesture so the member can't leave the active round.
+    // (The router redirect would bounce them back anyway; this prevents a flash.)
     final locked = ref.watch(liveConclaveProvider)?.id == widget.conclaveId;
 
     return PopScope(
       canPop: !locked,
       child: Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: !locked,
-        title: const Text('Active round'),
-        actions: [
-          _SyncButton(pending: _pendingSync, onTap: _syncNow),
-          const SizedBox(width: Gap.xs),
-        ],
-      ),
-      body: state.when(
-        // Keep the current round on screen while a resume-triggered refresh
-        // re-subscribes the live stream, rather than flashing the loader.
-        skipLoadingOnReload: true,
-        loading: () => const LoadingView(label: 'Finding your table…'),
-        error: (e, _) => ErrorView(
-          message: 'Could not load the round.',
-          detail: e.toString(),
-          onRetry: () => ref.invalidate(activeRoundProvider(widget.conclaveId)),
-        ),
-        data: (s) {
-          final round = s.round;
-          if (round == null) {
-            return _Unavailable(reason: s.unavailable!);
-          }
-
-          // First paint of a round (or when the admin advances): pull the offline
-          // records for it.
-          if (_loadedRound != round.roundNumber) {
-            WidgetsBinding.instance
-                .addPostFrameCallback((_) => _loadLocal(round));
-          }
-
-          // While paused, evaluate everything at the round's frozen instant so
-          // the countdown holds steady instead of flickering against the live
-          // clock. Running: use the live tick.
-          final effectiveNow = round.frozenAt ?? _now;
-
-          return _RoundView(
-            round: round,
-            now: effectiveNow,
-            attendance: _attendance,
-            referred: _referred,
-            onAttendance: (seat, present) => _setAttendance(round, seat, present),
-            onRefer: (seat) => _giveReferral(round, seat),
-            onAddNote: (seat) => _editNote(round, seat),
-            onScan: () => _openScanner(round),
-          );
-        },
-      ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-
-class _RoundView extends StatelessWidget {
-  final ActiveRound round;
-  final DateTime now;
-  final Map<String, bool> attendance;
-  final Set<String> referred;
-  final void Function(TableSeat, bool) onAttendance;
-  final void Function(TableSeat) onRefer;
-  final void Function(TableSeat) onAddNote;
-  final VoidCallback onScan;
-
-  const _RoundView({
-    required this.round,
-    required this.now,
-    required this.attendance,
-    required this.referred,
-    required this.onAttendance,
-    required this.onRefer,
-    required this.onAddNote,
-    required this.onScan,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final phase = round.phaseAt(now);
-    final canRecord = round.canRecordAt(now);
-    final referralOpen = round.isReferralOpenAt(now);
-    final order = round.speakingOrder;
-    final currentTurn = round.currentTurnAt(now);
-    // From the moment the talk ends (move window) and all through the wait for
-    // the next round, preview WHO is at the next table instead of the group that
-    // just finished — so the member knows where to go and who they'll meet (#2).
-    // Reverts to the live roster once the next round actually starts.
-    final showUpcoming = (phase == RoundPhase.transition ||
-            phase == RoundPhase.ended) &&
-        round.nextTableNumber != null &&
-        round.upcomingSeats.isNotEmpty;
-
-    return Column(
-      children: [
-        Expanded(
-          child: ContentWidth(
-            child: CustomScrollView(
-              slivers: [
-                // The timer is pinned and shrinks to a compact bar as the roster
-                // scrolls under it, so the countdown and the current speaker are
-                // never off-screen — the whole point of a standing-up, glance-
-                // driven layout.
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _TimerHeaderDelegate(round: round, now: now),
-                ),
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    context.pagePadding,
-                    Gap.lg,
-                    context.pagePadding,
-                    // Captains have the scan button (its own SafeArea) below this
-                    // list to clear the nav bar; members don't, so the list itself
-                    // must reserve that inset or the last seat sits under it.
-                    round.isCaptain ? Gap.sm : Gap.sm + context.bottomInset,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      // Cross-fade the phase banner (walk/ended notice ↔ referral
-                      // hint ↔ nothing) rather than popping it in and out (#14).
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        switchInCurve: Curves.easeOut,
-                        switchOutCurve: Curves.easeIn,
-                        child: !canRecord
-                            ? Padding(
-                                key: const ValueKey('phase-notice'),
-                                padding: const EdgeInsets.only(bottom: Gap.lg),
-                                child: _PhaseNotice(phase: phase, round: round),
-                              )
-                            : !referralOpen
-                                ? Padding(
-                                    key: const ValueKey('referral-hint'),
-                                    padding:
-                                        const EdgeInsets.only(bottom: Gap.lg),
-                                    child: _ReferralSlotHint(
-                                        round: round, now: now),
-                                  )
-                                : const SizedBox(
-                                    key: ValueKey('none'), width: double.infinity),
-                      ),
-
-                      // Where the member is in the running order, and who's up
-                      // now — so they know when they're on without counting the
-                      // roster themselves (#4). Only during the bio turns, where
-                      // a speaking order actually applies.
-                      if (phase == RoundPhase.active &&
-                          currentTurn?.kind == TurnKind.bio) ...[
-                        Builder(builder: (context) {
-                          final myIndex =
-                              order.indexWhere((s) => s.isSelf);
-                          if (myIndex < 0) return const SizedBox.shrink();
-                          final speaker = currentTurn?.speaker;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: Gap.lg),
-                            child: _SpeakingOrderBanner(
-                              position: myIndex + 1,
-                              total: order.length,
-                              isMyTurn: speaker?.isSelf ?? false,
-                              nowSpeakingName: speaker == null
-                                  ? null
-                                  : (speaker.isSelf ? 'You' : speaker.name),
-                            ),
-                          );
-                        }),
-                      ],
-
-                      // A member's code is the thing a captain scans, so it is the
-                      // member's primary object — not buried below the roster.
-                      if (!round.isCaptain) ...[
-                        _MyQrCard(round: round),
-                        const SizedBox(height: Gap.lg),
-                      ],
-
-                      Row(
-                        children: [
-                          Text(
-                            showUpcoming ? 'Upcoming table' : 'At your table',
-                            style: context.text.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: Gap.sm),
-                          Text(
-                            showUpcoming
-                                ? 'Table ${round.nextTableNumber}'
-                                : 'speaking order',
-                            style: context.text.labelSmall?.copyWith(
-                              color: context.scheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (round.isCaptain && !showUpcoming)
-                            Text(
-                              '${attendance.values.where((p) => p).length} of ${order.length} present',
-                              style: context.text.labelSmall?.copyWith(
-                                color: context.scheme.onSurfaceVariant,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: Gap.sm),
-
-                      // During the move window: a non-interactive preview of the
-                      // group at the next table (#2).
-                      if (showUpcoming)
-                        for (var i = 0; i < round.upcomingSeats.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: Gap.sm),
-                            child: FadeSlideIn(
-                              index: i,
-                              child: _UpcomingSeatCard(
-                                  seat: round.upcomingSeats[i]),
-                            ),
-                          )
-                      // Ordered by who speaks when — members first, captain last —
-                      // so the roster reads top-to-bottom as the running order.
-                      else
-                        for (var i = 0; i < order.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: Gap.sm),
-                          child: FadeSlideIn(
-                            index: i,
-                            child: _SeatCard(
-                              seat: order[i],
-                              order: i + 1,
-                              speaking: currentTurn != null &&
-                                      currentTurn.speaker.participantId ==
-                                          order[i].participantId
-                                  ? currentTurn
-                                  : null,
-                              turnRemaining: currentTurn != null &&
-                                      currentTurn.speaker.participantId ==
-                                          order[i].participantId
-                                  ? currentTurn.remainingAt(now)
-                                  : null,
-                              // Captains see the whole table's attendance; members
-                              // only ever see their own.
-                              attendance: (round.isCaptain || order[i].isSelf)
-                                  ? attendance[order[i].userId]
-                                  : null,
-                              canMark: canRecord &&
-                                  (order[i].isSelf || round.isCaptain),
-                              canRefer: referralOpen &&
-                                  !order[i].isSelf &&
-                                  !referred.contains(order[i].userId),
-                              alreadyReferred:
-                                  referred.contains(order[i].userId),
-                              onAttendance: (p) => onAttendance(order[i], p),
-                              onRefer: () => onRefer(order[i]),
-                              onAddNote: () => onAddNote(order[i]),
-                            ),
-                          ),
-                        ),
-                    ]),
-                  ),
-                ),
-              ],
-            ),
+        // The note sheet is a modal that handles its own keyboard inset; the
+        // deck behind must NOT resize, or its fixed-height cards overflow.
+        resizeToAvoidBottomInset: false,
+        // Headerless by design — the deck owns its own top strip. Tapping the
+        // screen dismisses a lingering keyboard (swiping the note sheet away can
+        // leave it up on iOS); translucent so the deck's own taps/swipes still win.
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: state.when(
+          // Keep the current round on screen while a resume-triggered refresh
+          // re-subscribes the live stream, rather than flashing the loader.
+          skipLoadingOnReload: true,
+          loading: () => const LoadingView(label: 'Finding your table…'),
+          error: (e, _) => ErrorView(
+            message: 'Could not load the round.',
+            detail: e.toString(),
+            onRetry: () => ref.invalidate(activeRoundProvider(widget.conclaveId)),
           ),
-        ),
-
-        // Captains scan; that is their whole job at the table, and it must be
-        // one thumb away rather than at the top of a scrolling list.
-        if (round.isCaptain)
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                context.pagePadding,
-                Gap.sm,
-                context.pagePadding,
-                Gap.md,
-              ),
-              child: ContentWidth(
-                child: SizedBox(
-                  height: 56,
-                  // No `style:` on the label. Overriding it with a TextTheme
-                  // style drags in that style's colour (near-black onSurface),
-                  // which silently defeats the button's own onPrimary and leaves
-                  // black text on the red fill. Let the button own its colours.
-                  child: FilledButton.icon(
-                    onPressed: canRecord ? onScan : null,
-                    icon: const Icon(Icons.qr_code_scanner, size: 24),
-                    label: Text(canRecord ? 'Scan members' : 'Scanning closed'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-
-String _mmss(Duration d) {
-  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return '$m:$s';
-}
-
-/// Everything the timer needs, resolved once from the round + clock.
-///
-/// During the active phase the timer tracks the *current speaker's* turn — their
-/// bio or referral countdown, who is up, who is next. Off the active phase it
-/// falls back to the phase countdown (walk to your next table / round ended).
-class _TimerVM {
-  final RoundPhase phase;
-  final Color fg;
-  final Color bg;
-  final IconData icon;
-  final String kicker;
-  final Duration remaining;
-  final Duration total;
-  final String? nowName; // current speaker; null off the active phase
-  final bool selfNow; // the current speaker is the signed-in user
-  final bool isReferral; // the current turn is a referral, not a bio (#10)
-  final String? nextName; // next speaker; null when the last person is up
-  final bool urgent;
-  // The prominent line for the non-speaking phases — e.g. the transition
-  // destination ("Go to Table 3" / "Stay at Table 1 · next group arriving").
-  final String? headline;
-
-  const _TimerVM({
-    required this.phase,
-    required this.fg,
-    required this.bg,
-    required this.icon,
-    required this.kicker,
-    required this.remaining,
-    required this.total,
-    required this.nowName,
-    required this.selfNow,
-    required this.nextName,
-    required this.urgent,
-    this.isReferral = false,
-    this.headline,
-  });
-
-  double get progress => total.inMilliseconds == 0
-      ? 0.0
-      : (remaining.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
-
-  static _TimerVM of(ActiveRound round, DateTime now, BuildContext context) {
-    final c = context.colors;
-    final phase = round.phaseAt(now);
-    final turn = phase == RoundPhase.active ? round.currentTurnAt(now) : null;
-
-    if (turn != null) {
-      final next = round.nextTurnAt(now);
-      final remaining = turn.remainingAt(now);
-      return _TimerVM(
-        phase: phase,
-        fg: c.onSuccessContainer,
-        bg: c.successContainer,
-        icon: turn.kind == TurnKind.bio
-            ? Icons.record_voice_over_outlined
-            : Icons.handshake_outlined,
-        kicker: turn.kind == TurnKind.bio ? 'Bio' : 'Referrals',
-        remaining: remaining,
-        total: turn.length,
-        nowName: turn.speaker.isSelf ? 'You' : turn.speaker.name,
-        selfNow: turn.speaker.isSelf,
-        isReferral: turn.kind == TurnKind.referral,
-        nextName: next == null
-            ? null
-            : (next.speaker.isSelf ? 'You' : next.speaker.name),
-        // The last ten seconds of any turn pulse — the cue to wrap up before the
-        // floor passes to the next person.
-        urgent: remaining.inSeconds <= 10 && remaining.inSeconds > 0,
-      );
-    }
-
-    // In session but nobody's turn: a table one short of full waiting for the
-    // referral slot, or the extra time the organiser added for one-to-ones.
-    if (phase == RoundPhase.active) {
-      final beforeReferrals = now.isBefore(round.referralOpensAt);
-      final ends = beforeReferrals ? round.referralOpensAt : round.activeEndsAt;
-      return _TimerVM(
-        phase: phase,
-        fg: c.onSuccessContainer,
-        bg: c.successContainer,
-        icon: beforeReferrals ? Icons.hourglass_top : Icons.forum_outlined,
-        kicker: beforeReferrals ? 'Referrals start soon' : 'Extra time',
-        remaining: ends.difference(now).isNegative ? Duration.zero : ends.difference(now),
-        total: beforeReferrals
-            ? round.timing.referralOpensAfter
-            : round.activeEndsAt.difference(round.referralClosesAt),
-        nowName: beforeReferrals ? null : 'One-to-ones',
-        selfNow: false,
-        nextName: null,
-        urgent: false,
-      );
-    }
-
-    if (phase == RoundPhase.transition) {
-      final next = round.nextTableNumber;
-      // Captains anchor their table (next == current), everyone else moves.
-      final staying =
-          round.isCaptain || (next != null && next == round.tableNumber);
-      String kicker;
-      String? headline;
-      IconData icon;
-      if (next == null) {
-        kicker = 'Round over';
-        headline = null;
-        icon = Icons.flag_outlined;
-      } else if (staying) {
-        kicker = 'Stay at your table';
-        headline = 'Table $next · your next group is arriving';
-        icon = Icons.chair_alt_outlined;
-      } else {
-        kicker = 'Move to your next table';
-        headline = 'Move to Table $next';
-        icon = Icons.directions_walk;
-      }
-      return _TimerVM(
-        phase: phase,
-        fg: c.onWarningContainer,
-        bg: c.warningContainer,
-        icon: icon,
-        kicker: kicker,
-        remaining: round.remainingAt(now),
-        total: round.timing.transition,
-        nowName: null,
-        selfNow: false,
-        nextName: null,
-        urgent: false,
-        headline: headline,
-      );
-    }
-
-    // Round block fully elapsed. In manual mode this gap can last a while before
-    // the organiser starts the next round — so if there IS a next round, keep
-    // telling the member where to go and that their next group is forming,
-    // instead of a blank "Round ended". (#2 / move guidance)
-    final endedNext = round.nextTableNumber;
-    if (endedNext != null) {
-      final staying = round.isCaptain || endedNext == round.tableNumber;
-      return _TimerVM(
-        phase: phase,
-        fg: c.onWarningContainer,
-        bg: c.warningContainer,
-        icon: staying ? Icons.chair_alt_outlined : Icons.directions_walk,
-        kicker: staying ? 'Stay at your table' : 'Move to your next table',
-        remaining: Duration.zero,
-        total: round.timing.transition,
-        nowName: null,
-        selfNow: false,
-        nextName: null,
-        urgent: false,
-        headline: staying
-            ? 'Table $endedNext · your next group is arriving'
-            : 'Move to Table $endedNext',
-      );
-    }
-
-    return _TimerVM(
-      phase: phase,
-      fg: context.scheme.onSurfaceVariant,
-      bg: context.scheme.surfaceContainerHighest,
-      icon: Icons.hourglass_empty,
-      kicker: 'Round ended',
-      remaining: Duration.zero,
-      total: round.timing.transition,
-      nowName: null,
-      selfNow: false,
-      nextName: null,
-      urgent: false,
-    );
-  }
-}
-
-/// Pins the timer to the top and shrinks it from a full ring to a compact bar as
-/// the roster scrolls under it — so the countdown and the current speaker are
-/// always on screen.
-class _TimerHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final ActiveRound round;
-  final DateTime now;
-
-  _TimerHeaderDelegate({required this.round, required this.now});
-
-  // The expanded card lays out at exactly [maxExtent]; as the header shrinks the
-  // card is clipped and cross-faded into the compact bar at [minExtent].
-  @override
-  double get maxExtent => 336;
-  @override
-  double get minExtent => 84;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
-    final vm = _TimerVM.of(round, now, context);
-    final range = maxExtent - minExtent;
-    final t = range <= 0 ? 1.0 : (shrinkOffset / range).clamp(0.0, 1.0);
-
-    return Container(
-      // Opaque backdrop so the roster scrolls cleanly under the rounded card.
-      color: Theme.of(context).scaffoldBackgroundColor,
-      padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (t < 0.99)
-            IgnorePointer(
-              ignoring: t > 0.5,
-              child: Opacity(
-                opacity: (1 - t / 0.7).clamp(0.0, 1.0),
-                child: ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.topCenter,
-                    minHeight: maxExtent,
-                    maxHeight: maxExtent,
-                    child: _TimerExpanded(vm: vm, round: round),
-                  ),
-                ),
-              ),
-            ),
-          if (t > 0.3)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Opacity(
-                opacity: ((t - 0.3) / 0.7).clamp(0.0, 1.0),
-                child: SizedBox(
-                  height: minExtent,
-                  child: Center(child: _TimerCompact(vm: vm, round: round)),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _TimerHeaderDelegate old) =>
-      old.now != now || old.round != round;
-}
-
-/// The full timer: a big ring bound to the current turn, plus who is up and next.
-class _TimerExpanded extends StatelessWidget {
-  final _TimerVM vm;
-  final ActiveRound round;
-
-  const _TimerExpanded({required this.vm, required this.round});
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = vm.fg;
-
-    return Semantics(
-      label: '${vm.kicker}. '
-          '${vm.nowName != null ? '${vm.nowName} speaking. ' : ''}'
-          '${vm.remaining.inMinutes} minutes '
-          '${vm.remaining.inSeconds.remainder(60)} seconds left. '
-          'Round ${round.roundNumber} of ${round.totalRounds}, '
-          'table ${round.tableNumber}.',
-      excludeSemantics: true,
-      // Ease the card between phases (bio → referral → walk → ended) instead of
-      // hard-cutting its colour, which read as a jarring flash each change (#14).
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        width: double.infinity,
-        padding:
-            const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: Gap.lg),
-        decoration: BoxDecoration(
-          color: vm.bg,
-          borderRadius: BorderRadius.circular(Radii.xl),
-          border: Border.all(color: fg.withValues(alpha: 0.18)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(vm.icon, size: 15, color: fg),
-                const SizedBox(width: Gap.sm),
-                Flexible(
-                  child: Text(
-                    vm.kicker.toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: context.text.labelSmall?.copyWith(
-                      color: fg,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: Gap.md),
-            _PulsingRing(
-              enabled: vm.urgent,
-              child: SizedBox(
-                width: 168,
-                height: 168,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // A ring, because time left is easier to judge at a glance as
-                    // a shape than as digits — and here you are glancing, mid-talk.
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: vm.progress, end: vm.progress),
-                      duration: Motion.fast,
-                      builder: (context, v, _) => SizedBox.expand(
-                        child: CircularProgressIndicator(
-                          value: vm.phase == RoundPhase.ended ? 0 : v,
-                          strokeWidth: 8,
-                          strokeCap: StrokeCap.round,
-                          color: fg,
-                          backgroundColor: fg.withValues(alpha: 0.12),
-                        ),
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Tabular figures: without them the digits jitter as the
-                        // glyph widths change each second.
-                        Text(
-                          _mmss(vm.remaining),
-                          style: context.text.displaySmall?.copyWith(
-                            color: fg,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -1.5,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                        Text(
-                          vm.phase == RoundPhase.ended
-                              ? 'ended'
-                              : (vm.nowName != null ? 'left' : 'remaining'),
-                          style: context.text.labelSmall?.copyWith(
-                            color: fg.withValues(alpha: 0.7),
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: Gap.md),
-            if (vm.nowName != null) ...[
-              Text(
-                vm.selfNow
-                    ? (vm.isReferral
-                        ? 'Your turn to give a referral'
-                        : 'Your turn to speak')
-                    : 'Now: ${vm.nowName}',
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.titleSmall?.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              if (vm.nextName != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  'Next: ${vm.nextName}',
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.bodySmall?.copyWith(
-                    color: fg.withValues(alpha: 0.75),
-                  ),
-                ),
-              ],
-              const SizedBox(height: Gap.sm),
-            ] else if (vm.headline != null) ...[
-              Text(
-                vm.headline!,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.titleSmall?.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: Gap.sm),
-            ],
-            Wrap(
-              spacing: Gap.sm,
-              runSpacing: Gap.sm,
-              alignment: WrapAlignment.center,
-              children: [
-                StatusBadge(
-                  label: 'Table ${round.tableNumber}',
-                  icon: Icons.table_restaurant_outlined,
-                ),
-                StatusBadge(
-                  label: 'Round ${round.roundNumber} of ${round.totalRounds}',
-                  icon: Icons.repeat,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The collapsed timer: a single pinned bar that keeps the countdown and current
-/// speaker on screen while the roster scrolls.
-class _TimerCompact extends StatelessWidget {
-  final _TimerVM vm;
-  final ActiveRound round;
-
-  const _TimerCompact({required this.vm, required this.round});
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = vm.fg;
-    final line2 = vm.nowName != null
-        ? (vm.selfNow ? 'Your turn' : 'Now ${vm.nowName}') +
-            (vm.nextName != null ? ' · Next ${vm.nextName}' : '')
-        : vm.headline ??
-            'Table ${round.tableNumber} · '
-                'Round ${round.roundNumber} of ${round.totalRounds}';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.sm),
-      decoration: BoxDecoration(
-        color: vm.bg,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: fg.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          _PulsingRing(
-            enabled: vm.urgent,
-            child: SizedBox(
-              width: 30,
-              height: 30,
-              child: CircularProgressIndicator(
-                value: vm.phase == RoundPhase.ended ? 0 : vm.progress,
-                strokeWidth: 4,
-                strokeCap: StrokeCap.round,
-                color: fg,
-                backgroundColor: fg.withValues(alpha: 0.15),
-              ),
-            ),
-          ),
-          const SizedBox(width: Gap.md),
-          Text(
-            _mmss(vm.remaining),
-            style: context.text.titleMedium?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  vm.kicker.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.labelSmall?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-                Text(
-                  line2,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.bodySmall?.copyWith(
-                    color: fg.withValues(alpha: 0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A slow pulse for the final minute.
-///
-/// Deliberately subtle and slow — a fast flash would read as an error, and the
-/// point is "wrap up", not "something is wrong".
-class _PulsingRing extends StatefulWidget {
-  final Widget child;
-  final bool enabled;
-
-  const _PulsingRing({required this.child, required this.enabled});
-
-  @override
-  State<_PulsingRing> createState() => _PulsingRingState();
-}
-
-class _PulsingRingState extends State<_PulsingRing>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.enabled) _c.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(covariant _PulsingRing old) {
-    super.didUpdateWidget(old);
-    if (widget.enabled && !_c.isAnimating) {
-      _c.repeat(reverse: true);
-    } else if (!widget.enabled && _c.isAnimating) {
-      _c.stop();
-      _c.value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!widget.enabled) return widget.child;
-
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) => Transform.scale(
-        scale: 1 + (_c.value * 0.03),
-        child: child,
-      ),
-      child: widget.child,
-    );
-  }
-}
-
-class _PhaseNotice extends StatelessWidget {
-  final RoundPhase phase;
-  final ActiveRound round;
-
-  const _PhaseNotice({required this.phase, required this.round});
-
-  @override
-  Widget build(BuildContext context) {
-    final isTransition = phase == RoundPhase.transition;
-    final c = context.colors;
-
-    return Container(
-      padding: const EdgeInsets.all(Gap.lg),
-      decoration: BoxDecoration(
-        color: isTransition ? c.warningContainer : context.scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Radii.md),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isTransition ? Icons.lock_clock : Icons.hourglass_empty,
-            size: 20,
-            color: isTransition ? c.onWarningContainer : context.scheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Text(
-              isTransition
-                  // No next table means this was the FINAL round — don't tell
-                  // anyone to move to a next table that doesn't exist.
-                  ? (round.nextTableNumber == null
-                      ? 'That was the last round — the conclave is wrapping up.'
-                      // Captains anchor their table — they must NOT be told to
-                      // move, which contradicted the "Stay" timer (#11).
-                      : round.isCaptain
-                          ? 'Round ${round.roundNumber} is over. Stay at your '
-                              'table — your next group is arriving and the next '
-                              'round starts automatically.'
-                          : 'Round ${round.roundNumber} is over. Move to Table '
-                              '${round.nextTableNumber} — the next round starts '
-                              'automatically.')
-                  : (round.roundNumber >= round.totalRounds
-                      ? 'That was the last round.'
-                      : 'Round ${round.roundNumber} has ended. Round '
-                          '${round.roundNumber + 1} starts when the organiser starts it.'),
-              style: context.text.bodySmall?.copyWith(
-                color: isTransition
-                    ? c.onWarningContainer
-                    : context.scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Before the referral slot: when it opens. After it (extra time): closed.
-class _ReferralSlotHint extends StatelessWidget {
-  final ActiveRound round;
-  final DateTime now;
-
-  const _ReferralSlotHint({required this.round, required this.now});
-
-  @override
-  Widget build(BuildContext context) {
-    final before = now.isBefore(round.referralOpensAt);
-    final wait = round.referralOpensAt.difference(now);
-    final mm = wait.inMinutes;
-    final ss = (wait.inSeconds % 60).toString().padLeft(2, '0');
-    return Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: context.scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Radii.md),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.schedule, size: 18, color: context.scheme.onSurfaceVariant),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Text(
-              before
-                  ? 'Referrals open after everyone\'s bio — in $mm:$ss.'
-                  : 'Referral time is over for this round. Extra time for one-to-ones.',
-              style: context.text.bodySmall?.copyWith(color: context.scheme.onSurfaceVariant),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The member's own code — what a captain scans to mark them present.
-class _MyQrCard extends StatelessWidget {
-  final ActiveRound round;
-
-  const _MyQrCard({required this.round});
-
-  @override
-  Widget build(BuildContext context) {
-    final payload = AttendanceQr(
-      conclaveId: round.conclaveId,
-      uid: round.currentUserId,
-    ).encode();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.qr_code_2, size: 20, color: context.scheme.primary),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: Text(
-                    'Show this to your table captain',
-                    style: context.text.titleSmall,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: Gap.lg),
-            // White plate regardless of theme: a scanner needs the quiet zone and
-            // the contrast, and inverting a QR code in dark mode breaks it.
-            Container(
-              padding: const EdgeInsets.all(Gap.md),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(Radii.md),
-              ),
-              child: QrImageView(
-                data: payload,
-                size: 180,
-                backgroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: Gap.md),
-            Text(
-              'Works offline. Your captain can also mark you manually.',
-              textAlign: TextAlign.center,
-              style: context.text.bodySmall?.copyWith(
-                color: context.scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A small "met before" flag for a tablemate you already sat with this
-/// conclave, so repeats are obvious at a glance (#9).
-class _MetBeforeBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      decoration: BoxDecoration(
-        color: c.warningContainer,
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.history_rounded, size: 11, color: c.onWarningContainer),
-          const SizedBox(width: 3),
-          Text(
-            'Met before',
-            style: context.text.labelSmall?.copyWith(
-              color: c.onWarningContainer,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A read-only roster card for the "Upcoming table" preview during the move
-/// window — who you're about to meet, no attendance/referral actions yet (#2).
-class _UpcomingSeatCard extends StatelessWidget {
-  final TableSeat seat;
-  const _UpcomingSeatCard({required this.seat});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final scheme = context.scheme;
-    return Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: c.hairline),
-      ),
-      child: Row(
-        children: [
-          _Avatar(seat: seat, attendance: null),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        seat.isSelf ? 'You' : seat.name,
-                        style: context.text.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (seat.isCaptain) ...[
-                      const SizedBox(width: Gap.sm),
-                      Icon(Icons.star_rounded, size: 15, color: c.info),
-                    ],
-                    if (!seat.isSelf && seat.metBefore) ...[
-                      const SizedBox(width: Gap.sm),
-                      _MetBeforeBadge(),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  seat.businessName.isEmpty
-                      ? seat.category
-                      : '${seat.businessName} · ${seat.category}',
-                  style: context.text.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SeatCard extends StatelessWidget {
-  final TableSeat seat;
-
-  /// 1-based speaking position (captain is last).
-  final int order;
-
-  /// Non-null while this person holds the floor right now.
-  final SpeakingTurn? speaking;
-  final Duration? turnRemaining;
-  final bool? attendance;
-  final bool canMark;
-  final bool canRefer;
-  final bool alreadyReferred;
-  final ValueChanged<bool> onAttendance;
-  final VoidCallback onRefer;
-  final VoidCallback onAddNote;
-
-  const _SeatCard({
-    required this.seat,
-    required this.order,
-    this.speaking,
-    this.turnRemaining,
-    required this.attendance,
-    required this.canMark,
-    required this.canRefer,
-    required this.alreadyReferred,
-    required this.onAttendance,
-    required this.onRefer,
-    required this.onAddNote,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = context.scheme;
-    final c = context.colors;
-
-    // The card itself carries the answer. Once you've said you're here, the card
-    // reads as settled at a glance — you shouldn't have to parse a control to
-    // find out what you already told it.
-    final accent = switch (attendance) {
-      true => c.success,
-      false => c.danger,
-      null => null,
-    };
-    final speakingNow = speaking != null;
-
-    return AnimatedContainer(
-      duration: Motion.normal,
-      curve: Motion.curve,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        // A 2px info border while this person holds the floor, so the roster
-        // mirrors the timer at a glance.
-        border: Border.all(
-          color: speakingNow
-              ? c.info
-              : (accent?.withValues(alpha: 0.45) ?? c.hairline),
-          width: speakingNow ? 2 : (accent != null ? 1.5 : 1),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _OrderChip(order: order, active: speakingNow),
-                const SizedBox(width: Gap.md),
-                _Avatar(seat: seat, attendance: attendance),
-                const SizedBox(width: Gap.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              seat.isSelf ? 'You' : seat.name,
-                              style: context.text.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (seat.isCaptain) ...[
-                            const SizedBox(width: Gap.sm),
-                            Icon(Icons.star_rounded, size: 15, color: c.info),
-                          ],
-                          if (!seat.isSelf && seat.metBefore) ...[
-                            const SizedBox(width: Gap.sm),
-                            _MetBeforeBadge(),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        seat.businessName.isEmpty
-                            ? seat.category
-                            : '${seat.businessName} · ${seat.category}',
-                        style: context.text.bodySmall
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                if (alreadyReferred)
-                  Tooltip(
-                    message: 'You referred ${seat.name} this round',
-                    child: Container(
-                      padding: const EdgeInsets.all(Gap.sm),
-                      decoration: BoxDecoration(
-                        color: c.successContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.handshake_rounded,
-                          size: 16, color: c.onSuccessContainer),
-                    ),
-                  ),
-              ],
-            ),
-
-            if (speakingNow) ...[
-              const SizedBox(height: Gap.md),
-              _SpeakingPill(
-                kind: speaking!.kind,
-                remaining: turnRemaining ?? speaking!.length,
-                self: seat.isSelf,
-              ),
-            ],
-
-            if (canMark && attendance != true) ...[
-              const SizedBox(height: Gap.lg),
-              _AttendanceToggle(
-                value: attendance,
-                isSelf: seat.isSelf,
-                onChanged: onAttendance,
-              ),
-            ],
-
-            // A referral is a promise of business — the point of the whole
-            // event — so giving one is a single tap. The note is optional and
-            // comes after; making people fill in a dialog first put a form
-            // between them and the thing they actually came to do.
-            if (!seat.isSelf) ...[
-              const SizedBox(height: Gap.sm),
-              _ReferralAction(
-                seat: seat,
-                given: alreadyReferred,
-                enabled: canRefer,
-                onRefer: onRefer,
-                onAddNote: onAddNote,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The speaking-order badge on each seat. Fills in while the person is up.
-class _OrderChip extends StatelessWidget {
-  final int order;
-  final bool active;
-
-  const _OrderChip({required this.order, required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final scheme = context.scheme;
-
-    return Container(
-      width: 24,
-      height: 24,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: active ? c.infoContainer : scheme.surfaceContainerHighest,
-        shape: BoxShape.circle,
-        border: active ? Border.all(color: c.info, width: 1.5) : null,
-      ),
-      child: Text(
-        '$order',
-        style: context.text.labelSmall?.copyWith(
-          color: active ? c.onInfoContainer : scheme.onSurfaceVariant,
-          fontWeight: FontWeight.w800,
-          height: 1,
-        ),
-      ),
-    );
-  }
-}
-
-/// Tells the member their place in the running order and who's up now, so they
-/// aren't caught off guard when it's their turn (#4).
-class _SpeakingOrderBanner extends StatelessWidget {
-  final int position;
-  final int total;
-  final bool isMyTurn;
-  final String? nowSpeakingName;
-
-  const _SpeakingOrderBanner({
-    required this.position,
-    required this.total,
-    required this.isMyTurn,
-    this.nowSpeakingName,
-  });
-
-  static String _ordinal(int n) {
-    if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
-    switch (n % 10) {
-      case 1:
-        return '${n}st';
-      case 2:
-        return '${n}nd';
-      case 3:
-        return '${n}rd';
-      default:
-        return '${n}th';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final fg = isMyTurn ? c.onSuccessContainer : context.scheme.onSurface;
-    final bg =
-        isMyTurn ? c.successContainer : context.scheme.surfaceContainerHigh;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(Radii.md),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isMyTurn
-                ? Icons.campaign_rounded
-                : Icons.format_list_numbered_rounded,
-            size: 18,
-            color: fg,
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Text(
-              isMyTurn
-                  ? "It's your turn to speak"
-                  : 'You speak ${_ordinal(position)} of $total'
-                      '${nowSpeakingName != null ? '  ·  Now: $nowSpeakingName' : ''}',
-              style: context.text.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w700, color: fg),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The "speaking now" strip on the active seat: what they're doing (bio /
-/// referral) and their live countdown, mirroring the timer at the top.
-class _SpeakingPill extends StatelessWidget {
-  final TurnKind kind;
-  final Duration remaining;
-  final bool self;
-
-  const _SpeakingPill({
-    required this.kind,
-    required this.remaining,
-    required this.self,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final fg = c.onInfoContainer;
-    final label = kind == TurnKind.bio ? 'Bio' : 'Referral';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
-      decoration: BoxDecoration(
-        color: c.infoContainer,
-        borderRadius: BorderRadius.circular(Radii.sm),
-        border: Border.all(color: c.info.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            kind == TurnKind.bio
-                ? Icons.record_voice_over_rounded
-                : Icons.handshake_rounded,
-            size: 14,
-            color: fg,
-          ),
-          const SizedBox(width: Gap.sm),
-          Text(
-            self
-                ? 'Your turn · $label'
-                // "Speaking" is wrong during the referral turn — they're giving
-                // a referral, not speaking (#10).
-                : '${kind == TurnKind.bio ? 'Speaking now' : 'Referring now'} · $label',
-            style: context.text.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Text(
-            _mmss(remaining),
-            style: context.text.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w800,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The initials glyph used when a seat has no photo (or it fails to load).
-Widget _initialAvatarText(BuildContext context, TableSeat seat) {
-  final scheme = context.scheme;
-  return Text(
-    seat.name.isEmpty ? '?' : seat.name[0].toUpperCase(),
-    style: context.text.titleMedium?.copyWith(
-      color: seat.isSelf ? scheme.onSecondaryContainer : scheme.onSurfaceVariant,
-      fontWeight: FontWeight.w700,
-    ),
-  );
-}
-
-/// The avatar doubles as the attendance indicator once an answer exists.
-class _Avatar extends StatelessWidget {
-  final TableSeat seat;
-  final bool? attendance;
-
-  const _Avatar({required this.seat, required this.attendance});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final scheme = context.scheme;
-
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: seat.isSelf
-                  ? scheme.secondaryContainer
-                  : scheme.surfaceContainerHigh,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            // Show the member's photo when the schedule carries one, falling
-            // back to initials on a missing/failed image (#5).
-            child: (seat.photoUrl != null)
-                ? Image.network(
-                    seat.photoUrl!,
-                    width: 44,
-                    height: 44,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _initialAvatarText(context, seat),
-                  )
-                : _initialAvatarText(context, seat),
-          ),
-          if (attendance != null)
-            Positioned(
-              right: -2,
-              bottom: -2,
-              child: AnimatedScale(
-                scale: 1,
-                duration: Motion.normal,
-                curve: Motion.spring,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerLow,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: attendance! ? c.success : c.danger,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      attendance! ? Icons.check_rounded : Icons.close_rounded,
-                      size: 11,
-                      color: scheme.surface,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Attendance.
-///
-/// The rule: **Present is final; Absent is not.**
-///
-/// Being seen at the table is a fact — once recorded it is not up for revision,
-/// and a control that invites you to un-see someone is nonsense. Absent is
-/// different: it means "not seen YET". The real pattern at a venue is a captain
-/// marking their table absent early and people trickling in over the next
-/// minute, so absent must stay changeable or the roll is wrong by design.
-///
-/// So this widget only renders while the answer is still open. Once someone is
-/// Present, the card shows the settled state instead (avatar badge + hairline)
-/// and the control disappears — there is nothing left to decide.
-class _AttendanceToggle extends StatelessWidget {
-  final bool? value;
-  final bool isSelf;
-  final ValueChanged<bool> onChanged;
-
-  const _AttendanceToggle({
-    required this.value,
-    required this.isSelf,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final markedAbsent = value == false;
-
-    return Semantics(
-      label: isSelf ? 'Your attendance' : 'Attendance',
-      value: markedAbsent ? 'Absent' : 'Not marked',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: context.scheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(Radii.md),
-              border: Border.all(color: c.hairline),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _Segment(
-                    label: isSelf ? "I'm here" : 'Present',
-                    icon: Icons.check_rounded,
-                    selected: false,
-                    color: c.success,
-                    onTap: () => onChanged(true),
-                  ),
-                ),
-                // You cannot mark YOURSELF absent — if you're in the app at the
-                // table, you're here. Absent is only ever a captain recording
-                // someone else who didn't show (#7). (A captain can still mark a
-                // member absent; that member then sees "I'm here" to correct it.)
-                if (!isSelf)
-                  Expanded(
-                    child: _Segment(
-                      label: 'Absent',
-                      icon: Icons.close_rounded,
-                      selected: markedAbsent,
-                      color: c.danger,
-                      onTap: () => onChanged(false),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (markedAbsent) ...[
-            const SizedBox(height: Gap.sm),
-            Text(
-              isSelf
-                  ? 'Tap "I\'m here" if you join the table.'
-                  : 'Still changeable — tap Present if they arrive.',
-              textAlign: TextAlign.center,
-              style: context.text.labelSmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Giving a referral, and optionally annotating it.
-///
-/// One tap gives the referral. The note is optional and comes AFTER, in a sheet.
-/// The previous flow opened a confirmation dialog with a text field before
-/// anything was recorded — a form standing between the user and the single thing
-/// the event exists for. Dialogs are for decisions with consequences; this is an
-/// action, so it just happens, and the note is there for whoever wants it.
-class _ReferralAction extends StatelessWidget {
-  final TableSeat seat;
-  final bool given;
-  final bool enabled;
-  final VoidCallback onRefer;
-  final VoidCallback onAddNote;
-
-  const _ReferralAction({
-    required this.seat,
-    required this.given,
-    required this.enabled,
-    required this.onRefer,
-    required this.onAddNote,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-
-    if (given) {
-      return Container(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
-        decoration: BoxDecoration(
-          color: c.successContainer,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle_rounded, size: 16, color: c.onSuccessContainer),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Text(
-                'Referral given',
-                style: context.text.labelLarge?.copyWith(
-                  color: c.onSuccessContainer,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: onAddNote,
-              icon: const Icon(Icons.edit_note_rounded, size: 18),
-              label: const Text('Note'),
-              style: TextButton.styleFrom(foregroundColor: c.onSuccessContainer),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: enabled ? onRefer : null,
-        icon: const Icon(Icons.handshake_outlined, size: 18),
-        label: Text('Refer ${seat.name.split(' ').first}'),
-      ),
-    );
-  }
-}
-
-class _Segment extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _Segment({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = selected ? context.scheme.surface : context.scheme.onSurfaceVariant;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: Motion.fast,
-        curve: Motion.curve,
-        padding: const EdgeInsets.symmetric(vertical: Gap.md),
-        decoration: BoxDecoration(
-          color: selected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(Radii.sm),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: fg),
-            const SizedBox(width: Gap.xs),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.labelLarge?.copyWith(
-                  color: fg,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Shows the number of records still on the phone. At a venue with no signal this
-/// is the only honest answer to "did my data save?", so it is always visible
-/// rather than hidden behind a settings screen.
-class _SyncButton extends StatelessWidget {
-  final int pending;
-  final VoidCallback onTap;
-
-  const _SyncButton({required this.pending, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final synced = pending == 0;
-
-    return Tooltip(
-      message: synced
-          ? 'Everything is saved to the server'
-          : '$pending record(s) waiting to upload',
-      child: TextButton.icon(
-        onPressed: onTap,
-        icon: Icon(
-          synced ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined,
-          size: 20,
-          color: synced ? context.colors.success : context.colors.warning,
-        ),
-        label: Text(
-          synced ? 'Saved' : '$pending',
-          style: context.text.labelMedium?.copyWith(
-            color: synced ? context.colors.success : context.colors.warning,
-            fontWeight: FontWeight.w700,
+          data: (s) {
+            final round = s.round;
+            if (round == null) {
+              return _Unavailable(reason: s.unavailable!);
+            }
+
+            // First paint of a round (or when the admin advances): pull the
+            // offline records for it.
+            if (_loadedRound != round.roundNumber) {
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => _loadLocal(round));
+            }
+
+            // While paused, evaluate everything at the round's frozen instant so
+            // the countdown holds steady instead of flickering against the live
+            // clock. Running: use the live tick.
+            final effectiveNow = round.frozenAt ?? _now;
+
+            return RoundDeckView(
+              round: round,
+              now: effectiveNow,
+              attendance: _attendance,
+              referred: _referred,
+              noted: _noted,
+              pendingSync: _pendingSync,
+              onSync: _syncNow,
+              onAttendance: (seat, present) =>
+                  _setAttendance(round, seat, present),
+              onRefer: (seat) => _giveReferral(round, seat),
+              onAddNote: (seat) => _editNote(round, seat),
+              onScan: () => _openScanner(round),
+              onScanArrivals: () => _openArrivalsScanner(round),
+            );
+          },
           ),
         ),
       ),
@@ -2119,6 +438,8 @@ class _SyncButton extends StatelessWidget {
   }
 }
 
+/// Why there is no live round to show — each reason rendered as a calm empty
+/// state rather than an error.
 class _Unavailable extends StatelessWidget {
   final ActiveRoundUnavailable reason;
 
