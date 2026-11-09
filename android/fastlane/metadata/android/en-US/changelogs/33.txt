@@ -1,0 +1,8 @@
+What's new in 1.4.0
+
+- A new end-of-conclave summary: your referrals, the people you met and your rounds
+- After each round you see your next table, who sits there and who speaks first
+- Late arrivals can join as walk-ins from the next round
+- Conclaves can run with or without table captains
+- A cleaner live round screen with one clear timer
+- Fixes and polish
