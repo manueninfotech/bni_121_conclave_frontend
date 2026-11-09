@@ -52,7 +52,9 @@ class ScheduleParticipant {
 /// One table in one round.
 class ScheduleTable {
   final int tableNumber;
-  final int captainId;
+
+  /// The table's fixed anchor; null in a conclave without captains.
+  final int? captainId;
   final List<int> memberIds;
 
   const ScheduleTable({
@@ -62,7 +64,7 @@ class ScheduleTable {
   });
 
   /// Captain first, then rotating members — matches the engine's `occupantsOf`.
-  List<int> get occupantIds => [captainId, ...memberIds];
+  List<int> get occupantIds => [?captainId, ...memberIds];
 
   bool seats(int participantId) =>
       captainId == participantId || memberIds.contains(participantId);
@@ -70,7 +72,7 @@ class ScheduleTable {
   factory ScheduleTable.fromMap(Map<String, dynamic> m) {
     return ScheduleTable(
       tableNumber: (m['tableNumber'] as num).toInt(),
-      captainId: (m['captainId'] as num).toInt(),
+      captainId: (m['captainId'] as num?)?.toInt(),
       memberIds: ((m['memberIds'] as List?) ?? const [])
           .map((e) => (e as num).toInt())
           .toList(),
@@ -272,6 +274,9 @@ class TableSeat {
   final String category;
   final bool isCaptain;
 
+  /// Marked by the admin as this round's captain while the anchor is away.
+  final bool isStandIn;
+
   /// True when this seat is the signed-in user.
   final bool isSelf;
 
@@ -290,6 +295,7 @@ class TableSeat {
     required this.category,
     required this.isCaptain,
     required this.isSelf,
+    this.isStandIn = false,
     this.metBefore = false,
     this.photoUrl,
   });
@@ -325,8 +331,16 @@ class ActiveRound {
   /// on the last round.
   final List<TableSeat> upcomingSeats;
 
-  /// True when the signed-in user anchors this table.
+  /// True when the signed-in user captains this table THIS round: they anchor
+  /// it, or the admin marked them stand-in. Gates scanning.
   final bool isCaptain;
+
+  /// False in a conclave without captains: no attendance is taken at all.
+  final bool attendanceEnabled;
+
+  /// True when the user captains their NEXT table — they scan the arriving
+  /// group during the move window.
+  final bool canScanArrivals;
 
   final String currentUserId;
   final int currentParticipantId;
@@ -343,6 +357,8 @@ class ActiveRound {
     required this.seats,
     this.upcomingSeats = const [],
     required this.isCaptain,
+    this.attendanceEnabled = true,
+    this.canScanArrivals = false,
     required this.currentUserId,
     required this.currentParticipantId,
   });
@@ -396,7 +412,8 @@ class ActiveRound {
       startTime: startTime,
       timing: timing,
       seats: upcomingSeats,
-      isCaptain: isCaptain,
+      isCaptain: canScanArrivals,
+      attendanceEnabled: attendanceEnabled,
       currentUserId: currentUserId,
       currentParticipantId: currentParticipantId,
     );

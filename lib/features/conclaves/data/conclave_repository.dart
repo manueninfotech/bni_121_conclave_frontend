@@ -93,6 +93,23 @@ class ConclaveRepository {
   }
 }
 
+/// Walk-ins: asks to join a running conclave at the venue. The region admin
+/// approves (and takes payment outside the app); the member is then seated
+/// from the next round. Returns the request status ("pending" / "approved").
+extension WalkInRequests on ConclaveRepository {
+  Future<String> requestWalkIn(String conclaveId) async {
+    try {
+      final res = await ApiClient.instance
+          .send('POST', '/conclaves/$conclaveId/walk-in', const {});
+      return res['status'] as String? ?? 'pending';
+    } on ApiException catch (e) {
+      throw Exception(e.isOffline
+          ? 'Could not reach the server. Check your connection and try again.'
+          : e.message);
+    }
+  }
+}
+
 /// The member is already registered for an overlapping conclave.
 class RegistrationConflict implements Exception {
   final String message;

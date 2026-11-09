@@ -39,8 +39,10 @@ class MoveView extends StatelessWidget {
     final next = round.nextTableNumber;
     // Transition = walking with a countdown; ended (manual mode) = waiting for
     // the organiser to start the next round.
-    final walking =
-        vm.phase == RoundPhase.transition && vm.remaining > Duration.zero;
+    // No walking after the last round — nobody is moving anywhere.
+    final walking = next != null &&
+        vm.phase == RoundPhase.transition &&
+        vm.remaining > Duration.zero;
 
     return Stack(
       fit: StackFit.expand,
@@ -62,7 +64,7 @@ class MoveView extends StatelessWidget {
                 const Spacer(flex: 3),
                 if (next == null)
                   ..._wrap(context)
-                else if (round.isCaptain)
+                else if (round.canScanArrivals)
                   ..._captain(context, next)
                 else
                   ..._member(context, next, walking),
@@ -87,8 +89,9 @@ class MoveView extends StatelessWidget {
           ? 'Head over now — Round ${round.roundNumber + 1} starts soon.'
           : 'Take your seat — the organiser will start Round ${round.roundNumber + 1}.'),
       const Spacer(flex: 2),
-      // Bottom half: the code the captain scans on arrival.
-      Center(
+      // Bottom half: the code the captain scans on arrival (no captains, no
+      // scanning — just the table).
+      if (round.attendanceEnabled) Center(
         child: Container(
           padding: const EdgeInsets.all(Gap.lg),
           decoration: BoxDecoration(
@@ -124,11 +127,14 @@ class MoveView extends StatelessWidget {
 
   List<Widget> _captain(BuildContext context, int next) {
     final arriving = round.upcomingSeats.where((s) => !s.isSelf).toList();
+    final staying = next == round.tableNumber;
     return [
-      _Kicker('STAY AT'),
+      _Kicker(staying ? 'STAY AT' : 'MOVE TO'),
       _BigTable(next),
       const SizedBox(height: Gap.xs),
-      _Sub('Your next group is arriving'),
+      _Sub(staying
+          ? 'Your next group is arriving'
+          : "You're captain there next round — scan everyone in"),
       const SizedBox(height: Gap.xl),
       _ArrivingRow(seats: arriving),
       const Spacer(flex: 2),
@@ -158,7 +164,7 @@ class MoveView extends StatelessWidget {
               ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: Gap.xs),
-        _Sub('The organiser is wrapping up the conclave.'),
+        _Sub('Your summary opens as soon as the conclave closes.'),
         const Spacer(flex: 3),
       ];
 }

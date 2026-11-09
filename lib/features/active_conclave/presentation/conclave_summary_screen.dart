@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
-import '../../../core/widgets/app_refresh.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../core/widgets/app_refresh.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/conclave_summary_repository.dart';
-import '../data/feedback_repository.dart';
 import '../data/sync_service.dart';
-import '../domain/referral_models.dart';
+import 'summary/summary_feedback.dart';
+import 'summary/summary_hero.dart';
+import 'summary/summary_journey.dart';
+import 'summary/summary_widgets.dart';
 
-/// After the conclave: what you did, and — the point of the screen — whether it
-/// actually made it off your phone.
+/// After the conclave: the shape of the day, what came of it, and — quietly,
+/// unless something is outstanding — whether it all made it off the phone.
 ///
-/// At a venue with no working internet, "did my day survive?" is the question
-/// people genuinely have. They should be able to answer it themselves rather
-/// than trust us, so the sync state leads.
+/// Built from the local db (attendance, referrals given) reconciled with the
+/// server on open, plus the frozen schedule for rounds and people met.
 class ConclaveSummaryScreen extends ConsumerStatefulWidget {
   final String conclaveId;
 
@@ -29,760 +30,160 @@ class ConclaveSummaryScreen extends ConsumerStatefulWidget {
 }
 
 class _ConclaveSummaryScreenState extends ConsumerState<ConclaveSummaryScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Reconcile with the server the moment the summary opens. The summary is
-    // built from the LOCAL db, which is missing anything that lived on another
-    // phone — referrals given TO this member, and attendance a captain recorded
-    // — so without this the screen can read 0 while the backend (and Profile)
-    // show the real totals (#18). syncNow pulls those down and marks our own
-    // records synced; then we refresh the view. Fire-and-forget + best-effort.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(syncServiceProvider).syncNow(widget.conclaveId);
-      if (mounted) ref.invalidate(conclaveSummaryProvider(widget.conclaveId));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final conclaveId = widget.conclaveId;
-    final summary = ref.watch(conclaveSummaryProvider(conclaveId));
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your summary'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sync_rounded),
-            tooltip: 'Sync now',
-            onPressed: () async {
-              await ref.read(syncServiceProvider).syncNow(conclaveId);
-              ref.invalidate(conclaveSummaryProvider(conclaveId));
-            },
-          ),
-        ],
-      ),
-      body: summary.when(
-        loading: () => const LoadingView(),
-        error: (e, _) => ErrorView(
-          message: 'Could not load your summary.',
-          detail: e.toString(),
-          onRetry: () => ref.invalidate(conclaveSummaryProvider(conclaveId)),
-        ),
-        data: (s) => AppRefresh(
-          onRefresh: () async {
-            await ref.read(syncServiceProvider).syncNow(conclaveId);
-            ref.invalidate(conclaveSummaryProvider(conclaveId));
-          },
-          child: ContentWidth(
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: context.pageInsets,
-              children: [
-                FadeSlideIn(index: 0, child: _SyncBanner(summary: s)),
-                const SizedBox(height: Gap.lg),
-                FadeSlideIn(index: 1, child: _Scoreboard(summary: s)),
-                const SizedBox(height: Gap.lg),
-                FadeSlideIn(
-                  index: 2,
-                  child: _FeedbackCard(conclaveId: conclaveId),
-                ),
-                const SizedBox(height: Gap.lg),
-                FadeSlideIn(
-                  index: 2,
-                  child: Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: context.scheme.secondaryContainer,
-                        child: Icon(Icons.group_add_outlined,
-                            color: context.scheme.onSecondaryContainer),
-                      ),
-                      title: const Text('People you met'),
-                      subtitle: const Text('Everyone you sat with — save them'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => context.push('/conclaves/$conclaveId/met'),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: Gap.xl),
-                FadeSlideIn(index: 3, child: _Attendance(summary: s)),
-                const SizedBox(height: Gap.xl),
-                FadeSlideIn(index: 4, child: _Referrals(referrals: s.referrals)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SyncBanner extends StatelessWidget {
-  final ConclaveSummary summary;
-  const _SyncBanner({required this.summary});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final ok = summary.fullySynced;
-
-    return Container(
-      padding: const EdgeInsets.all(Gap.lg),
-      decoration: BoxDecoration(
-        color: ok ? c.successContainer : c.warningContainer,
-        borderRadius: BorderRadius.circular(Radii.lg),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            ok ? Icons.cloud_done_rounded : Icons.cloud_upload_rounded,
-            color: ok ? c.onSuccessContainer : c.onWarningContainer,
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ok ? 'Everything is saved' : '${summary.pendingSyncCount} still uploading',
-                  style: context.text.titleSmall?.copyWith(
-                    color: ok ? c.onSuccessContainer : c.onWarningContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: Gap.xs),
-                Text(
-                  ok
-                      ? 'Your attendance and referrals are on the server.'
-                      : 'They will upload automatically when you have a connection. '
-                          'Keep the app installed until then.',
-                  style: context.text.bodySmall?.copyWith(
-                    color: ok ? c.onSuccessContainer : c.onWarningContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The three numbers people actually want, at a glance.
-class _Scoreboard extends StatelessWidget {
-  final ConclaveSummary summary;
-  const _Scoreboard({required this.summary});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = summary.referrals;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _Stat(
-            value: '${r.givenCount}',
-            label: 'Given',
-            icon: Icons.call_made_rounded,
-            tone: StatusTone.info,
-          ),
-        ),
-        const SizedBox(width: Gap.sm),
-        Expanded(
-          child: _Stat(
-            value: '${r.receivedCount}',
-            label: 'Received',
-            icon: Icons.call_received_rounded,
-            tone: StatusTone.success,
-          ),
-        ),
-        const SizedBox(width: Gap.sm),
-        Expanded(
-          child: _Stat(
-            value: '${r.mutualCount}',
-            label: 'Mutual',
-            icon: Icons.swap_horiz_rounded,
-            tone: StatusTone.neutral,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  final String value;
-  final String label;
-  final IconData icon;
-  final StatusTone tone;
-
-  const _Stat({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.tone,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final fg = switch (tone) {
-      StatusTone.success => c.success,
-      StatusTone.info => c.info,
-      _ => context.scheme.onSurfaceVariant,
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: Gap.sm),
-      decoration: BoxDecoration(
-        color: context.scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: c.hairline),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 18, color: fg),
-          const SizedBox(height: Gap.sm),
-          Text(
-            value,
-            style: context.text.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          Text(
-            label,
-            style: context.text.labelSmall
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Attendance extends StatelessWidget {
-  final ConclaveSummary summary;
-  const _Attendance({required this.summary});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionTitle(
-          'Attendance',
-          trailing: '${summary.roundsAttended} round(s) attended',
-        ),
-        const SizedBox(height: Gap.sm),
-        if (summary.attendance.isEmpty)
-          _Muted('No attendance was recorded for you.')
-        else
-          Card(
-            child: Column(
-              children: [
-                for (var i = 0; i < summary.attendance.length; i++) ...[
-                  if (i > 0) Divider(height: 1, color: context.colors.hairline),
-                  _AttendanceRow(a: summary.attendance[i]),
-                ],
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _AttendanceRow extends StatelessWidget {
-  final RoundAttendance a;
-  const _AttendanceRow({required this.a});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-
-    return Padding(
-      padding: const EdgeInsets.all(Gap.lg),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: a.isPresent ? c.successContainer : c.dangerContainer,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              a.isPresent ? Icons.check_rounded : Icons.close_rounded,
-              size: 16,
-              color: a.isPresent ? c.onSuccessContainer : c.onDangerContainer,
-            ),
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Round ${a.roundNumber}', style: context.text.titleSmall),
-                Text(
-                  a.isPresent ? 'Present' : 'Absent',
-                  style: context.text.bodySmall
-                      ?.copyWith(color: context.scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          _SyncDot(synced: a.synced),
-        ],
-      ),
-    );
-  }
-}
-
-class _Referrals extends StatelessWidget {
-  final ReferralSummary referrals;
-  const _Referrals({required this.referrals});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SectionTitle('Referrals you gave'),
-        const SizedBox(height: Gap.sm),
-        if (referrals.given.isEmpty)
-          _Muted('You gave no referrals.')
-        else
-          Card(
-            child: Column(
-              children: [
-                for (var i = 0; i < referrals.given.length; i++) ...[
-                  if (i > 0) Divider(height: 1, color: context.colors.hairline),
-                  _ReferralRow(
-                    r: referrals.given[i],
-                    mutual: referrals.isMutualWith(referrals.given[i].toUserId),
-                    outgoing: true,
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-        const SizedBox(height: Gap.xl),
-        const _SectionTitle('Referrals you received'),
-        const SizedBox(height: Gap.sm),
-        if (referrals.received.isEmpty)
-          _Muted(
-            'None yet. A referral given to you is created on the other person\'s '
-            'phone, so it appears here only once both devices have synced.',
-          )
-        else
-          Card(
-            child: Column(
-              children: [
-                for (var i = 0; i < referrals.received.length; i++) ...[
-                  if (i > 0) Divider(height: 1, color: context.colors.hairline),
-                  _ReferralRow(
-                    r: referrals.received[i],
-                    mutual: referrals.isMutualWith(referrals.received[i].fromUserId),
-                    outgoing: false,
-                  ),
-                ],
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ReferralRow extends StatelessWidget {
-  final Referral r;
-  final bool mutual;
-  final bool outgoing;
-
-  const _ReferralRow({
-    required this.r,
-    required this.mutual,
-    required this.outgoing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final name = r.otherName.isNotEmpty ? r.otherName : 'Unknown participant';
-
-    return Padding(
-      padding: const EdgeInsets.all(Gap.lg),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: outgoing ? c.infoContainer : c.successContainer,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              outgoing ? Icons.call_made_rounded : Icons.call_received_rounded,
-              size: 15,
-              color: outgoing ? c.onInfoContainer : c.onSuccessContainer,
-            ),
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: context.text.titleSmall,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (mutual) ...[
-                      const SizedBox(width: Gap.sm),
-                      Tooltip(
-                        message: 'You referred each other',
-                        child: Icon(Icons.swap_horiz_rounded,
-                            size: 15, color: context.scheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ],
-                ),
-                Text(
-                  [
-                    if (r.otherBusinessName.isNotEmpty) r.otherBusinessName,
-                    'Round ${r.roundNumber}',
-                  ].join(' · '),
-                  style: context.text.bodySmall
-                      ?.copyWith(color: context.scheme.onSurfaceVariant),
-                ),
-                if (r.notes.isNotEmpty) ...[
-                  const SizedBox(height: Gap.sm),
-                  Container(
-                    padding: const EdgeInsets.all(Gap.sm),
-                    decoration: BoxDecoration(
-                      color: context.scheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(Radii.sm),
-                    ),
-                    child: Text(r.notes, style: context.text.bodySmall),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (outgoing) ...[
-            const SizedBox(width: Gap.sm),
-            _SyncDot(synced: r.synced),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// A dot, not a chip. Sync state is per-row detail — the headline already says
-/// whether anything is outstanding, so this only needs to answer "which one?".
-class _SyncDot extends StatelessWidget {
-  final bool synced;
-  const _SyncDot({required this.synced});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-
-    return Tooltip(
-      message: synced ? 'Saved to the server' : 'Waiting to upload',
-      child: Semantics(
-        label: synced ? 'Saved' : 'Waiting to upload',
-        child: Icon(
-          synced ? Icons.cloud_done_rounded : Icons.cloud_upload_rounded,
-          size: 16,
-          color: synced ? c.success : c.warning,
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  final String? trailing;
-
-  const _SectionTitle(this.title, {this.trailing});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ),
-        if (trailing != null)
-          Text(
-            trailing!,
-            style: context.text.labelSmall
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
-          ),
-      ],
-    );
-  }
-}
-
-class _Muted extends StatelessWidget {
-  final String text;
-  const _Muted(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-      child: Text(
-        text,
-        style: context.text.bodySmall
-            ?.copyWith(color: context.scheme.onSurfaceVariant),
-      ),
-    );
-  }
-}
-
-// --- Post-conclave feedback (replaces the Google Form) ---------------------
-
-class _FeedbackCard extends ConsumerStatefulWidget {
-  final String conclaveId;
-  const _FeedbackCard({required this.conclaveId});
-
-  @override
-  ConsumerState<_FeedbackCard> createState() => _FeedbackCardState();
-}
-
-class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
-  bool _done = false;
-  String get _prefKey => 'feedback_done_${widget.conclaveId}';
+  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
-    SharedPreferences.getInstance().then((p) {
-      if (mounted && (p.getBool(_prefKey) ?? false)) {
-        setState(() => _done = true);
-      }
-    });
+    // Reconcile with the server the moment the summary opens: the local db is
+    // missing what lived on other phones (referrals given TO this member,
+    // attendance a captain recorded), so without this it can read 0 (#18).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
   }
 
-  Future<void> _open() async {
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => _FeedbackSheet(conclaveId: widget.conclaveId),
-    );
-    if (ok == true) {
-      final p = await SharedPreferences.getInstance();
-      await p.setBool(_prefKey, true);
-      if (mounted) setState(() => _done = true);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    if (_done) {
-      return Container(
-        padding: const EdgeInsets.all(Gap.lg),
-        decoration: BoxDecoration(
-          color: c.successContainer,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: c.onSuccessContainer),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Text(
-                'Thanks for your feedback!',
-                style: context.text.bodyMedium
-                    ?.copyWith(color: c.onSuccessContainer),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: c.infoContainer,
-          child: Icon(Icons.rate_review_outlined, color: c.onInfoContainer),
-        ),
-        title: const Text('How was the conclave?'),
-        subtitle: const Text('Share 30 seconds of feedback'),
-        trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: _open,
-      ),
-    );
-  }
-}
-
-class _FeedbackSheet extends ConsumerStatefulWidget {
-  final String conclaveId;
-  const _FeedbackSheet({required this.conclaveId});
-
-  @override
-  ConsumerState<_FeedbackSheet> createState() => _FeedbackSheetState();
-}
-
-class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
-  int _rating = 0;
-  String? _timing; // 'short' | 'right' | 'long'
-  final _referrals = TextEditingController();
-  final _comment = TextEditingController();
-  bool _submitting = false;
-
-  @override
-  void dispose() {
-    _referrals.dispose();
-    _comment.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_rating == 0) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Please tap a star rating.')));
-      return;
-    }
-    setState(() => _submitting = true);
+  Future<void> _sync() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
     try {
-      await ref.read(feedbackRepositoryProvider).submit(
-            widget.conclaveId,
-            rating: _rating,
-            timing: _timing,
-            referrals: int.tryParse(_referrals.text.trim()),
-            comment: _comment.text,
-          );
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: context.colors.danger,
-        ));
+      await ref.read(syncServiceProvider).syncNow(widget.conclaveId);
+    } finally {
+      if (mounted) {
+        setState(() => _syncing = false);
+        ref.invalidate(conclaveSummaryProvider(widget.conclaveId));
+      }
+    }
+  }
+
+  void _back() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/conclaves/${widget.conclaveId}');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: Gap.xl,
-        right: Gap.xl,
-        top: Gap.sm,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + Gap.xl,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('How was the conclave?',
-              style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: Gap.xs),
-          Text('Your feedback shapes the next one.',
-              style: context.text.bodySmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant)),
-          const SizedBox(height: Gap.lg),
+    final id = widget.conclaveId;
+    final summary = ref.watch(conclaveSummaryProvider(id));
+    final journey =
+        ref.watch(summaryJourneyProvider(id)).value ?? SummaryJourney.empty;
 
-          // Star rating.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (i) {
-              final filled = i < _rating;
-              return IconButton(
-                onPressed: () => setState(() => _rating = i + 1),
-                icon: Icon(
-                  filled ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: filled ? Colors.amber : context.scheme.outline,
-                  size: 38,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // White status bar over the red hero.
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: summary.when(
+          loading: () => const LoadingView(),
+          error: (e, _) => SafeArea(
+            child: ErrorView(
+              message: 'Could not load your summary.',
+              detail: e.toString(),
+              onRetry: () => ref.invalidate(conclaveSummaryProvider(id)),
+            ),
+          ),
+          data: (s) {
+            final presentByRound = {
+              for (final a in s.attendance) a.roundNumber: a.isPresent,
+            };
+            final stops = [
+              for (final r in journey.rounds)
+                (
+                  round: r.roundNumber,
+                  table: r.tableNumber,
+                  captain: r.wasCaptain,
+                  tablemates: r.tablemates,
+                  present: presentByRound[r.roundNumber],
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: Gap.md),
+            ];
+            final refs = s.referrals;
 
-          Text('Round timing',
-              style: context.text.labelSmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant)),
-          const SizedBox(height: Gap.xs),
-          Wrap(
-            spacing: Gap.sm,
-            children: [
-              for (final opt in const [
-                ('short', 'Too short'),
-                ('right', 'Just right'),
-                ('long', 'Too long'),
-              ])
-                ChoiceChip(
-                  label: Text(opt.$2),
-                  selected: _timing == opt.$1,
-                  onSelected: (_) => setState(() => _timing = opt.$1),
+            final sections = <Widget>[
+              SummaryStats(referrals: refs, pendingSync: s.pendingSyncCount),
+              if (journey.people.isNotEmpty) ...[
+                const SizedBox(height: Gap.xl),
+                SummarySection('People you met',
+                    note: '${journey.people.length}'),
+                SummaryPeople(
+                  people: journey.people,
+                  onOpen: () => context.push('/conclaves/$id/met'),
                 ),
-            ],
-          ),
-          const SizedBox(height: Gap.lg),
+              ],
+              if (stops.isNotEmpty) ...[
+                const SizedBox(height: Gap.xl),
+                SummarySection('Your rounds',
+                    note: s.attendance.isEmpty
+                        ? null
+                        : '${s.roundsAttended} of ${stops.length} attended'),
+                SummaryRounds(stops: stops),
+              ],
+              const SizedBox(height: Gap.xl),
+              const SummarySection('Referrals you gave'),
+              if (refs.given.isEmpty)
+                const SummaryEmpty('You gave no referrals.')
+              else
+                SummaryReferrals(
+                  referrals: refs.given,
+                  outgoing: true,
+                  isMutual: refs.isMutualWith,
+                ),
+              const SizedBox(height: Gap.xl),
+              const SummarySection('Referrals you received'),
+              if (refs.received.isEmpty)
+                const SummaryEmpty(
+                  "None yet. A referral to you is made on the other person's "
+                  'phone, so it shows here once both phones have synced.',
+                )
+              else
+                SummaryReferrals(
+                  referrals: refs.received,
+                  outgoing: false,
+                  isMutual: refs.isMutualWith,
+                ),
+              const SizedBox(height: Gap.xl),
+              SummaryFeedbackCard(conclaveId: id),
+              SizedBox(height: Gap.xl + MediaQuery.paddingOf(context).bottom),
+            ];
 
-          TextField(
-            controller: _referrals,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Referrals / 1-2-1s you got (optional)',
-              prefixIcon: Icon(Icons.handshake_outlined),
-            ),
-          ),
-          const SizedBox(height: Gap.md),
-          TextField(
-            controller: _comment,
-            minLines: 2,
-            maxLines: 4,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              labelText: 'One thing we should improve (optional)',
-            ),
-          ),
-          const SizedBox(height: Gap.lg),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton(
-              onPressed: _submitting ? null : _submit,
-              child: _submitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Send feedback'),
-            ),
-          ),
-        ],
+            return AppRefresh(
+              onRefresh: _sync,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SummaryHero(
+                      conclaveName: journey.conclaveName,
+                      rounds: journey.rounds.length,
+                      peopleMet: journey.people.length,
+                      syncing: _syncing,
+                      onBack: _back,
+                      onSync: _sync,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: ContentWidth(
+                      child: Transform.translate(
+                        // The stats card rides up over the hero's lower edge.
+                        offset: const Offset(0, -SummaryHero.overlap),
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: Gap.lg),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (var i = 0; i < sections.length; i++)
+                                FadeSlideIn(index: i ~/ 3, child: sections[i]),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

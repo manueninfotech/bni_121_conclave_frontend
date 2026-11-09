@@ -104,7 +104,8 @@ class PersonCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (seat.isCaptain) _captainBadge(context),
+            if (seat.isCaptain || seat.isStandIn)
+              _captainBadge(context, standIn: seat.isStandIn),
           ],
         ),
         const SizedBox(height: Gap.lg),
@@ -379,7 +380,7 @@ class PersonCard extends StatelessWidget {
 
   /// A clear "Captain" pill — the captain anchors the table, so it is labelled,
   /// not left as a bare star that reads like a favourite.
-  Widget _captainBadge(BuildContext context) {
+  Widget _captainBadge(BuildContext context, {bool standIn = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
@@ -390,7 +391,7 @@ class PersonCard extends StatelessWidget {
         const Icon(Icons.workspace_premium_rounded,
             color: Colors.amberAccent, size: 15),
         const SizedBox(width: 4),
-        Text('Captain',
+        Text(standIn ? 'Captain this round' : 'Captain',
             style: context.text.labelSmall
                 ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
       ]),

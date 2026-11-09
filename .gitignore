@@ -58,3 +58,6 @@ android/fastlane/Preview.html
 .vscode/
 .DS_Store
 BNIG CATEGORIES - Sheet1.csv
+# Widget Preview related
+.widget_preview/
+assets/icons

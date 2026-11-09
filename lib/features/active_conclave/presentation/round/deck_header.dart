@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../domain/active_conclave_models.dart';
-import 'animated_countdown.dart';
 import 'round_timer.dart';
 
 /// The glanceable top strip: round/table, the phase line, the one dynamic status
@@ -76,7 +75,8 @@ class DeckHeader extends StatelessWidget {
                 _SyncChip(pending: pendingSync, onTap: onSync),
                 const SizedBox(width: Gap.sm),
               ],
-              // The ONE place "Paused" is said. Clock <-> Paused cross-fade.
+              // The ONE place "Paused" is said. No clock here: the card owns the
+              // turn countdown, the bar below owns the round.
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
                 child: paused
@@ -98,15 +98,7 @@ class DeckHeader extends StatelessWidget {
                               )),
                         ]),
                       )
-                    : AnimatedCountdown(
-                        key: const ValueKey('clock'),
-                        remaining: vm.remaining,
-                        style: context.text.headlineMedium?.copyWith(
-                          color: vm.urgent ? kDeckBottom : ink,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
+                    : const SizedBox.shrink(key: ValueKey('live')),
               ),
             ],
           ),

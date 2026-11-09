@@ -121,6 +121,16 @@ class Conclave {
   final ConclaveRole? userRole;
   final int? userTableNumber;
 
+  /// Late arrivals may ask to join (the conclave is running and a round is
+  /// still ahead).
+  final bool walkInOpen;
+
+  /// This member's walk-in request: "pending" | "approved", or null.
+  final String? walkInStatus;
+
+  /// For an approved walk-in: the first round they sit in.
+  final int? walkInJoinsFrom;
+
   Conclave({
     required this.id,
     required this.name,
@@ -140,6 +150,9 @@ class Conclave {
     this.isRegistered = false,
     this.userRole,
     this.userTableNumber,
+    this.walkInOpen = false,
+    this.walkInStatus,
+    this.walkInJoinsFrom,
   });
 
   /// Status corrected for the passage of time.
@@ -269,6 +282,13 @@ class Conclave {
           ? PaymentDetails.fromMap(
               Map<String, dynamic>.from(data['paymentDetails'] as Map))
           : null,
+      walkInOpen: data['walkInOpen'] == true,
+      walkInStatus: data['walkIn'] is Map
+          ? (data['walkIn'] as Map)['status'] as String?
+          : null,
+      walkInJoinsFrom: data['walkIn'] is Map
+          ? ((data['walkIn'] as Map)['joinsFromRound'] as num?)?.toInt()
+          : null,
     );
   }
 
@@ -283,11 +303,17 @@ class Conclave {
       name: name,
       venueLocation: venueLocation,
       date: date,
+      endDate: endDate,
       startTime: startTime,
       endTime: endTime,
       chiefGuests: chiefGuests,
       status: status,
       isRegistrationOpen: isRegistrationOpen,
+      regStartDate: regStartDate,
+      regEndDate: regEndDate,
+      walkInOpen: walkInOpen,
+      walkInStatus: walkInStatus,
+      walkInJoinsFrom: walkInJoinsFrom,
       personsPerTable: personsPerTable,
       roundCount: roundCount,
       paymentDetails: paymentDetails,

@@ -182,11 +182,8 @@ class SpeakingOrderPanel extends StatelessWidget {
                 final seat = order[i];
                 final speaking = i == currentIdx;
                 final done = currentIdx >= 0 ? i < currentIdx : passComplete;
-                final progress = speaking && turn!.length.inMilliseconds > 0
-                    ? (turn.remainingAt(now).inMilliseconds /
-                            turn.length.inMilliseconds)
-                        .clamp(0.0, 1.0)
-                    : null;
+                // A still ring marks the speaker; the card owns the countdown.
+                final progress = speaking ? 1.0 : null;
                 return GestureDetector(
                   onTap: () => onJump(seat.participantId),
                   child: _OrderAvatar(

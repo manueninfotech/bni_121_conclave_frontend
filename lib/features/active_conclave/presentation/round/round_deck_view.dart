@@ -189,6 +189,7 @@ class _RoundDeckViewState extends State<RoundDeckView> {
                           : null,
                       canMark: !showUpcoming &&
                           canRecord &&
+                          round.attendanceEnabled &&
                           (seat.isSelf || round.isCaptain),
                       canRefer: !showUpcoming &&
                           referralOpen &&

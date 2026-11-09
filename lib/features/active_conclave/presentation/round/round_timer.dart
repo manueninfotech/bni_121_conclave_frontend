@@ -111,9 +111,9 @@ class RoundTimer {
 
     if (phase == RoundPhase.transition) {
       final next = round.nextTableNumber;
-      // Captains anchor their table (next == current), everyone else moves.
-      final staying =
-          round.isCaptain || (next != null && next == round.tableNumber);
+      // Captains anchor their table (next == current), everyone else moves —
+      // including a stand-in, who only captains for this round.
+      final staying = next != null && next == round.tableNumber;
       String kicker;
       String? headline;
       IconData icon;
@@ -152,7 +152,7 @@ class RoundTimer {
     // instead of a blank "Round ended". (#2 / move guidance)
     final endedNext = round.nextTableNumber;
     if (endedNext != null) {
-      final staying = round.isCaptain || endedNext == round.tableNumber;
+      final staying = endedNext == round.tableNumber;
       return RoundTimer(
         phase: phase,
         fg: c.onWarningContainer,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
@@ -174,26 +175,6 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
       _toast('You have already referred ${seat.name} this round.');
       return;
     }
-
-    // The undo lives here rather than in a confirmation up front: it costs the
-    // 95% who meant it nothing, and still protects the mis-tap.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('Referred ${seat.name}'),
-          // Short-lived, floating and with an explicit close: the confirmation
-          // must get out of the way on its own and be dismissible without having
-          // to tap "Add note" (a note is optional). (#9)
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-          showCloseIcon: true,
-          action: SnackBarAction(
-            label: 'Add note',
-            onPressed: () => _editNote(round, seat),
-          ),
-        ),
-      );
   }
 
   /// Annotates a referral that has already been given.
@@ -367,6 +348,18 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
       ));
   }
 
+  bool _sentToSummary = false;
+
+  void _openSummaryOnce() {
+    if (_sentToSummary) return;
+    _sentToSummary = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Replace, so back from the summary returns to the conclave, not here.
+      context.pushReplacement('/conclaves/${widget.conclaveId}/summary');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(activeRoundProvider(widget.conclaveId));
@@ -400,7 +393,23 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
           data: (s) {
             final round = s.round;
             if (round == null) {
-              return _Unavailable(reason: s.unavailable!);
+              final reason = s.unavailable!;
+              // The conclave is over: go straight to the member's summary
+              // (their day, and whether it all synced) instead of a dead end.
+              if (reason == ActiveRoundUnavailable.completed) {
+                _openSummaryOnce();
+              }
+              return Column(children: [
+                // Headerless deck, but an empty state still needs a way out.
+                AppBar(backgroundColor: Colors.transparent),
+                Expanded(
+                  child: _Unavailable(
+                    reason: reason,
+                    joinRound: s.joinRound,
+                    joinTable: s.joinTable,
+                  ),
+                ),
+              ]);
             }
 
             // First paint of a round (or when the admin advances): pull the
@@ -442,8 +451,10 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
 /// state rather than an error.
 class _Unavailable extends StatelessWidget {
   final ActiveRoundUnavailable reason;
+  final int? joinRound;
+  final int? joinTable;
 
-  const _Unavailable({required this.reason});
+  const _Unavailable({required this.reason, this.joinRound, this.joinTable});
 
   @override
   Widget build(BuildContext context) {
@@ -469,6 +480,12 @@ class _Unavailable extends StatelessWidget {
           Icons.table_restaurant_outlined,
           'No table this round',
           'No seat is assigned to you for this round. Please tell the admin.',
+        ),
+      ActiveRoundUnavailable.joinsLater => (
+          Icons.event_seat_outlined,
+          "You're in from round ${joinRound ?? ''}",
+          'Your seat is at Table ${joinTable ?? ''} when round ${joinRound ?? ''} '
+              'starts. This screen switches to your table automatically.',
         ),
       ActiveRoundUnavailable.missingRoundStart => (
           Icons.timer_off_outlined,

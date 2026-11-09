@@ -8,6 +8,7 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'walk_in_action.dart';
 
 /// One conclave: what it is, where, when, and the one thing you can do about it.
 class ConclaveDetailScreen extends ConsumerWidget {
@@ -316,6 +317,13 @@ class _Action extends StatelessWidget {
           label: const Text('View my summary'),
         ),
       );
+    }
+
+    // Late arrivals: the conclave is under way and they aren't seated yet.
+    if (conclave.effectiveStatus == ConclaveStatus.running &&
+        !conclave.isRegistered &&
+        (conclave.walkInStatus == 'pending' || conclave.walkInOpen)) {
+      return WalkInAction(conclave: conclave);
     }
 
     if (conclave.canRegister && !conclave.isRegistered) {

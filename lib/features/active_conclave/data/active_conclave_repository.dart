@@ -26,6 +26,9 @@ enum ActiveRoundUnavailable {
   /// Indicates a corrupt schedule; surfaced rather than silently swallowed.
   noTableThisRound,
 
+  /// A walk-in whose first round is still ahead.
+  joinsLater,
+
   /// Round is running but the backend never recorded a start time, so the
   /// countdown has no origin.
   missingRoundStart,
@@ -43,8 +46,16 @@ class ActiveRoundState {
   final ActiveRound? round;
   final ActiveRoundUnavailable? unavailable;
 
-  const ActiveRoundState.ready(this.round) : unavailable = null;
-  const ActiveRoundState.unavailable(this.unavailable) : round = null;
+  /// [ActiveRoundUnavailable.joinsLater]: the round and table they start at.
+  final int? joinRound;
+  final int? joinTable;
+
+  const ActiveRoundState.ready(this.round)
+      : unavailable = null,
+        joinRound = null,
+        joinTable = null;
+  const ActiveRoundState.unavailable(this.unavailable, {this.joinRound, this.joinTable})
+      : round = null;
 
   bool get isReady => round != null;
 }
@@ -74,6 +85,9 @@ final activeRoundProvider =
   ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
   return ref.watch(activeConclaveRepositoryProvider).watchActiveRound(conclaveId);
 });
+
+/// How long "That's a wrap" stays up after the last round before the summary.
+const wrapCooldown = Duration(seconds: 15);
 
 class ActiveConclaveRepository {
   final FirebaseAuth _auth;
@@ -184,9 +198,28 @@ class ActiveConclaveRepository {
     final roundStart = live.roundStart!;
     final frozenAt = clock.paused ? clock.clockNow(now) : null;
 
+    // After the last round: "That's a wrap" for a short cool-down, then the
+    // conclave is over for this phone — it moves on to the summary without
+    // waiting for the server to mark it completed (works offline too). The
+    // server uses the same grace (autocomplete.service FINISH_GRACE_MS).
+    if (currentRound >= totalRounds &&
+        !clock.paused &&
+        !clock.clockNow(now)
+            .isBefore(roundStart.add(timing.active + wrapCooldown))) {
+      return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
+    }
+
     final round = schedule.round(currentRound);
     final table = round?.tableFor(me.participantId);
     if (round == null || table == null) {
+      // A walk-in seated from a later round: tell them when and where.
+      for (var r = currentRound + 1; r <= totalRounds; r++) {
+        final later = schedule.round(r)?.tableFor(me.participantId);
+        if (later != null) {
+          return ActiveRoundState.unavailable(ActiveRoundUnavailable.joinsLater,
+              joinRound: r, joinTable: later.tableNumber);
+        }
+      }
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.noTableThisRound);
     }
 
@@ -207,15 +240,42 @@ class ActiveConclaveRepository {
     }
     metBefore.remove(me.participantId);
 
-    TableSeat seatFor(int pid, ScheduleTable t) {
+    // Captain modes: a captainless conclave takes no attendance; otherwise the
+    // admin may mark a stand-in captain per round and table.
+    final captainless = data['captainMode'] == 'none';
+    final standIns = data['standInCaptains'] is Map
+        ? Map<String, dynamic>.from(data['standInCaptains'] as Map)
+        : const <String, dynamic>{};
+    String? standInFor(int roundNumber, int tableNumber) {
+      final r = standIns['$roundNumber'];
+      final uid = r is Map ? r['$tableNumber'] : null;
+      return uid is String && uid.isNotEmpty ? uid : null;
+    }
+
+    /// Whether [pid] captains table [t] in [roundNumber] (stand-in wins).
+    bool captains(int pid, ScheduleTable t, int roundNumber) {
+      if (captainless) return false;
+      final standIn = standInFor(roundNumber, t.tableNumber);
+      if (standIn != null &&
+          t.occupantIds.any((o) => schedule.byParticipantId[o]?.uid == standIn)) {
+        return schedule.byParticipantId[pid]?.uid == standIn;
+      }
+      return t.captainId == pid;
+    }
+
+    TableSeat seatFor(int pid, ScheduleTable t, int roundNumber) {
       final p = schedule.byParticipantId[pid]!;
+      final standIn = standInFor(roundNumber, t.tableNumber);
       return TableSeat(
         userId: p.uid,
         participantId: p.participantId,
         name: p.name,
         businessName: p.businessName,
         category: p.businessCategory,
+        // The speaking order and badge follow the fixed anchor so a stand-in
+        // marked mid-round never reshuffles who speaks when.
         isCaptain: pid == t.captainId,
+        isStandIn: standIn != null && standIn == p.uid && pid != t.captainId,
         isSelf: pid == me.participantId,
         metBefore: metBefore.contains(pid),
         photoUrl: p.photoUrl,
@@ -225,7 +285,7 @@ class ActiveConclaveRepository {
     // Occupants come back captain-first, which is the order we want on screen.
     final seats = <TableSeat>[
       for (final pid in table.occupantIds)
-        if (schedule.byParticipantId[pid] != null) seatFor(pid, table),
+        if (schedule.byParticipantId[pid] != null) seatFor(pid, table, currentRound),
     ];
 
     // The incoming group at the user's next table — for the "Upcoming table"
@@ -236,7 +296,7 @@ class ActiveConclaveRepository {
       if (nextTable != null) {
         for (final pid in nextTable.occupantIds) {
           if (schedule.byParticipantId[pid] != null) {
-            upcomingSeats.add(seatFor(pid, nextTable));
+            upcomingSeats.add(seatFor(pid, nextTable, currentRound + 1));
           }
         }
       }
@@ -254,9 +314,15 @@ class ActiveConclaveRepository {
         timing: timing,
         seats: seats,
         upcomingSeats: upcomingSeats,
-        // Role comes from the schedule itself, not from a hardcoded flag: the
-        // user is a captain exactly when they anchor this table.
-        isCaptain: table.captainId == me.participantId,
+        // Role comes from the schedule (and any stand-in the admin marked), not
+        // from a hardcoded flag.
+        isCaptain: captains(me.participantId, table, currentRound),
+        attendanceEnabled: !captainless,
+        canScanArrivals: () {
+          if (currentRound >= totalRounds) return false;
+          final next = schedule.round(currentRound + 1)?.tableFor(me.participantId);
+          return next != null && captains(me.participantId, next, currentRound + 1);
+        }(),
         currentUserId: me.uid,
         currentParticipantId: me.participantId,
       ),
