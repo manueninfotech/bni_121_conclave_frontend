@@ -8,6 +8,7 @@ import 'move_view.dart';
 import 'person_card.dart';
 import 'referral_sheet.dart';
 import 'round_timer.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The live round as a swipeable stack of table cards — one per person — with a
 /// glanceable top strip, a "right now" band and an "up next" speaking strip.
@@ -49,15 +50,17 @@ class RoundDeckView extends StatefulWidget {
 }
 
 class _RoundDeckViewState extends State<RoundDeckView> {
-  final PageController _pc = PageController(viewportFraction: 0.9);
+  final PageController _pc = PageController(viewportFraction: 0.86);
   int _page = 0;
   int? _lastSpeakerId;
   DateTime _lastManualSwipe = DateTime.fromMillisecondsSinceEpoch(0);
   bool _animating = false;
 
   /// Live referred/noted state for an open referral sheet.
-  late final ValueNotifier<ReferralSheetState> _sheetState =
-      ValueNotifier((referred: widget.referred, noted: widget.noted));
+  late final ValueNotifier<ReferralSheetState> _sheetState = ValueNotifier((
+    referred: widget.referred,
+    noted: widget.noted,
+  ));
 
   @override
   void didUpdateWidget(covariant RoundDeckView old) {
@@ -114,8 +117,8 @@ class _RoundDeckViewState extends State<RoundDeckView> {
     // During the move window and the wait after it, the deck previews the NEXT
     // table's group (where the member is headed) instead of the group that just
     // finished.
-    final showUpcoming = (phase == RoundPhase.transition ||
-            phase == RoundPhase.ended) &&
+    final showUpcoming =
+        (phase == RoundPhase.transition || phase == RoundPhase.ended) &&
         round.nextTableNumber != null &&
         round.upcomingSeats.isNotEmpty;
     final seats = showUpcoming ? round.upcomingSeats : round.speakingOrder;
@@ -142,131 +145,159 @@ class _RoundDeckViewState extends State<RoundDeckView> {
           if (!mounted || !_pc.hasClients) return;
           _animating = true;
           _pc
-              .animateToPage(idx, duration: Motion.normal, curve: Curves.easeOut)
+              .animateToPage(
+                idx,
+                duration: Motion.normal,
+                curve: Curves.easeOut,
+              )
               .whenComplete(() => _animating = false);
         });
       }
     }
 
-    return _handOff('deck', DecoratedBox(
-      decoration: BoxDecoration(color: context.scheme.surface),
-      child: SafeArea(
-        child: Column(
-          children: [
-            DeckHeader(
-              round: round,
-              vm: vm,
-              showUpcoming: showUpcoming,
-              paused: paused,
-              progress: _roundProgress(round, now),
-              pendingSync: widget.pendingSync,
-              onSync: widget.onSync,
-            ),
-            Expanded(
-              child: PageView.builder(
-                controller: _pc,
-                onPageChanged: (i) {
-                  if (!_animating) _lastManualSwipe = DateTime.now();
-                  setState(() => _page = i);
-                },
-                itemCount: seats.length,
-                itemBuilder: (context, i) {
-                  final seat = seats[i];
-                  final isSpeaker = currentTurn != null &&
-                      currentTurn.speaker.participantId == seat.participantId;
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
-                    child: PersonCard(
-                      round: round,
-                      seat: seat,
-                      isSpeaker: isSpeaker,
-                      turn: isSpeaker ? currentTurn : null,
-                      now: now,
-                      preview: showUpcoming,
-                      paused: paused,
-                      attendance: (round.isCaptain || seat.isSelf)
-                          ? widget.attendance[seat.userId]
-                          : null,
-                      // Everyone may mark themselves present; marking others
-                      // (scanning) is the captain's job, so not in a
-                      // captainless conclave.
-                      canMark: !showUpcoming &&
-                          canRecord &&
-                          (seat.isSelf ||
-                              (round.isCaptain && round.attendanceEnabled)),
-                      canRefer: !showUpcoming &&
-                          referralOpen &&
-                          !seat.isSelf &&
-                          !widget.referred.contains(seat.userId),
-                      // Notes belong to the referral slot only — a note IS a
-                      // referral lead, so it's hidden during the bios.
-                      canNote: !showUpcoming && referralOpen && !seat.isSelf,
-                      alreadyReferred: widget.referred.contains(seat.userId),
-                      hasNote: widget.noted.contains(seat.userId),
-                      onAttendance: (p) => widget.onAttendance(seat, p),
-                      onRefer: () => widget.onRefer(seat),
-                      onAddNote: () => widget.onAddNote(seat),
-                    ),
-                  );
-                },
+    return _handOff(
+      'deck',
+      DecoratedBox(
+        decoration: BoxDecoration(color: context.scheme.surface),
+        child: SafeArea(
+          child: Column(
+            children: [
+              DeckHeader(
+                round: round,
+                vm: vm,
+                showUpcoming: showUpcoming,
+                paused: paused,
+                progress: _roundProgress(round, now),
+                pendingSync: widget.pendingSync,
+                onSync: widget.onSync,
               ),
-            ),
-            if (seats.length > 1) DeckDots(count: seats.length, index: page),
-            // The light chrome: white panels on the page, red kept for the
-            // card and the primary action. SafeArea already clears the home
-            // indicator, so no extra bottom inset here.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.md, Gap.lg, Gap.sm),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // "Right now" guidance — hidden while paused: the header chip
-                  // already says so, and a frozen round has no next action.
-                  if (!paused) NowBand(vm: vm),
-                  // Referral phase: one tap opens everyone at the table to
-                  // refer — no swiping to find a card.
-                  if (referralOpen && !showUpcoming && !paused) ...[
-                    const SizedBox(height: Gap.sm),
-                    _PrimaryAction(
-                      icon: Icons.handshake_outlined,
-                      label: 'Give a referral',
-                      onPressed: _openReferralSheet,
-                    ),
-                  ],
-                  if (!showUpcoming && round.speakingOrder.length > 1) ...[
-                    const SizedBox(height: Gap.sm),
-                    SpeakingOrderPanel(
-                      order: round.speakingOrder,
-                      currentTurn: currentTurn,
-                      now: now,
-                      passComplete: currentTurn == null,
-                      selectedId:
-                          seats.isEmpty ? null : seats[page].participantId,
-                      onJump: (pid) {
-                        final idx =
-                            seats.indexWhere((s) => s.participantId == pid);
-                        if (idx >= 0) {
-                          _pc.animateToPage(idx,
-                              duration: Motion.normal, curve: Curves.easeOut);
-                        }
-                      },
-                    ),
-                  ],
-                  if (round.isCaptain) ...[
-                    const SizedBox(height: Gap.sm),
-                    _PrimaryAction(
-                      icon: Icons.qr_code_scanner,
-                      label: canRecord ? 'Scan members' : 'Scanning closed',
-                      onPressed: canRecord ? widget.onScan : null,
-                    ),
-                  ],
-                ],
+              Expanded(
+                child: PageView.builder(
+                  controller: _pc,
+                  onPageChanged: (i) {
+                    if (!_animating) _lastManualSwipe = DateTime.now();
+                    setState(() => _page = i);
+                  },
+                  itemCount: seats.length,
+                  itemBuilder: (context, i) {
+                    final seat = seats[i];
+                    final isSpeaker =
+                        currentTurn != null &&
+                        currentTurn.speaker.participantId == seat.participantId;
+                    // A touch smaller than the full slot so the card reads
+                    // lighter on the page (testers: "too big, too heavy").
+                    return FractionallySizedBox(
+                      heightFactor: 0.92,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
+                        child: PersonCard(
+                          round: round,
+                          seat: seat,
+                          isSpeaker: isSpeaker,
+                          turn: isSpeaker ? currentTurn : null,
+                          now: now,
+                          preview: showUpcoming,
+                          paused: paused,
+                          attendance: (round.isCaptain || seat.isSelf)
+                              ? widget.attendance[seat.userId]
+                              : null,
+                          // Everyone may mark themselves present; marking others
+                          // (scanning) is the captain's job, so not in a
+                          // captainless conclave.
+                          canMark:
+                              !showUpcoming &&
+                              canRecord &&
+                              (seat.isSelf ||
+                                  (round.isCaptain && round.attendanceEnabled)),
+                          canRefer:
+                              !showUpcoming &&
+                              referralOpen &&
+                              !seat.isSelf &&
+                              !widget.referred.contains(seat.userId),
+                          // Notes belong to the referral slot only — a note IS a
+                          // referral lead, so it's hidden during the bios.
+                          canNote:
+                              !showUpcoming && referralOpen && !seat.isSelf,
+                          alreadyReferred: widget.referred.contains(
+                            seat.userId,
+                          ),
+                          hasNote: widget.noted.contains(seat.userId),
+                          onAttendance: (p) => widget.onAttendance(seat, p),
+                          onRefer: () => widget.onRefer(seat),
+                          onAddNote: () => widget.onAddNote(seat),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+              if (seats.length > 1) DeckDots(count: seats.length, index: page),
+              // The light chrome: white panels on the page, red kept for the
+              // card and the primary action. SafeArea already clears the home
+              // indicator, so no extra bottom inset here.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Gap.lg,
+                  Gap.md,
+                  Gap.lg,
+                  Gap.sm,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // "Right now" guidance — hidden while paused: the header chip
+                    // already says so, and a frozen round has no next action.
+                    if (!paused) NowBand(vm: vm),
+                    // Referral phase: one tap opens everyone at the table to
+                    // refer — no swiping to find a card.
+                    if (referralOpen && !showUpcoming && !paused) ...[
+                      const SizedBox(height: Gap.sm),
+                      _PrimaryAction(
+                        icon: CoolIcons.handshake,
+                        label: 'Give a referral',
+                        onPressed: _openReferralSheet,
+                      ),
+                    ],
+                    if (!showUpcoming && round.speakingOrder.length > 1) ...[
+                      const SizedBox(height: Gap.sm),
+                      SpeakingOrderPanel(
+                        order: round.speakingOrder,
+                        currentTurn: currentTurn,
+                        now: now,
+                        passComplete: currentTurn == null,
+                        selectedId: seats.isEmpty
+                            ? null
+                            : seats[page].participantId,
+                        onJump: (pid) {
+                          final idx = seats.indexWhere(
+                            (s) => s.participantId == pid,
+                          );
+                          if (idx >= 0) {
+                            _pc.animateToPage(
+                              idx,
+                              duration: Motion.normal,
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                    if (round.isCaptain) ...[
+                      const SizedBox(height: Gap.sm),
+                      _PrimaryAction(
+                        icon: CoolIcons.scan,
+                        label: canRecord ? 'Scan members' : 'Scanning closed',
+                        onPressed: canRecord ? widget.onScan : null,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   /// 0..1 through the round's talking time (bios + referrals + any extension).
@@ -316,7 +347,9 @@ class _PrimaryAction extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: kDeckBottom,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
         ),
         icon: Icon(icon, size: 20),

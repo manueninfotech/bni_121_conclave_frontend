@@ -8,6 +8,7 @@ import 'animated_countdown.dart';
 import 'card_backdrop.dart';
 import 'round_avatar.dart';
 import 'round_timer.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The full-screen move window between rounds — one job, said once.
 ///
@@ -40,7 +41,8 @@ class MoveView extends StatelessWidget {
     // Transition = walking with a countdown; ended (manual mode) = waiting for
     // the organiser to start the next round.
     // No walking after the last round — nobody is moving anywhere.
-    final walking = next != null &&
+    final walking =
+        next != null &&
         vm.phase == RoundPhase.transition &&
         vm.remaining > Duration.zero;
 
@@ -48,10 +50,7 @@ class MoveView extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         // Same flowing silk as the cards, in its faster "move" look.
-        CardBackdrop(
-          mood: paused ? CardMood.paused : CardMood.move,
-          seed: 3.1,
-        ),
+        CardBackdrop(mood: paused ? CardMood.paused : CardMood.move, seed: 3.1),
         SafeArea(
           child: Padding(
             // SafeArea already clears the home indicator.
@@ -86,9 +85,11 @@ class MoveView extends StatelessWidget {
       _Kicker('MOVE TO'),
       _BigTable(next),
       const SizedBox(height: Gap.xs),
-      _Sub(walking
-          ? 'Head over now — Round ${round.roundNumber + 1} starts soon.'
-          : 'Take your seat — the organiser will start Round ${round.roundNumber + 1}.'),
+      _Sub(
+        walking
+            ? 'Head over now — Round ${round.roundNumber + 1} starts soon.'
+            : 'Take your seat — the organiser will start Round ${round.roundNumber + 1}.',
+      ),
       if (group.isNotEmpty) ...[
         const SizedBox(height: Gap.lg),
         _ArrivingRow(seats: group),
@@ -119,7 +120,11 @@ class MoveView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  QrImageView(data: payload, size: 200, backgroundColor: Colors.white),
+                  QrImageView(
+                    data: payload,
+                    size: 200,
+                    backgroundColor: Colors.white,
+                  ),
                   const SizedBox(height: Gap.sm),
                   Text(
                     'Show this to the captain at Table $next',
@@ -144,9 +149,11 @@ class MoveView extends StatelessWidget {
       _Kicker(staying ? 'STAY AT' : 'MOVE TO'),
       _BigTable(next),
       const SizedBox(height: Gap.xs),
-      _Sub(staying
-          ? 'Your next group is arriving'
-          : "You're captain there next round — scan everyone in"),
+      _Sub(
+        staying
+            ? 'Your next group is arriving'
+            : "You're captain there next round — scan everyone in",
+      ),
       const SizedBox(height: Gap.xl),
       _ArrivingRow(seats: arriving),
       const SizedBox(height: Gap.md),
@@ -159,10 +166,11 @@ class MoveView extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: Colors.white,
             foregroundColor: kDeckBottom,
-            textStyle:
-                context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            textStyle: context.text.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
-          icon: const Icon(Icons.qr_code_scanner, size: 24),
+          icon: const Icon(CoolIcons.scan, size: 24),
           label: const Text('Start scanning'),
         ),
       ),
@@ -170,17 +178,19 @@ class MoveView extends StatelessWidget {
   }
 
   List<Widget> _wrap(BuildContext context) => [
-        _Kicker('THAT WAS THE LAST ROUND'),
-        Text(
-          "That's a wrap",
-          textAlign: TextAlign.center,
-          style: context.text.displaySmall
-              ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: Gap.xs),
-        _Sub('Your summary opens as soon as the conclave closes.'),
-        const Spacer(flex: 3),
-      ];
+    _Kicker('THAT WAS THE LAST ROUND'),
+    Text(
+      "That's a wrap",
+      textAlign: TextAlign.center,
+      style: context.text.displaySmall?.copyWith(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+      ),
+    ),
+    const SizedBox(height: Gap.xs),
+    _Sub('Your summary opens as soon as the conclave closes.'),
+    const Spacer(flex: 3),
+  ];
 }
 
 class _TopBar extends StatelessWidget {
@@ -206,11 +216,14 @@ class _TopBar extends StatelessWidget {
     );
     Widget? status;
     if (paused) {
-      status = _pill(Icons.pause_rounded, Text('Paused', style: style),
-          key: const ValueKey('paused'));
+      status = _pill(
+        CoolIcons.pauseFill,
+        Text('Paused', style: style),
+        key: const ValueKey('paused'),
+      );
     } else if (walking) {
       status = _pill(
-        Icons.directions_walk,
+        CoolIcons.route,
         AnimatedCountdown(remaining: vm.remaining, style: style),
         key: const ValueKey('walk'),
       );
@@ -243,11 +256,14 @@ class _TopBar extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: Colors.white, size: 18),
-        const SizedBox(width: 6),
-        label,
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 6),
+          label,
+        ],
+      ),
     );
   }
 }
@@ -257,14 +273,14 @@ class _Kicker extends StatelessWidget {
   const _Kicker(this.text);
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        textAlign: TextAlign.center,
-        style: context.text.labelLarge?.copyWith(
-          color: Colors.white70,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 2,
-        ),
-      );
+    text,
+    textAlign: TextAlign.center,
+    style: context.text.labelLarge?.copyWith(
+      color: Colors.white70,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 2,
+    ),
+  );
 }
 
 class _BigTable extends StatelessWidget {
@@ -272,14 +288,14 @@ class _BigTable extends StatelessWidget {
   const _BigTable(this.table);
   @override
   Widget build(BuildContext context) => Text(
-        'Table $table',
-        textAlign: TextAlign.center,
-        style: context.text.displayLarge?.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w900,
-          height: 1.05,
-        ),
-      );
+    'Table $table',
+    textAlign: TextAlign.center,
+    style: context.text.displayLarge?.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w900,
+      height: 1.05,
+    ),
+  );
 }
 
 class _Sub extends StatelessWidget {
@@ -287,10 +303,10 @@ class _Sub extends StatelessWidget {
   const _Sub(this.text);
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        textAlign: TextAlign.center,
-        style: context.text.bodyLarge?.copyWith(color: Colors.white),
-      );
+    text,
+    textAlign: TextAlign.center,
+    style: context.text.bodyLarge?.copyWith(color: Colors.white),
+  );
 }
 
 /// The incoming group, arriving one after another.
@@ -328,7 +344,8 @@ class _ArrivingRowState extends State<_ArrivingRow>
             builder: (context, child) {
               final start = n <= 1 ? 0.0 : (i / n) * 0.6;
               final p = Curves.easeOutBack.transform(
-                  ((_c.value - start) / 0.4).clamp(0.0, 1.0));
+                ((_c.value - start) / 0.4).clamp(0.0, 1.0),
+              );
               return Opacity(
                 opacity: p.clamp(0.0, 1.0),
                 child: Transform.translate(
@@ -352,34 +369,41 @@ class _Arrival extends StatelessWidget {
     final first = seat.name.split(' ').first;
     return SizedBox(
       width: 64,
-      child: Column(children: [
-        Container(
-          width: 56,
-          height: 56,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            border: Border.all(color: Colors.white, width: 2),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            alignment: Alignment.center,
+            child: seat.photoUrl != null
+                ? Image.network(
+                    seat.photoUrl!,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        roundInitialAvatarText(context, seat),
+                  )
+                : roundInitialAvatarText(context, seat),
           ),
-          alignment: Alignment.center,
-          child: seat.photoUrl != null
-              ? Image.network(seat.photoUrl!,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => roundInitialAvatarText(context, seat))
-              : roundInitialAvatarText(context, seat),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          first,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.text.labelMedium
-              ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-      ]),
+          const SizedBox(height: 4),
+          Text(
+            first,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.labelMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -403,25 +427,30 @@ class _FirstSpeaker extends StatelessWidget {
           color: you ? Colors.white : Colors.white.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.record_voice_over_rounded,
-              size: 18, color: you ? kDeckBottom : Colors.white),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              you
-                  ? 'You speak first — be ready to start'
-                  : 'First to speak: ${first.name.split(' ').first}',
-              overflow: TextOverflow.ellipsis,
-              style: context.text.labelLarge?.copyWith(
-                color: you ? kDeckBottom : Colors.white,
-                fontWeight: FontWeight.w800,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              CoolIcons.userVoiceFill,
+              size: 18,
+              color: you ? kDeckBottom : Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                you
+                    ? 'You speak first — be ready to start'
+                    : 'First to speak: ${first.name.split(' ').first}',
+                overflow: TextOverflow.ellipsis,
+                style: context.text.labelLarge?.copyWith(
+                  color: you ? kDeckBottom : Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 }
-

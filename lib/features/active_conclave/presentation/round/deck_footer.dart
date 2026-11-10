@@ -4,6 +4,7 @@ import '../../../../core/theme/tokens.dart';
 import '../../domain/active_conclave_models.dart';
 import 'round_avatar.dart';
 import 'round_timer.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The shared "premium panel" surface for the light chrome: a white card with a
 /// soft, low shadow instead of flat grey fills.
@@ -144,7 +145,9 @@ class SpeakingOrderPanel extends StatelessWidget {
     final turn = currentTurn;
     final currentIdx = turn == null
         ? -1
-        : order.indexWhere((s) => s.participantId == turn.speaker.participantId);
+        : order.indexWhere(
+            (s) => s.participantId == turn.speaker.participantId,
+          );
     final referral = turn?.kind == TurnKind.referral;
     final title = referral ? 'REFERRALS' : 'SPEAKING ORDER';
     final count = currentIdx >= 0
@@ -159,18 +162,26 @@ class SpeakingOrderPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Text(title,
+          Row(
+            children: [
+              Text(
+                title,
                 style: context.text.labelSmall?.copyWith(
                   color: muted,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
-                )),
-            const Spacer(),
-            Text(count,
-                style: context.text.labelMedium
-                    ?.copyWith(color: muted, fontWeight: FontWeight.w600)),
-          ]),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                count,
+                style: context.text.labelMedium?.copyWith(
+                  color: muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: Gap.sm),
           SizedBox(
             height: 70,
@@ -229,88 +240,98 @@ class _OrderAvatar extends StatelessWidget {
     const size = 44.0;
     return SizedBox(
       width: 52,
-      child: Column(children: [
-        AnimatedOpacity(
-          duration: const Duration(milliseconds: 400),
-          opacity: done && !speaking ? 0.45 : 1,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                if (progress != null)
-                  SizedBox(
-                    width: size,
-                    height: size,
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(end: progress!),
-                      duration: const Duration(milliseconds: 900),
-                      builder: (context, v, _) => CircularProgressIndicator(
-                        value: v,
-                        strokeWidth: 2.5,
-                        backgroundColor:
-                            context.scheme.outlineVariant.withValues(alpha: 0.5),
-                        valueColor: AlwaysStoppedAnimation(ink),
+      child: Column(
+        children: [
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 400),
+            opacity: done && !speaking ? 0.45 : 1,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  if (progress != null)
+                    SizedBox(
+                      width: size,
+                      height: size,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(end: progress!),
+                        duration: const Duration(milliseconds: 900),
+                        builder: (context, v, _) => CircularProgressIndicator(
+                          value: v,
+                          strokeWidth: 2.5,
+                          backgroundColor: context.scheme.outlineVariant
+                              .withValues(alpha: 0.5),
+                          valueColor: AlwaysStoppedAnimation(ink),
+                        ),
                       ),
                     ),
-                  ),
-                Container(
-                  width: progress != null ? size - 8 : size,
-                  height: progress != null ? size - 8 : size,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: context.scheme.surfaceContainerHighest,
-                    border: selected && !speaking
-                        ? Border.all(color: ink, width: 1.5)
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: seat.photoUrl != null
-                      ? Image.network(seat.photoUrl!,
-                          fit: BoxFit.cover,
-                          width: size,
-                          height: size,
-                          errorBuilder: (_, _, _) =>
-                              roundInitialAvatarText(context, seat))
-                      : roundInitialAvatarText(context, seat),
-                ),
-                if (seat.isCaptain)
-                  Positioned(
-                    right: -3,
-                    top: -3,
-                    child: _Badge(
-                      color: context.scheme.surfaceContainerLowest,
-                      child: const Icon(Icons.workspace_premium_rounded,
-                          size: 13, color: Color(0xFFE0A200)),
+                  Container(
+                    width: progress != null ? size - 8 : size,
+                    height: progress != null ? size - 8 : size,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: context.scheme.surfaceContainerHighest,
+                      border: selected && !speaking
+                          ? Border.all(color: ink, width: 1.5)
+                          : null,
                     ),
+                    alignment: Alignment.center,
+                    child: seat.photoUrl != null
+                        ? Image.network(
+                            seat.photoUrl!,
+                            fit: BoxFit.cover,
+                            width: size,
+                            height: size,
+                            errorBuilder: (_, _, _) =>
+                                roundInitialAvatarText(context, seat),
+                          )
+                        : roundInitialAvatarText(context, seat),
                   ),
-                if (done && !speaking)
-                  Positioned(
-                    right: -3,
-                    bottom: -3,
-                    child: _Badge(
-                      color: ink,
-                      child: Icon(Icons.check_rounded,
-                          size: 11, color: context.scheme.surface),
+                  if (seat.isCaptain)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: _Badge(
+                        color: context.scheme.surfaceContainerLowest,
+                        child: const Icon(
+                          CoolIcons.crownFill,
+                          size: 13,
+                          color: Color(0xFFE0A200),
+                        ),
+                      ),
                     ),
-                  ),
-              ],
+                  if (done && !speaking)
+                    Positioned(
+                      right: -3,
+                      bottom: -3,
+                      child: _Badge(
+                        color: ink,
+                        child: Icon(
+                          CoolIcons.check,
+                          size: 11,
+                          color: context.scheme.surface,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          maxLines: 1,
-          style: context.text.labelSmall?.copyWith(
-            color: speaking ? ink : context.scheme.onSurfaceVariant,
-            fontWeight: speaking ? FontWeight.w800 : FontWeight.w500,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            style: context.text.labelSmall?.copyWith(
+              color: speaking ? ink : context.scheme.onSurfaceVariant,
+              fontWeight: speaking ? FontWeight.w800 : FontWeight.w500,
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -321,8 +342,8 @@ class _Badge extends StatelessWidget {
   const _Badge({required this.color, required this.child});
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: child,
-      );
+    padding: const EdgeInsets.all(2),
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    child: child,
+  );
 }

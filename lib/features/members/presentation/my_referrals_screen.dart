@@ -9,6 +9,7 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/my_referrals_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// This member's referrals across every conclave — who they referred, and who
 /// referred them, plus what came of each (accepted / closed / didn't work out).
@@ -31,19 +32,19 @@ class MyReferralsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.handshake_outlined),
+              leading: const Icon(CoolIcons.handshake),
               title: const Text('Accepted'),
               subtitle: const Text("You've picked up the lead"),
               onTap: () => Navigator.pop(ctx, ReferralOutcome.accepted),
             ),
             ListTile(
-              leading: Icon(Icons.verified_rounded, color: ctx.colors.success),
+              leading: Icon(CoolIcons.wavyCheckFill, color: ctx.colors.success),
               title: const Text('Closed — won business'),
               subtitle: const Text('Record the value (TYFCB)'),
               onTap: () => Navigator.pop(ctx, ReferralOutcome.closed),
             ),
             ListTile(
-              leading: const Icon(Icons.cancel_outlined),
+              leading: const Icon(CoolIcons.circleClose),
               title: const Text("Didn't work out"),
               onTap: () => Navigator.pop(ctx, ReferralOutcome.notClosed),
             ),
@@ -66,7 +67,9 @@ class MyReferralsScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(myReferralsRepositoryProvider).updateOutcome(
+      await ref
+          .read(myReferralsRepositoryProvider)
+          .updateOutcome(
             conclaveId: e.conclaveId,
             referralId: e.id,
             outcome: choice,
@@ -77,17 +80,23 @@ class MyReferralsScreen extends ConsumerWidget {
       HapticFeedback.lightImpact();
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(choice == ReferralOutcome.closed
-              ? 'Marked closed — ${_rupees(amount)}. Nice work.'
-              : 'Updated to ${choice.label}.'),
-        ));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              choice == ReferralOutcome.closed
+                  ? 'Marked closed — ${_rupees(amount)}. Nice work.'
+                  : 'Updated to ${choice.label}.',
+            ),
+          ),
+        );
     } catch (err) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(err.toString().replaceFirst('Exception: ', '')),
-        ));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(err.toString().replaceFirst('Exception: ', '')),
+          ),
+        );
     }
   }
 
@@ -112,16 +121,14 @@ class MyReferralsScreen extends ConsumerWidget {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Value (₹)',
-                prefixIcon: Icon(Icons.currency_rupee_rounded),
+                prefixIcon: Icon(CoolIcons.currencyRupee),
               ),
             ),
             const SizedBox(height: Gap.md),
             TextField(
               controller: noteCtrl,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-              ),
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
             ),
           ],
         ),
@@ -152,7 +159,10 @@ class MyReferralsScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('My referrals'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'Given'), Tab(text: 'Received')],
+            tabs: [
+              Tab(text: 'Given'),
+              Tab(text: 'Received'),
+            ],
           ),
         ),
         body: referrals.when(
@@ -213,8 +223,8 @@ class _ReferralList extends StatelessWidget {
             SizedBox(height: MediaQuery.sizeOf(context).height * 0.15),
             EmptyView(
               icon: direction == _Direction.given
-                  ? Icons.north_east_rounded
-                  : Icons.south_west_rounded,
+                  ? CoolIcons.arrowUpRight
+                  : CoolIcons.arrowDownLeft,
               title: direction == _Direction.given
                   ? 'No referrals given yet'
                   : 'No referrals received yet',
@@ -285,13 +295,9 @@ class _SummaryStrip extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: Row(
         children: [
-          Expanded(
-            child: _stat(context, '$count', 'Referrals'),
-          ),
+          Expanded(child: _stat(context, '$count', 'Referrals')),
           const SizedBox(width: Gap.md),
-          Expanded(
-            child: _stat(context, rupees(closedTotal), label),
-          ),
+          Expanded(child: _stat(context, rupees(closedTotal), label)),
         ],
       ),
     );
@@ -313,8 +319,9 @@ class _SummaryStrip extends StatelessWidget {
             ),
             Text(
               label,
-              style: context.text.labelSmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant),
+              style: context.text.labelSmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -341,7 +348,9 @@ class _ReferralCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = entry.otherName.isEmpty ? 'A member' : entry.otherName;
-    final lead = direction == _Direction.given ? 'You referred' : 'Referred you';
+    final lead = direction == _Direction.given
+        ? 'You referred'
+        : 'Referred you';
 
     final meta = [
       if (entry.conclaveName.isNotEmpty) entry.conclaveName,
@@ -377,8 +386,9 @@ class _ReferralCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           name,
-                          style: context.text.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                          style: context.text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         if (entry.otherBusinessName.isNotEmpty)
                           Text(
@@ -401,8 +411,9 @@ class _ReferralCard extends StatelessWidget {
                 const SizedBox(height: Gap.sm),
                 Text(
                   meta,
-                  style: context.text.bodySmall
-                      ?.copyWith(color: context.scheme.onSurfaceVariant),
+                  style: context.text.bodySmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
               if (entry.notes.isNotEmpty) ...[
@@ -420,10 +431,12 @@ class _ReferralCard extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
                     onPressed: onUpdate,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: Text(entry.outcome == ReferralOutcome.open
-                        ? 'Update status'
-                        : 'Change status'),
+                    icon: const Icon(CoolIcons.pencil, size: 18),
+                    label: Text(
+                      entry.outcome == ReferralOutcome.open
+                          ? 'Update status'
+                          : 'Change status',
+                    ),
                   ),
                 ),
               ],
@@ -451,25 +464,25 @@ class _OutcomeChip extends StatelessWidget {
     final c = context.colors;
     final (bg, fg, text) = switch (outcome) {
       ReferralOutcome.open => (
-          context.scheme.surfaceContainerHighest,
-          context.scheme.onSurfaceVariant,
-          'Open',
-        ),
+        context.scheme.surfaceContainerHighest,
+        context.scheme.onSurfaceVariant,
+        'Open',
+      ),
       ReferralOutcome.accepted => (
-          c.infoContainer,
-          c.onInfoContainer,
-          'Accepted',
-        ),
+        c.infoContainer,
+        c.onInfoContainer,
+        'Accepted',
+      ),
       ReferralOutcome.closed => (
-          c.successContainer,
-          c.onSuccessContainer,
-          rupees(amount),
-        ),
+        c.successContainer,
+        c.onSuccessContainer,
+        rupees(amount),
+      ),
       ReferralOutcome.notClosed => (
-          context.scheme.surfaceContainerHighest,
-          context.scheme.onSurfaceVariant,
-          'Closed lost',
-        ),
+        context.scheme.surfaceContainerHighest,
+        context.scheme.onSurfaceVariant,
+        'Closed lost',
+      ),
     };
 
     return Container(
@@ -480,8 +493,10 @@ class _OutcomeChip extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: context.text.labelSmall
-            ?.copyWith(color: fg, fontWeight: FontWeight.w700),
+        style: context.text.labelSmall?.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

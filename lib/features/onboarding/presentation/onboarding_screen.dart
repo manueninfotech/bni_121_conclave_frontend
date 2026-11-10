@@ -7,6 +7,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/onboarding_service.dart';
 import 'onboarding_art.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The first-run tour.
 ///
@@ -35,25 +36,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _Slide(
       art: ScheduleArt(),
       title: 'Your seat, every round',
-      body: 'See exactly who you’re meeting and where to sit. Your schedule '
+      body:
+          'See exactly who you’re meeting and where to sit. Your schedule '
           'updates the moment a new round begins.',
     ),
     _Slide(
       art: ScanArt(),
       title: 'Attendance, signal or not',
-      body: 'Captains scan members in seconds. It works with no network and '
+      body:
+          'Captains scan members in seconds. It works with no network and '
           'syncs the instant you’re back online.',
     ),
     _Slide(
       art: ReferralArt(),
       title: 'Pass business in one tap',
-      body: 'Give a referral to anyone at your table with a single tap. Add a '
+      body:
+          'Give a referral to anyone at your table with a single tap. Add a '
           'note only if you want to.',
     ),
     _Slide(
       art: SummaryArt(),
       title: 'See what you built',
-      body: 'After the conclave, review every connection you made and every '
+      body:
+          'After the conclave, review every connection you made and every '
           'referral you gave or received.',
     ),
   ];
@@ -117,14 +122,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             children: [
               const Positioned.fill(child: _Backdrop()),
               // The crimson bloom drifts across the top as you swipe.
-              Positioned.fill(child: _Bloom(page: _page, count: _pages.length)),
+              Positioned.fill(
+                child: _Bloom(page: _page, count: _pages.length),
+              ),
               SafeArea(
                 child: Column(
                   children: [
-                    _TopBar(
-                      showSkip: !_onLast,
-                      onSkip: _finish,
-                    ),
+                    _TopBar(showSkip: !_onLast, onSkip: _finish),
                     Expanded(
                       child: PageView.builder(
                         controller: _controller,
@@ -153,8 +157,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             PrimaryButton(
                               label: _onLast ? 'Get started' : 'Next',
                               icon: _onLast
-                                  ? Icons.arrow_forward_rounded
-                                  : Icons.chevron_right_rounded,
+                                  ? CoolIcons.arrowRight
+                                  : CoolIcons.chevronRight,
                               onPressed: _next,
                             ),
                           ],

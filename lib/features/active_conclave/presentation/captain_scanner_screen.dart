@@ -9,6 +9,7 @@ import '../../../core/time/server_clock.dart';
 import '../data/local_db.dart';
 import '../domain/active_conclave_models.dart';
 import '../domain/attendance_qr.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Captain-facing scanner: point at each member's QR (badge or phone) to mark
 /// them present. Every record lands on this device, so the captain's roll is
@@ -32,7 +33,8 @@ class CaptainScannerScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CaptainScannerScreen> createState() => _CaptainScannerScreenState();
+  ConsumerState<CaptainScannerScreen> createState() =>
+      _CaptainScannerScreenState();
 }
 
 class _CaptainScannerScreenState extends ConsumerState<CaptainScannerScreen> {
@@ -79,7 +81,9 @@ class _CaptainScannerScreenState extends ConsumerState<CaptainScannerScreen> {
       }
 
       final seat = outcome.seat!;
-      await ref.read(localDbProvider).markAttendance(
+      await ref
+          .read(localDbProvider)
+          .markAttendance(
             conclaveId: widget.round.conclaveId,
             roundNumber: widget.round.roundNumber,
             tableNumber: widget.round.tableNumber,
@@ -158,7 +162,9 @@ class _CaptainScannerScreenState extends ConsumerState<CaptainScannerScreen> {
                         foregroundColor: Colors.black,
                       ),
                       child: Text(
-                        _scanned.isEmpty ? 'Close' : 'Done · ${_scanned.length} marked',
+                        _scanned.isEmpty
+                            ? 'Close'
+                            : 'Done · ${_scanned.length} marked',
                       ),
                     ),
                   ),
@@ -217,7 +223,10 @@ class _ScannerMask extends StatelessWidget {
             width: side,
             height: side,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withValues(alpha: 0.85), width: 2),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.85),
+                width: 2,
+              ),
               borderRadius: BorderRadius.circular(Radii.xl),
             ),
           ),
@@ -232,7 +241,11 @@ class _TopBar extends StatelessWidget {
   final bool torch;
   final VoidCallback onTorch;
 
-  const _TopBar({required this.round, required this.torch, required this.onTorch});
+  const _TopBar({
+    required this.round,
+    required this.torch,
+    required this.onTorch,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +255,7 @@ class _TopBar extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close_rounded),
+            icon: const Icon(CoolIcons.close),
             color: Colors.white,
             tooltip: 'Close scanner',
           ),
@@ -258,8 +271,9 @@ class _TopBar extends StatelessWidget {
                 ),
                 Text(
                   'Table ${round.tableNumber} · Round ${round.roundNumber}',
-                  style: context.text.labelSmall
-                      ?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+                  style: context.text.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
                 ),
               ],
             ),
@@ -268,7 +282,7 @@ class _TopBar extends StatelessWidget {
             onPressed: onTorch,
             // A venue hall is dim and a badge is often in shadow — the torch is
             // a primary control here, not a nicety.
-            icon: Icon(torch ? Icons.flashlight_on : Icons.flashlight_off),
+            icon: Icon(torch ? CoolIcons.zapFill : CoolIcons.zapOff),
             color: torch ? Colors.amber : Colors.white,
             tooltip: torch ? 'Turn torch off' : 'Turn torch on',
           ),
@@ -310,7 +324,7 @@ class _Feedback extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                isError ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+                isError ? CoolIcons.circleWarning : CoolIcons.circleCheckFill,
                 color: isError ? c.onDangerContainer : c.onSuccessContainer,
               ),
               const SizedBox(width: Gap.md),
@@ -363,8 +377,9 @@ class _Progress extends StatelessWidget {
               if (scanned.length == total && total > 0)
                 Text(
                   'All present',
-                  style: context.text.labelSmall
-                      ?.copyWith(color: context.colors.success),
+                  style: context.text.labelSmall?.copyWith(
+                    color: context.colors.success,
+                  ),
                 ),
             ],
           ),
@@ -372,7 +387,10 @@ class _Progress extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(Radii.pill),
             child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: total == 0 ? 0 : scanned.length / total),
+              tween: Tween(
+                begin: 0,
+                end: total == 0 ? 0 : scanned.length / total,
+              ),
               duration: Motion.normal,
               curve: Motion.curve,
               builder: (context, v, _) => LinearProgressIndicator(
@@ -387,8 +405,9 @@ class _Progress extends StatelessWidget {
             const SizedBox(height: Gap.md),
             Text(
               'Point the camera at a member\'s QR code.',
-              style: context.text.bodySmall
-                  ?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+              style: context.text.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
           ] else ...[
             const SizedBox(height: Gap.md),
@@ -401,7 +420,9 @@ class _Progress extends StatelessWidget {
                 for (final name in scanned.take(6))
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.md, vertical: Gap.xs),
+                      horizontal: Gap.md,
+                      vertical: Gap.xs,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(Radii.pill),
@@ -409,13 +430,17 @@ class _Progress extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_rounded,
-                            size: 13, color: context.colors.success),
+                        Icon(
+                          CoolIcons.check,
+                          size: 13,
+                          color: context.colors.success,
+                        ),
                         const SizedBox(width: Gap.xs),
                         Text(
                           name,
-                          style: context.text.labelSmall
-                              ?.copyWith(color: Colors.white),
+                          style: context.text.labelSmall?.copyWith(
+                            color: Colors.white,
+                          ),
                         ),
                       ],
                     ),

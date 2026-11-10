@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../domain/phone.dart';
 import '../theme/tokens.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// A phone input with a country picker.
 ///
@@ -100,7 +101,7 @@ class _CountryButton extends StatelessWidget {
               ),
             ),
             Icon(
-              Icons.arrow_drop_down_rounded,
+              CoolIcons.caretDownFill,
               size: 20,
               color: context.scheme.onSurfaceVariant,
             ),
@@ -136,11 +137,13 @@ class _CountrySheetState extends State<_CountrySheet> {
     final results = q.isEmpty
         ? countries
         : countries
-            .where((c) =>
-                c.name.toLowerCase().contains(q) ||
-                c.dial.contains(q) ||
-                c.code.toLowerCase() == q)
-            .toList();
+              .where(
+                (c) =>
+                    c.name.toLowerCase().contains(q) ||
+                    c.dial.contains(q) ||
+                    c.code.toLowerCase() == q,
+              )
+              .toList();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -156,7 +159,9 @@ class _CountrySheetState extends State<_CountrySheet> {
               children: [
                 Text(
                   'Country',
-                  style: ctx.text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: ctx.text.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: Gap.lg),
                 TextField(
@@ -164,7 +169,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                   onChanged: (v) => setState(() => _query = v),
                   decoration: const InputDecoration(
                     hintText: 'Search country or code',
-                    prefixIcon: Icon(Icons.search_rounded),
+                    prefixIcon: Icon(CoolIcons.search),
                   ),
                 ),
               ],
@@ -187,12 +192,16 @@ class _CountrySheetState extends State<_CountrySheet> {
                       final isSelected = c.code == widget.selected.code;
                       return ListTile(
                         onTap: () => Navigator.pop(context, c),
-                        leading: Text(c.flag, style: const TextStyle(fontSize: 26)),
+                        leading: Text(
+                          c.flag,
+                          style: const TextStyle(fontSize: 26),
+                        ),
                         title: Text(
                           c.name,
                           style: context.text.bodyLarge?.copyWith(
-                            fontWeight:
-                                isSelected ? FontWeight.w700 : FontWeight.w400,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w400,
                           ),
                         ),
                         trailing: Row(
@@ -206,8 +215,11 @@ class _CountrySheetState extends State<_CountrySheet> {
                             ),
                             if (isSelected) ...[
                               const SizedBox(width: Gap.sm),
-                              Icon(Icons.check_rounded,
-                                  size: 20, color: context.scheme.primary),
+                              Icon(
+                                CoolIcons.check,
+                                size: 20,
+                                color: context.scheme.primary,
+                              ),
                             ],
                           ],
                         ),
@@ -252,8 +264,8 @@ class MethodToggle extends StatelessWidget {
               child: _Segment(
                 label: m == LoginMethod.phone ? 'Phone' : 'Email',
                 icon: m == LoginMethod.phone
-                    ? Icons.phone_iphone_rounded
-                    : Icons.alternate_email_rounded,
+                    ? CoolIcons.mobile
+                    : CoolIcons.mention,
                 selected: value == m,
                 onTap: () => onChanged(m),
               ),
@@ -279,7 +291,9 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? context.scheme.surface : context.scheme.onSurfaceVariant;
+    final fg = selected
+        ? context.scheme.surface
+        : context.scheme.onSurfaceVariant;
 
     return GestureDetector(
       onTap: onTap,

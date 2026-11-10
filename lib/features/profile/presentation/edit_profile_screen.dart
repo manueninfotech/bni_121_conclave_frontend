@@ -14,6 +14,7 @@ import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/profile_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -66,20 +67,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
+              leading: const Icon(CoolIcons.camera),
               title: const Text('Take a photo'),
               onTap: () => Navigator.pop(ctx, _PhotoAction.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
+              leading: const Icon(CoolIcons.images),
               title: const Text('Choose from gallery'),
               onTap: () => Navigator.pop(ctx, _PhotoAction.gallery),
             ),
             if (hasPhoto)
               ListTile(
-                leading: Icon(Icons.delete_outline, color: ctx.scheme.error),
-                title: Text('Remove photo',
-                    style: TextStyle(color: ctx.scheme.error)),
+                leading: Icon(CoolIcons.trash, color: ctx.scheme.error),
+                title: Text(
+                  'Remove photo',
+                  style: TextStyle(color: ctx.scheme.error),
+                ),
                 onTap: () => Navigator.pop(ctx, _PhotoAction.remove),
               ),
           ],
@@ -114,11 +117,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text('Could not update your photo. ${e.toString()
-                .replaceFirst('Exception: ', '')}'),
-            backgroundColor: context.colors.danger,
-          ));
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                'Could not update your photo. ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
+              backgroundColor: context.colors.danger,
+            ),
+          );
       }
     } finally {
       if (mounted) setState(() => _photoBusy = false);
@@ -157,16 +163,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (_membership == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: const Text('Choose whether you are a BNI or Non-BNI member.'),
-          backgroundColor: context.colors.danger,
-        ));
+        ..showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Choose whether you are a BNI or Non-BNI member.',
+            ),
+            backgroundColor: context.colors.danger,
+          ),
+        );
       return;
     }
 
     setState(() => _saving = true);
     try {
-      await ref.read(profileRepositoryProvider).updateProfile(
+      await ref
+          .read(profileRepositoryProvider)
+          .updateProfile(
             name: _name.text,
             businessName: _businessName.text,
             businessCategory: _category!,
@@ -184,9 +196,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile updated.')));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -217,7 +229,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         data: (p) {
           if (p == null) {
             return const EmptyView(
-              icon: Icons.person_off_outlined,
+              icon: CoolIcons.userCloseCorner,
               title: 'Profile not found',
             );
           }
@@ -243,10 +255,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Full name',
-                      prefixIcon: Icon(Icons.person_outline),
+                      prefixIcon: Icon(CoolIcons.user),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Enter your name'
+                        : null,
                   ),
                   const SizedBox(height: Gap.lg),
 
@@ -262,7 +275,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email address',
-                      prefixIcon: Icon(Icons.alternate_email_rounded),
+                      prefixIcon: Icon(CoolIcons.mention),
                     ),
                     validator: (v) {
                       final s = v?.trim() ?? '';
@@ -280,7 +293,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Business name',
-                      prefixIcon: Icon(Icons.business_outlined),
+                      prefixIcon: Icon(CoolIcons.building2),
                     ),
                   ),
                   const SizedBox(height: Gap.lg),
@@ -297,7 +310,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     controller: _location,
                     decoration: const InputDecoration(
                       labelText: 'Location',
-                      prefixIcon: Icon(Icons.place_outlined),
+                      prefixIcon: Icon(CoolIcons.mapPin),
                       helperText: 'e.g. Guntur',
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
@@ -311,7 +324,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
                       labelText: 'Chapter (optional)',
-                      prefixIcon: Icon(Icons.groups_2_outlined),
+                      prefixIcon: Icon(CoolIcons.usersGroup),
                     ),
                   ),
                   const SizedBox(height: Gap.lg),
@@ -322,7 +335,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Region (optional)',
                       hintText: 'e.g. Guntur Region',
-                      prefixIcon: Icon(Icons.map_outlined),
+                      prefixIcon: Icon(CoolIcons.map),
                     ),
                   ),
                   const SizedBox(height: Gap.lg),
@@ -341,7 +354,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     decoration: const InputDecoration(
                       labelText: "What you're looking for (optional)",
                       hintText: 'e.g. Introductions to restaurant owners',
-                      prefixIcon: Icon(Icons.search_rounded),
+                      prefixIcon: Icon(CoolIcons.search),
                       helperText: 'Other members can find you by this',
                       helperMaxLines: 2,
                     ),
@@ -355,7 +368,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     decoration: const InputDecoration(
                       labelText: 'What you can offer (optional)',
                       hintText: 'e.g. Commercial interior fit-outs',
-                      prefixIcon: Icon(Icons.volunteer_activism_outlined),
+                      prefixIcon: Icon(CoolIcons.handCoins),
                     ),
                   ),
 
@@ -371,8 +384,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.info_outline,
-                              size: 20, color: context.colors.onInfoContainer),
+                          Icon(
+                            CoolIcons.circleInfo,
+                            size: 20,
+                            color: context.colors.onInfoContainer,
+                          ),
                           const SizedBox(width: Gap.md),
                           Expanded(
                             child: Text(
@@ -458,7 +474,7 @@ class _PhotoEditor extends StatelessWidget {
                   border: Border.all(color: scheme.surface, width: 2),
                 ),
                 child: Icon(
-                  Icons.photo_camera_rounded,
+                  CoolIcons.cameraFill,
                   size: 16,
                   color: scheme.onPrimary,
                 ),

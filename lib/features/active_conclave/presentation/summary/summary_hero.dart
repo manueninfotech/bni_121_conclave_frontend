@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../round/card_backdrop.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The top of the summary: the same silk as the live round, now settled, with
 /// the conclave's name and the shape of the day. The one red moment on the page.
@@ -43,31 +44,41 @@ class SummaryHero extends StatelessWidget {
           ),
           Padding(
             padding: EdgeInsets.fromLTRB(
-                Gap.sm, top + Gap.xs, Gap.sm, Gap.xl + overlap),
+              Gap.sm,
+              top + Gap.xs,
+              Gap.sm,
+              Gap.xl + overlap,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  IconButton(
-                    onPressed: onBack,
-                    tooltip: 'Back',
-                    icon: const Icon(Icons.arrow_back_rounded,
-                        color: Colors.white),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: syncing ? null : onSync,
-                    tooltip: 'Sync now',
-                    icon: syncing
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.sync_rounded, color: Colors.white),
-                  ),
-                ]),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: onBack,
+                      tooltip: 'Back',
+                      icon: const Icon(
+                        CoolIcons.arrowLeft,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: syncing ? null : onSync,
+                      tooltip: 'Sync now',
+                      icon: syncing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(CoolIcons.reload, color: Colors.white),
+                    ),
+                  ],
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                   child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 import 'app_spinner.dart';
 import 'illustrations.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The three states every async screen has, in one place.
 ///
@@ -45,7 +46,7 @@ class ErrorView extends StatelessWidget {
     required this.message,
     this.detail,
     this.onRetry,
-    this.icon = Icons.cloud_off_rounded,
+    this.icon = CoolIcons.cloudOff,
   });
 
   @override
@@ -85,7 +86,7 @@ class ErrorView extends StatelessWidget {
               const SizedBox(height: Gap.xl),
               FilledButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(CoolIcons.reload),
                 label: const Text('Try again'),
               ),
             ],
@@ -124,10 +125,13 @@ class EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            art ??
-                Icon(icon, size: 48, color: context.scheme.onSurfaceVariant),
+            art ?? Icon(icon, size: 48, color: context.scheme.onSurfaceVariant),
             const SizedBox(height: Gap.xl),
-            Text(title, textAlign: TextAlign.center, style: context.text.titleMedium),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: context.text.titleMedium,
+            ),
             if (message != null) ...[
               const SizedBox(height: Gap.sm),
               Text(
@@ -172,15 +176,31 @@ class StatusBadge extends StatelessWidget {
     final scheme = context.scheme;
 
     final (bg, fg, defaultIcon) = switch (tone) {
-      StatusTone.success => (c.successContainer, c.onSuccessContainer, Icons.check_circle_outline),
-      StatusTone.warning => (c.warningContainer, c.onWarningContainer, Icons.schedule),
-      StatusTone.danger => (c.dangerContainer, c.onDangerContainer, Icons.error_outline),
-      StatusTone.info => (c.infoContainer, c.onInfoContainer, Icons.info_outline),
+      StatusTone.success => (
+        c.successContainer,
+        c.onSuccessContainer,
+        CoolIcons.circleCheck,
+      ),
+      StatusTone.warning => (
+        c.warningContainer,
+        c.onWarningContainer,
+        CoolIcons.clock,
+      ),
+      StatusTone.danger => (
+        c.dangerContainer,
+        c.onDangerContainer,
+        CoolIcons.circleWarning,
+      ),
+      StatusTone.info => (
+        c.infoContainer,
+        c.onInfoContainer,
+        CoolIcons.circleInfo,
+      ),
       StatusTone.neutral => (
-          scheme.surfaceContainerHighest,
-          scheme.onSurfaceVariant,
-          Icons.circle_outlined,
-        ),
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        CoolIcons.circle,
+      ),
     };
 
     return Semantics(
@@ -241,7 +261,11 @@ class InfoRow extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Icon(icon, size: 18, color: context.scheme.onSurfaceVariant),
+              child: Icon(
+                icon,
+                size: 18,
+                color: context.scheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(width: Gap.md),
             Expanded(
@@ -285,7 +309,10 @@ class FadeSlideIn extends StatelessWidget {
       curve: Motion.curve,
       builder: (context, t, child) => Opacity(
         opacity: t.clamp(0, 1),
-        child: Transform.translate(offset: Offset(0, 12 * (1 - t)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
       ),
       child: child,
     );

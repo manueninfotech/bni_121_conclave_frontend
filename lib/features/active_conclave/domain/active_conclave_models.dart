@@ -287,6 +287,10 @@ class TableSeat {
   /// Profile photo, when the schedule carries one (#5/#6); else null → initials.
   final String? photoUrl;
 
+  /// Their Conclave Specific Ask — what they hope to get from this conclave,
+  /// shown to tablemates who might fulfil it. Null when they left it empty.
+  final String? ask;
+
   const TableSeat({
     required this.userId,
     required this.participantId,
@@ -298,6 +302,7 @@ class TableSeat {
     this.isStandIn = false,
     this.metBefore = false,
     this.photoUrl,
+    this.ask,
   });
 }
 

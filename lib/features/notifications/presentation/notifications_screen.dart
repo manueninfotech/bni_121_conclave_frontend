@@ -8,6 +8,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/notifications_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The notification hub: a history of everything the app has told this member,
 /// with an unread count that clears when they open it.
@@ -46,7 +47,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         data: (data) {
           if (data.items.isEmpty) {
             return const EmptyView(
-              icon: Icons.notifications_none_rounded,
+              icon: CoolIcons.bell,
               title: 'Nothing yet',
               message: 'Referrals, 1-2-1 requests and round alerts land here.',
             );
@@ -78,12 +79,11 @@ class _NotificationCard extends StatelessWidget {
   (IconData, Color) _icon(BuildContext context) {
     final c = context.colors;
     return switch (n.type) {
-      'referral_received' => (Icons.swap_horiz_rounded, c.success),
-      'one_to_one' || 'one_to_one_request' || 'one_to_one_reminder' => (
-          Icons.coffee_outlined,
-          context.scheme.primary,
-        ),
-      _ => (Icons.notifications_rounded, context.scheme.onSurfaceVariant),
+      'referral_received' => (CoolIcons.arrowLeftRight, c.success),
+      'one_to_one' ||
+      'one_to_one_request' ||
+      'one_to_one_reminder' => (CoolIcons.coffee, context.scheme.primary),
+      _ => (CoolIcons.bellFill, context.scheme.onSurfaceVariant),
     };
   }
 
@@ -96,7 +96,9 @@ class _NotificationCard extends StatelessWidget {
       index: index,
       child: Card(
         clipBehavior: Clip.antiAlias,
-        color: n.read ? null : context.colors.infoContainer.withValues(alpha: 0.4),
+        color: n.read
+            ? null
+            : context.colors.infoContainer.withValues(alpha: 0.4),
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: tint.withValues(alpha: 0.14),
@@ -115,8 +117,9 @@ class _NotificationCard extends StatelessWidget {
               if (when.isNotEmpty)
                 Text(
                   when,
-                  style: context.text.labelSmall
-                      ?.copyWith(color: context.scheme.onSurfaceVariant),
+                  style: context.text.labelSmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
                 ),
             ],
           ),

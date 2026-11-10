@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/json_cache.dart';
 import '../../../core/api/cached_stream.dart';
 import '../../../core/config/api_config.dart';
 
@@ -152,13 +153,23 @@ class ProfileRepository {
     void subscribe() {
       inner?.cancel();
       inner = cachedStream<UserProfile?>(
-        cacheKey: 'me-profile',
+        // Keyed by uid: one phone, two accounts must never share a profile.
+        cacheKey: 'me-profile:$uid',
         fetch: () async {
           try {
             return await ApiClient.instance.getJson('/me/profile');
           } on ApiException catch (e) {
-            if (e.status == 404) return null; // no profile yet
-            rethrow;
+            if (e.status != 404) rethrow;
+            // "No profile" means an unfinished registration — but only if this
+            // phone has NEVER loaded one for this account. Once it has, a 404
+            // is a server or routing hiccup: keep the profile we have instead
+            // of wiping it, which sent members mid-conclave to the sign-up
+            // screen and looked exactly like being logged out.
+            final known = await JsonCache.read('me-profile:$uid');
+            if (known is Map) {
+              throw Exception('Profile lookup failed (404); keeping the saved profile.');
+            }
+            return null;
           }
         },
         parse: (json) => json is Map ? UserProfile.fromMap(uid, Map<String, dynamic>.from(json)) : null,

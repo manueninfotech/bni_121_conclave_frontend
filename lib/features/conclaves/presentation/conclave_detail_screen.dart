@@ -8,7 +8,9 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'specific_ask_card.dart';
 import 'walk_in_action.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// One conclave: what it is, where, when, and the one thing you can do about it.
 class ConclaveDetailScreen extends ConsumerWidget {
@@ -34,13 +36,12 @@ class ConclaveDetailScreen extends ConsumerWidget {
           // The old code used `orElse: () => conclaves.first`, so a bad id
           // silently showed a DIFFERENT conclave — the user would be reading
           // someone else's event and never know.
-          final conclave =
-              all.where((c) => c.id == conclaveId).firstOrNull;
+          final conclave = all.where((c) => c.id == conclaveId).firstOrNull;
 
           if (conclave == null) {
             return _Shell(
               child: EmptyView(
-                icon: Icons.search_off_rounded,
+                icon: CoolIcons.searchClose,
                 title: 'Conclave not found',
                 message: 'It may have been cancelled or removed.',
                 action: FilledButton(
@@ -87,17 +88,39 @@ class _Detail extends StatelessWidget {
         conclave.effectiveStatus != ConclaveStatus.running &&
         conclave.effectiveStatus != ConclaveStatus.completed &&
         conclave.effectiveStatus != ConclaveStatus.cancelled) {
-      return ("You're registered", StatusTone.success, Icons.check_circle);
+      return (
+        "You're registered",
+        StatusTone.success,
+        CoolIcons.circleCheckFill,
+      );
     }
     return switch (conclave.effectiveStatus) {
-      ConclaveStatus.running => ('Live now', StatusTone.success, Icons.podcasts),
-      ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
-      ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
-      ConclaveStatus.registrationOpen =>
-        ('Registration open', StatusTone.info, Icons.how_to_reg),
-      ConclaveStatus.registrationNotOpen =>
-        ('Registration not open yet', StatusTone.warning, Icons.lock_clock),
-      _ => ('Upcoming', StatusTone.warning, Icons.schedule),
+      ConclaveStatus.running => (
+        'Live now',
+        StatusTone.success,
+        CoolIcons.broadcast,
+      ),
+      ConclaveStatus.completed => (
+        'Completed',
+        StatusTone.neutral,
+        CoolIcons.check,
+      ),
+      ConclaveStatus.cancelled => (
+        'Cancelled',
+        StatusTone.danger,
+        CoolIcons.close,
+      ),
+      ConclaveStatus.registrationOpen => (
+        'Registration open',
+        StatusTone.info,
+        CoolIcons.userCheckCorner,
+      ),
+      ConclaveStatus.registrationNotOpen => (
+        'Registration not open yet',
+        StatusTone.warning,
+        CoolIcons.lockKeyhole,
+      ),
+      _ => ('Upcoming', StatusTone.warning, CoolIcons.clock),
     };
   }
 
@@ -112,14 +135,13 @@ class _Detail extends StatelessWidget {
         SliverAppBar.large(
           title: Text(conclave.name),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(CoolIcons.arrowLeft),
             // A manual leading button (unlike the auto-injected BackButton) gets
             // no default label, so a screen reader would announce a bare
             // "button". Name it.
             tooltip: 'Back',
-            onPressed: () => context.canPop()
-                ? context.pop()
-                : context.go('/conclaves'),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/conclaves'),
           ),
         ),
         SliverToBoxAdapter(
@@ -144,24 +166,27 @@ class _Detail extends StatelessWidget {
                     child: _Card(
                       children: [
                         InfoRow(
-                          icon: Icons.location_on_outlined,
+                          icon: CoolIcons.mapPin,
                           label: 'Venue',
                           value: conclave.venueLocation,
                         ),
                         InfoRow(
-                          icon: Icons.calendar_today_outlined,
+                          icon: CoolIcons.calendar,
                           label: 'Date',
-                          value: DateFormat('EEEE, MMMM d, yyyy')
-                              .format(conclave.date),
+                          value: DateFormat(
+                            'EEEE, MMMM d, yyyy',
+                          ).format(conclave.date),
                         ),
                         if (conclave.startTime != null)
                           InfoRow(
-                            icon: Icons.schedule,
+                            icon: CoolIcons.clock,
                             label: conclave.endTime != null ? 'Time' : 'Starts',
                             value: conclave.endTime != null
                                 ? '${DateFormat('h:mm a').format(conclave.startTime!)}'
-                                    ' – ${DateFormat('h:mm a').format(conclave.endTime!)}'
-                                : DateFormat('h:mm a').format(conclave.startTime!),
+                                      ' – ${DateFormat('h:mm a').format(conclave.endTime!)}'
+                                : DateFormat(
+                                    'h:mm a',
+                                  ).format(conclave.startTime!),
                           ),
                       ],
                     ),
@@ -176,17 +201,18 @@ class _Detail extends StatelessWidget {
                         children: [
                           InfoRow(
                             icon: conclave.userRole == ConclaveRole.captain
-                                ? Icons.star_outline
-                                : Icons.person_outline,
+                                ? CoolIcons.star
+                                : CoolIcons.user,
                             label: 'Role',
                             value: conclave.userRole == ConclaveRole.captain
                                 ? 'Captain — you anchor a table'
                                 : 'Member — you rotate each round',
                           ),
                           InfoRow(
-                            icon: Icons.table_restaurant_outlined,
+                            icon: CoolIcons.armchair,
                             label: 'Table',
-                            value: conclave.userTableNumber?.toString() ??
+                            value:
+                                conclave.userTableNumber?.toString() ??
                                 'Assigned when the schedule is published',
                           ),
                         ],
@@ -203,7 +229,7 @@ class _Detail extends StatelessWidget {
                         children: [
                           for (final g in conclave.chiefGuests)
                             InfoRow(
-                              icon: Icons.star_border_rounded,
+                              icon: CoolIcons.star,
                               label: 'Guest',
                               value: g,
                             ),
@@ -219,26 +245,33 @@ class _Detail extends StatelessWidget {
                       title: 'How it works',
                       children: [
                         InfoRow(
-                          icon: Icons.groups_outlined,
+                          icon: CoolIcons.usersGroup,
                           label: 'Table size',
-                          value: '${conclave.personsPerTable} people, '
+                          value:
+                              '${conclave.personsPerTable} people, '
                               'including the captain',
                         ),
                         InfoRow(
-                          icon: Icons.repeat,
+                          icon: CoolIcons.repeat,
                           label: 'Rounds',
-                          value: '${conclave.roundCount} — you move tables each round',
+                          value:
+                              '${conclave.roundCount} — you move tables each round',
                         ),
                         InfoRow(
-                          icon: Icons.category_outlined,
+                          icon: CoolIcons.shapes,
                           label: 'Seating rule',
-                          value: 'No two people from the same business category '
+                          value:
+                              'No two people from the same business category '
                               'ever share a table',
                         ),
                       ],
                     ),
                   ),
 
+                  if (conclave.isRegistered) ...[
+                    const SizedBox(height: Gap.xl),
+                    SpecificAskCard(conclave: conclave),
+                  ],
                   const SizedBox(height: Gap.xl),
                   _Action(conclave: conclave),
                 ],
@@ -300,7 +333,7 @@ class _Action extends StatelessWidget {
         height: 52,
         child: FilledButton.icon(
           onPressed: () => context.push('/conclaves/${conclave.id}/active'),
-          icon: const Icon(Icons.play_arrow_rounded),
+          icon: const Icon(CoolIcons.playFill),
           label: const Text('Join active round'),
         ),
       );
@@ -313,7 +346,7 @@ class _Action extends StatelessWidget {
         height: 52,
         child: FilledButton.icon(
           onPressed: () => context.push('/conclaves/${conclave.id}/summary'),
-          icon: const Icon(Icons.receipt_long_outlined),
+          icon: const Icon(CoolIcons.receipt),
           label: const Text('View my summary'),
         ),
       );
@@ -332,7 +365,7 @@ class _Action extends StatelessWidget {
         height: 52,
         child: FilledButton.icon(
           onPressed: () => context.push('/conclaves/${conclave.id}/register'),
-          icon: const Icon(Icons.how_to_reg),
+          icon: const Icon(CoolIcons.userCheckCorner),
           label: const Text('Register for this conclave'),
         ),
       );
@@ -348,15 +381,16 @@ class _Action extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.event_seat_outlined, color: c.onSuccessContainer),
+            Icon(CoolIcons.armchair, color: c.onSuccessContainer),
             const SizedBox(width: Gap.md),
             Expanded(
               // The header badge already says "You're registered" — don't repeat
               // it here. This slot is forward-looking: what happens next.
               child: Text(
                 "We'll show your table here the moment the conclave goes live.",
-                style: context.text.bodyMedium
-                    ?.copyWith(color: c.onSuccessContainer),
+                style: context.text.bodyMedium?.copyWith(
+                  color: c.onSuccessContainer,
+                ),
               ),
             ),
           ],
@@ -369,15 +403,13 @@ class _Action extends StatelessWidget {
       height: 52,
       child: OutlinedButton(
         onPressed: null,
-        child: Text(
-          switch (conclave.effectiveStatus) {
-            ConclaveStatus.completed => 'This conclave has ended',
-            ConclaveStatus.cancelled => 'This conclave was cancelled',
-            ConclaveStatus.running => 'This conclave is already running',
-            ConclaveStatus.registrationNotOpen => 'Registration opens soon',
-            _ => 'Registration closed',
-          },
-        ),
+        child: Text(switch (conclave.effectiveStatus) {
+          ConclaveStatus.completed => 'This conclave has ended',
+          ConclaveStatus.cancelled => 'This conclave was cancelled',
+          ConclaveStatus.running => 'This conclave is already running',
+          ConclaveStatus.registrationNotOpen => 'Registration opens soon',
+          _ => 'Registration closed',
+        }),
       ),
     );
   }

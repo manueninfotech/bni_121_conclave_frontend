@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/conclave_repository.dart';
 import '../data/payment_service.dart';
 import '../domain/conclave_model.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Runs the registration-fee flow for a paid conclave.
 ///
@@ -122,7 +123,9 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
       _error = null;
     });
     try {
-      await ref.read(conclaveRepositoryProvider).registerForConclave(
+      await ref
+          .read(conclaveRepositoryProvider)
+          .registerForConclave(
             widget.conclave.id,
             payment: const {'method': 'offline'},
             utrNumber: _utr.text,
@@ -154,14 +157,18 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
           children: [
             Text('Registration fee', style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text('₹$fee',
-                style: theme.textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              '₹$fee',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               widget.conclave.name,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -178,25 +185,28 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                   onPressed: _busy ? null : _payOnline,
                   icon: _busy
                       ? const AppSpinner(size: 18, color: Colors.white)
-                      : const Icon(Icons.lock_outline_rounded),
+                      : const Icon(CoolIcons.lock),
                   label: Text(_busy ? 'Please wait…' : 'Pay ₹$fee securely'),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Card, UPI, netbanking — powered by Razorpay.',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const Row(children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or'),
-                  ),
-                  Expanded(child: Divider()),
-                ]),
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or'),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
                 const SizedBox(height: 16),
               ],
               if (_pd.hasOfflineDetails)
@@ -204,7 +214,7 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                   onPressed: _busy
                       ? null
                       : () => setState(() => _showOfflineDetails = true),
-                  icon: const Icon(Icons.account_balance_outlined),
+                  icon: const Icon(CoolIcons.bank),
                   label: const Text('Pay offline (UPI / bank transfer)'),
                 )
               else if (_offlineOnly)
@@ -214,8 +224,9 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                   'Online payment is unavailable and no offline payment details '
                   'have been set. Please contact the organiser.',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.error),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
                 ),
             ],
 
@@ -230,8 +241,9 @@ class _PaymentSheetState extends ConsumerState<_PaymentSheet> {
                 'Your registration stays pending until the organiser confirms the '
                 'transfer.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ],
@@ -266,8 +278,7 @@ class _OfflineDetails extends StatelessWidget {
               ),
             ),
           ),
-        if (pd.upiId != null)
-          _CopyRow(label: 'UPI ID', value: pd.upiId!),
+        if (pd.upiId != null) _CopyRow(label: 'UPI ID', value: pd.upiId!),
         if (pd.accountHolderName != null)
           _CopyRow(label: 'Account name', value: pd.accountHolderName!),
         if (pd.accountNumber != null)
@@ -302,23 +313,32 @@ class _CopyRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 110,
-            child: Text(label,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           Expanded(
-            child: Text(value,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.copy_rounded, size: 18),
+            icon: const Icon(CoolIcons.copy, size: 18),
             tooltip: 'Copy',
             onPressed: () {
               Clipboard.setData(ClipboardData(text: value));
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$label copied'), duration: const Duration(seconds: 1)),
+                SnackBar(
+                  content: Text('$label copied'),
+                  duration: const Duration(seconds: 1),
+                ),
               );
             },
           ),
@@ -343,13 +363,19 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded,
-              color: theme.colorScheme.onErrorContainer, size: 20),
+          Icon(
+            CoolIcons.circleInfo,
+            color: theme.colorScheme.onErrorContainer,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(message,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onErrorContainer)),
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
+            ),
           ),
         ],
       ),

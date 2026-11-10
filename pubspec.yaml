@@ -67,7 +67,6 @@ dependencies:
   firebase_remote_config: ^6.5.6
   flutter_contacts: ^2.6.0
   flutter_local_notifications: ^22.3.0
-  custom_refresh_indicator: ^4.0.2
   package_info_plus: ^10.2.2
   url_launcher: ^6.3.1
   # "Add to calendar" when a member registers (opens the native calendar editor
@@ -145,6 +144,10 @@ flutter:
   # means the app falls back to Roboto exactly when it matters. A variable font
   # gives us every weight from 200-800 in one 176KB file.
   fonts:
+    # Coolicons (MIT), built by tool/coolicons/build_font.py.
+    - family: Coolicons
+      fonts:
+        - asset: assets/fonts/Coolicons.ttf
     - family: PlusJakartaSans
       fonts:
         - asset: assets/fonts/PlusJakartaSans.ttf

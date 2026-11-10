@@ -11,18 +11,22 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/shimmer.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 class ConclavesListScreen extends ConsumerStatefulWidget {
   const ConclavesListScreen({super.key});
 
   @override
-  ConsumerState<ConclavesListScreen> createState() => _ConclavesListScreenState();
+  ConsumerState<ConclavesListScreen> createState() =>
+      _ConclavesListScreenState();
 }
 
 class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final TabController _tabController =
-      TabController(length: 3, vsync: this);
+  late final TabController _tabController = TabController(
+    length: 3,
+    vsync: this,
+  );
 
   @override
   void initState() {
@@ -53,23 +57,32 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
   /// Upcoming is the COMPLEMENT of the other two, so a status added later can
   /// never fall through the cracks and become invisible in the app.
   List<Conclave> _filter(List<Conclave> all, int tab) => switch (tab) {
-        0 => all.where((c) => _ongoing.contains(c.effectiveStatus)).toList(),
-        2 => all.where((c) => _past.contains(c.effectiveStatus)).toList(),
-        _ => all
-            .where((c) =>
+    0 => all.where((c) => _ongoing.contains(c.effectiveStatus)).toList(),
+    2 => all.where((c) => _past.contains(c.effectiveStatus)).toList(),
+    _ =>
+      all
+          .where(
+            (c) =>
                 !_ongoing.contains(c.effectiveStatus) &&
-                !_past.contains(c.effectiveStatus))
-            .toList(),
-      };
+                !_past.contains(c.effectiveStatus),
+          )
+          .toList(),
+  };
 
   @override
   Widget build(BuildContext context) {
     final conclaves = ref.watch(conclavesStreamProvider);
     final all = conclaves.asData?.value ?? const <Conclave>[];
-    final live =
-        all.where((c) => c.effectiveStatus == ConclaveStatus.running).length;
-    final upcoming =
-        all.where((c) => !_ongoing.contains(c.effectiveStatus) && !_past.contains(c.effectiveStatus)).length;
+    final live = all
+        .where((c) => c.effectiveStatus == ConclaveStatus.running)
+        .length;
+    final upcoming = all
+        .where(
+          (c) =>
+              !_ongoing.contains(c.effectiveStatus) &&
+              !_past.contains(c.effectiveStatus),
+        )
+        .length;
 
     return Scaffold(
       // No app bar: a tinted header leads the screen (fills the bare top), with
@@ -100,14 +113,17 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
               ),
               data: (all) => TabBarView(
                 controller: _tabController,
-                children: List.generate(3, (tab) => _ConclaveList(
-                      conclaves: _filter(all, tab),
-                      tab: tab,
-                      onRefresh: () async {
-                        ref.invalidate(conclavesStreamProvider);
-                        await ref.read(conclavesStreamProvider.future);
-                      },
-                    )),
+                children: List.generate(
+                  3,
+                  (tab) => _ConclaveList(
+                    conclaves: _filter(all, tab),
+                    tab: tab,
+                    onRefresh: () async {
+                      ref.invalidate(conclavesStreamProvider);
+                      await ref.read(conclavesStreamProvider.future);
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -134,7 +150,11 @@ class _ConclavesHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          context.pagePadding, topInset + Gap.md, context.pagePadding, Gap.md),
+        context.pagePadding,
+        topInset + Gap.md,
+        context.pagePadding,
+        Gap.md,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -150,13 +170,15 @@ class _ConclavesHeader extends StatelessWidget {
         children: [
           Text(
             'Conclaves',
-            style: context.text.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style: context.text.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
           Text(
             parts.isEmpty ? 'Your networking events' : parts.join('  ·  '),
-            style: context.text.bodySmall
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
+            style: context.text.bodySmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -190,7 +212,7 @@ class _ConclaveList extends StatelessWidget {
                 0 => const TablesIllustration(size: 150),
                 _ => const EmptyCalendarIllustration(size: 120),
               },
-              icon: Icons.event_outlined,
+              icon: CoolIcons.calendarEvent,
               title: switch (tab) {
                 0 => 'Nothing running right now',
                 2 => 'No past conclaves',
@@ -241,15 +263,30 @@ class _ConclaveCard extends StatelessWidget {
         conclave.effectiveStatus != ConclaveStatus.running &&
         conclave.effectiveStatus != ConclaveStatus.completed &&
         conclave.effectiveStatus != ConclaveStatus.cancelled) {
-      return ('Registered', StatusTone.success, Icons.check_circle);
+      return ('Registered', StatusTone.success, CoolIcons.circleCheckFill);
     }
     return switch (conclave.effectiveStatus) {
-      ConclaveStatus.running => ('Live', StatusTone.success, Icons.podcasts),
-      ConclaveStatus.completed => ('Completed', StatusTone.neutral, Icons.check),
-      ConclaveStatus.cancelled => ('Cancelled', StatusTone.danger, Icons.close),
-      ConclaveStatus.registrationOpen =>
-        ('Registration open', StatusTone.info, Icons.how_to_reg),
-      _ => ('Upcoming', StatusTone.warning, Icons.schedule),
+      ConclaveStatus.running => (
+        'Live',
+        StatusTone.success,
+        CoolIcons.broadcast,
+      ),
+      ConclaveStatus.completed => (
+        'Completed',
+        StatusTone.neutral,
+        CoolIcons.check,
+      ),
+      ConclaveStatus.cancelled => (
+        'Cancelled',
+        StatusTone.danger,
+        CoolIcons.close,
+      ),
+      ConclaveStatus.registrationOpen => (
+        'Registration open',
+        StatusTone.info,
+        CoolIcons.userCheckCorner,
+      ),
+      _ => ('Upcoming', StatusTone.warning, CoolIcons.clock),
     };
   }
 
@@ -280,8 +317,9 @@ class _ConclaveCard extends StatelessWidget {
                     ),
                     child: Text(
                       conclave.name,
-                      style: context.text.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: context.text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -292,18 +330,18 @@ class _ConclaveCard extends StatelessWidget {
               const SizedBox(height: Gap.md),
 
               InfoRow(
-                icon: Icons.location_on_outlined,
+                icon: CoolIcons.mapPin,
                 label: 'Venue',
                 value: conclave.venueLocation,
               ),
               InfoRow(
-                icon: Icons.calendar_today_outlined,
+                icon: CoolIcons.calendar,
                 label: 'Date',
                 value: DateFormat('EEE, MMM d, yyyy').format(conclave.date),
               ),
               if (conclave.startTime != null)
                 InfoRow(
-                  icon: Icons.schedule,
+                  icon: CoolIcons.clock,
                   label: 'Starts',
                   value: DateFormat('h:mm a').format(conclave.startTime!),
                 ),
@@ -331,13 +369,14 @@ class _CardAction extends StatelessWidget {
         width: double.infinity,
         child: isLive
             ? FilledButton.icon(
-                onPressed: () => context.push('/conclaves/${conclave.id}/active'),
-                icon: const Icon(Icons.play_arrow),
+                onPressed: () =>
+                    context.push('/conclaves/${conclave.id}/active'),
+                icon: const Icon(CoolIcons.playFill),
                 label: const Text('Join active round'),
               )
             : OutlinedButton.icon(
                 onPressed: () => context.push('/conclaves/${conclave.id}'),
-                icon: const Icon(Icons.visibility_outlined),
+                icon: const Icon(CoolIcons.eye),
                 label: const Text('View details'),
               ),
       );
@@ -348,7 +387,7 @@ class _CardAction extends StatelessWidget {
         width: double.infinity,
         child: FilledButton.icon(
           onPressed: () => context.push('/conclaves/${conclave.id}/register'),
-          icon: const Icon(Icons.how_to_reg),
+          icon: const Icon(CoolIcons.userCheckCorner),
           label: const Text('Register'),
         ),
       );
@@ -358,14 +397,12 @@ class _CardAction extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton(
         onPressed: null,
-        child: Text(
-          switch (conclave.effectiveStatus) {
-            ConclaveStatus.completed => 'Ended',
-            ConclaveStatus.cancelled => 'Cancelled',
-            ConclaveStatus.registrationNotOpen => 'Registration not open yet',
-            _ => 'Registration closed',
-          },
-        ),
+        child: Text(switch (conclave.effectiveStatus) {
+          ConclaveStatus.completed => 'Ended',
+          ConclaveStatus.cancelled => 'Cancelled',
+          ConclaveStatus.registrationNotOpen => 'Registration not open yet',
+          _ => 'Registration closed',
+        }),
       ),
     );
   }

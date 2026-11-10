@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +51,10 @@ final notificationsRepositoryProvider =
 
 final notificationsProvider = FutureProvider<NotificationsData>((ref) {
   ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
+  // No pull-to-refresh in the app: refresh quietly in the background. Screens
+  // keep showing the last data while it reloads (no spinner, no flash).
+  final timer = Timer(const Duration(seconds: 60), ref.invalidateSelf);
+  ref.onDispose(timer.cancel);
   return ref.watch(notificationsRepositoryProvider).list();
 });
 

@@ -18,6 +18,7 @@ import '../data/sync_service.dart';
 import '../domain/active_conclave_models.dart';
 import 'captain_scanner_screen.dart';
 import 'round/round_deck_view.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The screen people actually use at the event.
 ///
@@ -131,10 +132,15 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
   }
 
   Future<void> _setAttendance(
-      ActiveRound round, TableSeat seat, bool present) async {
+    ActiveRound round,
+    TableSeat seat,
+    bool present,
+  ) async {
     if (!round.canRecordAt(_serverNow())) return;
 
-    await ref.read(localDbProvider).markAttendance(
+    await ref
+        .read(localDbProvider)
+        .markAttendance(
           conclaveId: round.conclaveId,
           roundNumber: round.roundNumber,
           tableNumber: round.tableNumber,
@@ -155,7 +161,9 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
     // Referrals only in the referral slot, after everyone's bio.
     if (!round.isReferralOpenAt(_serverNow())) return;
 
-    final written = await ref.read(localDbProvider).addReferral(
+    final written = await ref
+        .read(localDbProvider)
+        .addReferral(
           conclaveId: round.conclaveId,
           roundNumber: round.roundNumber,
           fromUserId: round.currentUserId,
@@ -179,7 +187,9 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
 
   /// Annotates a referral that has already been given.
   Future<void> _editNote(ActiveRound round, TableSeat seat) async {
-    final existing = await ref.read(localDbProvider).getReferralNote(
+    final existing = await ref
+        .read(localDbProvider)
+        .getReferralNote(
           conclaveId: round.conclaveId,
           roundNumber: round.roundNumber,
           fromUserId: round.currentUserId,
@@ -206,13 +216,16 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
           children: [
             Text(
               'Note for ${seat.name}',
-              style: ctx.text.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: ctx.text.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: Gap.xs),
             Text(
               'Only you can see this. It syncs with the referral.',
-              style: ctx.text.bodySmall
-                  ?.copyWith(color: ctx.scheme.onSurfaceVariant),
+              style: ctx.text.bodySmall?.copyWith(
+                color: ctx.scheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: Gap.lg),
             // A referral is a business lead — pull the person's name + number
@@ -231,13 +244,15 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
                   // READ_CONTACTS, so request it there first (falls through to a
                   // name-only picker if the member declines).
                   if (Platform.isAndroid) {
-                    await FlutterContacts.permissions
-                        .request(PermissionType.read);
+                    await FlutterContacts.permissions.request(
+                      PermissionType.read,
+                    );
                   }
                   Contact? contact;
                   try {
-                    contact = await FlutterContacts.native
-                        .showPicker(properties: {ContactProperty.phone});
+                    contact = await FlutterContacts.native.showPicker(
+                      properties: {ContactProperty.phone},
+                    );
                   } on PlatformException {
                     contact = await FlutterContacts.native.showPicker();
                   }
@@ -249,14 +264,16 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
                   final entry = number.isEmpty ? name : '$name;$number';
                   if (entry.isEmpty) return;
                   final current = controller.text.trimRight();
-                  controller.text =
-                      current.isEmpty ? entry : '$current\n$entry';
+                  controller.text = current.isEmpty
+                      ? entry
+                      : '$current\n$entry';
                   controller.selection = TextSelection.collapsed(
-                      offset: controller.text.length);
+                    offset: controller.text.length,
+                  );
                   // Don't re-raise the keyboard after picking a contact.
                   FocusManager.instance.primaryFocus?.unfocus();
                 },
-                icon: const Icon(Icons.contacts_outlined, size: 18),
+                icon: const Icon(CoolIcons.contacts, size: 18),
                 label: const Text('Add from contacts'),
               ),
             ),
@@ -293,7 +310,9 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
 
     if (saved != true) return;
 
-    await ref.read(localDbProvider).updateReferralNote(
+    await ref
+        .read(localDbProvider)
+        .updateReferralNote(
           conclaveId: round.conclaveId,
           roundNumber: round.roundNumber,
           fromUserId: round.currentUserId,
@@ -331,21 +350,25 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
     final pending = await ref.read(localDbProvider).pendingRecordCount();
     if (!mounted) return;
     setState(() => _pendingSync = pending);
-    _toast(pending == 0
-        ? 'Everything is saved to the server.'
-        : '$pending record(s) still waiting — will retry.');
+    _toast(
+      pending == 0
+          ? 'Everything is saved to the server.'
+          : '$pending record(s) still waiting — will retry.',
+    );
   }
 
   void _toast(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        showCloseIcon: true,
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          showCloseIcon: true,
+        ),
+      );
   }
 
   bool _sentToSummary = false;
@@ -381,65 +404,69 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
           behavior: HitTestBehavior.translucent,
           onTap: () => FocusScope.of(context).unfocus(),
           child: state.when(
-          // Keep the current round on screen while a resume-triggered refresh
-          // re-subscribes the live stream, rather than flashing the loader.
-          skipLoadingOnReload: true,
-          loading: () => const LoadingView(label: 'Finding your table…'),
-          error: (e, _) => ErrorView(
-            message: 'Could not load the round.',
-            detail: e.toString(),
-            onRetry: () => ref.invalidate(activeRoundProvider(widget.conclaveId)),
-          ),
-          data: (s) {
-            final round = s.round;
-            if (round == null) {
-              final reason = s.unavailable!;
-              // The conclave is over: go straight to the member's summary
-              // (their day, and whether it all synced) instead of a dead end.
-              if (reason == ActiveRoundUnavailable.completed) {
-                _openSummaryOnce();
+            // Keep the current round on screen while a resume-triggered refresh
+            // re-subscribes the live stream, rather than flashing the loader.
+            skipLoadingOnReload: true,
+            loading: () => const LoadingView(label: 'Finding your table…'),
+            error: (e, _) => ErrorView(
+              message: 'Could not load the round.',
+              detail: e.toString(),
+              onRetry: () =>
+                  ref.invalidate(activeRoundProvider(widget.conclaveId)),
+            ),
+            data: (s) {
+              final round = s.round;
+              if (round == null) {
+                final reason = s.unavailable!;
+                // The conclave is over: go straight to the member's summary
+                // (their day, and whether it all synced) instead of a dead end.
+                if (reason == ActiveRoundUnavailable.completed) {
+                  _openSummaryOnce();
+                }
+                return Column(
+                  children: [
+                    // Headerless deck, but an empty state still needs a way out.
+                    AppBar(backgroundColor: Colors.transparent),
+                    Expanded(
+                      child: _Unavailable(
+                        reason: reason,
+                        joinRound: s.joinRound,
+                        joinTable: s.joinTable,
+                      ),
+                    ),
+                  ],
+                );
               }
-              return Column(children: [
-                // Headerless deck, but an empty state still needs a way out.
-                AppBar(backgroundColor: Colors.transparent),
-                Expanded(
-                  child: _Unavailable(
-                    reason: reason,
-                    joinRound: s.joinRound,
-                    joinTable: s.joinTable,
-                  ),
-                ),
-              ]);
-            }
 
-            // First paint of a round (or when the admin advances): pull the
-            // offline records for it.
-            if (_loadedRound != round.roundNumber) {
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) => _loadLocal(round));
-            }
+              // First paint of a round (or when the admin advances): pull the
+              // offline records for it.
+              if (_loadedRound != round.roundNumber) {
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _loadLocal(round),
+                );
+              }
 
-            // While paused, evaluate everything at the round's frozen instant so
-            // the countdown holds steady instead of flickering against the live
-            // clock. Running: use the live tick.
-            final effectiveNow = round.frozenAt ?? _now;
+              // While paused, evaluate everything at the round's frozen instant so
+              // the countdown holds steady instead of flickering against the live
+              // clock. Running: use the live tick.
+              final effectiveNow = round.frozenAt ?? _now;
 
-            return RoundDeckView(
-              round: round,
-              now: effectiveNow,
-              attendance: _attendance,
-              referred: _referred,
-              noted: _noted,
-              pendingSync: _pendingSync,
-              onSync: _syncNow,
-              onAttendance: (seat, present) =>
-                  _setAttendance(round, seat, present),
-              onRefer: (seat) => _giveReferral(round, seat),
-              onAddNote: (seat) => _editNote(round, seat),
-              onScan: () => _openScanner(round),
-              onScanArrivals: () => _openArrivalsScanner(round),
-            );
-          },
+              return RoundDeckView(
+                round: round,
+                now: effectiveNow,
+                attendance: _attendance,
+                referred: _referred,
+                noted: _noted,
+                pendingSync: _pendingSync,
+                onSync: _syncNow,
+                onAttendance: (seat, present) =>
+                    _setAttendance(round, seat, present),
+                onRefer: (seat) => _giveReferral(round, seat),
+                onAddNote: (seat) => _editNote(round, seat),
+                onScan: () => _openScanner(round),
+                onScanArrivals: () => _openArrivalsScanner(round),
+              );
+            },
           ),
         ),
       ),
@@ -460,50 +487,50 @@ class _Unavailable extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, title, message) = switch (reason) {
       ActiveRoundUnavailable.scheduleNotReady => (
-          Icons.pending_outlined,
-          'Schedule not ready',
-          'The admin has not generated the seating yet. Your table will appear here '
-              'once they do.',
-        ),
+        CoolIcons.circleMoreHorizontal,
+        'Schedule not ready',
+        'The admin has not generated the seating yet. Your table will appear here '
+            'once they do.',
+      ),
       ActiveRoundUnavailable.notStarted => (
-          Icons.hourglass_top,
-          'Not started yet',
-          'Your table will appear the moment round 1 begins.',
-        ),
+        CoolIcons.hourglass,
+        'Not started yet',
+        'Your table will appear the moment round 1 begins.',
+      ),
       ActiveRoundUnavailable.notInSnapshot => (
-          Icons.person_search_outlined,
-          'You are not on the list',
-          'You are not in this conclave\'s participant list. If you registered late, '
-              'ask the admin to regenerate the schedule.',
-        ),
+        CoolIcons.userSearchCorner,
+        'You are not on the list',
+        'You are not in this conclave\'s participant list. If you registered late, '
+            'ask the admin to regenerate the schedule.',
+      ),
       ActiveRoundUnavailable.noTableThisRound => (
-          Icons.table_restaurant_outlined,
-          'No table this round',
-          'No seat is assigned to you for this round. Please tell the admin.',
-        ),
+        CoolIcons.armchair,
+        'No table this round',
+        'No seat is assigned to you for this round. Please tell the admin.',
+      ),
       ActiveRoundUnavailable.joinsLater => (
-          Icons.event_seat_outlined,
-          "You're in from round ${joinRound ?? ''}",
-          'Your seat is at Table ${joinTable ?? ''} when round ${joinRound ?? ''} '
-              'starts. This screen switches to your table automatically.',
-        ),
+        CoolIcons.armchair,
+        "You're in from round ${joinRound ?? ''}",
+        'Your seat is at Table ${joinTable ?? ''} when round ${joinRound ?? ''} '
+            'starts. This screen switches to your table automatically.',
+      ),
       ActiveRoundUnavailable.missingRoundStart => (
-          Icons.timer_off_outlined,
-          'Timer unavailable',
-          'The round is running but has no recorded start time, so the countdown '
-              'cannot be shown. Please tell the admin.',
-        ),
+        CoolIcons.timerOff,
+        'Timer unavailable',
+        'The round is running but has no recorded start time, so the countdown '
+            'cannot be shown. Please tell the admin.',
+      ),
       ActiveRoundUnavailable.completed => (
-          Icons.celebration_outlined,
-          'This conclave has finished',
-          'Open your summary to see your referrals and check your data has synced.',
-        ),
+        CoolIcons.partyPopper,
+        'This conclave has finished',
+        'Open your summary to see your referrals and check your data has synced.',
+      ),
       ActiveRoundUnavailable.cancelled => (
-          Icons.event_busy_outlined,
-          'This conclave was cancelled',
-          'The admin called it off. Anything you recorded is still saved on your '
-              'phone and will sync, but there are no more rounds.',
-        ),
+        CoolIcons.calendarClose,
+        'This conclave was cancelled',
+        'The admin called it off. Anything you recorded is still saved on your '
+            'phone and will sync, but there are no more rounds.',
+      ),
     };
 
     return EmptyView(icon: icon, title: title, message: message);

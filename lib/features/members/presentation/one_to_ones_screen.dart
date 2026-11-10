@@ -8,6 +8,7 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/one_to_ones_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The member's one-to-one meetings — requested and received — with the actions
 /// each side can take (respond, or cancel).
@@ -26,7 +27,9 @@ class OneToOnesScreen extends ConsumerWidget {
       ref.invalidate(myOneToOnesProvider);
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('1-2-1 ${status.label.toLowerCase()}.')));
+        ..showSnackBar(
+          SnackBar(content: Text('1-2-1 ${status.label.toLowerCase()}.')),
+        );
     } catch (e) {
       messenger
         ..hideCurrentSnackBar()
@@ -52,9 +55,10 @@ class OneToOnesScreen extends ConsumerWidget {
         data: (list) {
           if (list.isEmpty) {
             return const EmptyView(
-              icon: Icons.coffee_outlined,
+              icon: CoolIcons.coffee,
               title: 'No 1-2-1s yet',
-              message: 'Open a member from the directory and request a one-to-one '
+              message:
+                  'Open a member from the directory and request a one-to-one '
                   'to meet outside the conclave.',
             );
           }
@@ -69,9 +73,12 @@ class OneToOnesScreen extends ConsumerWidget {
                 itemBuilder: (context, i) => _OneToOneCard(
                   m: list[i],
                   index: i,
-                  onAccept: () => _set(context, ref, list[i], OneToOneStatus.accepted),
-                  onDecline: () => _set(context, ref, list[i], OneToOneStatus.declined),
-                  onCancel: () => _set(context, ref, list[i], OneToOneStatus.cancelled),
+                  onAccept: () =>
+                      _set(context, ref, list[i], OneToOneStatus.accepted),
+                  onDecline: () =>
+                      _set(context, ref, list[i], OneToOneStatus.declined),
+                  onCancel: () =>
+                      _set(context, ref, list[i], OneToOneStatus.cancelled),
                 ),
               ),
             ),
@@ -106,7 +113,8 @@ class _OneToOneCard extends StatelessWidget {
         : DateFormat('EEE, MMM d · h:mm a').format(m.proposedAt!);
 
     final canRespond = !m.sent && m.status == OneToOneStatus.pending;
-    final canCancel = m.status == OneToOneStatus.pending ||
+    final canCancel =
+        m.status == OneToOneStatus.pending ||
         m.status == OneToOneStatus.accepted;
 
     return FadeSlideIn(
@@ -137,8 +145,9 @@ class _OneToOneCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           name,
-                          style: context.text.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                          style: context.text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
@@ -148,11 +157,10 @@ class _OneToOneCard extends StatelessWidget {
               ),
               const SizedBox(height: Gap.md),
               if (when.isNotEmpty)
-                _line(context, Icons.event_rounded, when),
+                _line(context, CoolIcons.calendarEventFill, when),
               if (m.location.isNotEmpty)
-                _line(context, Icons.place_outlined, m.location),
-              if (m.note.isNotEmpty)
-                _line(context, Icons.chat_bubble_outline_rounded, m.note),
+                _line(context, CoolIcons.mapPin, m.location),
+              if (m.note.isNotEmpty) _line(context, CoolIcons.chat, m.note),
 
               if (canRespond) ...[
                 const SizedBox(height: Gap.sm),
@@ -182,7 +190,9 @@ class _OneToOneCard extends StatelessWidget {
                     child: const Text('Cancel request'),
                   ),
                 ),
-              ] else if (canCancel && !m.sent && m.status == OneToOneStatus.accepted) ...[
+              ] else if (canCancel &&
+                  !m.sent &&
+                  m.status == OneToOneStatus.accepted) ...[
                 const SizedBox(height: Gap.xs),
                 Align(
                   alignment: Alignment.centerRight,
@@ -207,9 +217,7 @@ class _OneToOneCard extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: context.scheme.onSurfaceVariant),
           const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Text(text, style: context.text.bodyMedium),
-          ),
+          Expanded(child: Text(text, style: context.text.bodyMedium)),
         ],
       ),
     );
@@ -225,15 +233,15 @@ class _StatusChip extends StatelessWidget {
     final c = context.colors;
     final (bg, fg) = switch (status) {
       OneToOneStatus.pending => (
-          context.scheme.surfaceContainerHighest,
-          context.scheme.onSurfaceVariant,
-        ),
+        context.scheme.surfaceContainerHighest,
+        context.scheme.onSurfaceVariant,
+      ),
       OneToOneStatus.accepted => (c.successContainer, c.onSuccessContainer),
       OneToOneStatus.declined => (c.dangerContainer, c.onDangerContainer),
       OneToOneStatus.cancelled => (
-          context.scheme.surfaceContainerHighest,
-          context.scheme.onSurfaceVariant,
-        ),
+        context.scheme.surfaceContainerHighest,
+        context.scheme.onSurfaceVariant,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -243,8 +251,10 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: context.text.labelSmall
-            ?.copyWith(color: fg, fontWeight: FontWeight.w700),
+        style: context.text.labelSmall?.copyWith(
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

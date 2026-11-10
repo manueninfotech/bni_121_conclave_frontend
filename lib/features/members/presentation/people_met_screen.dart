@@ -8,6 +8,7 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/people_met_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Everyone you shared a table with at a conclave, across all its rounds — the
 /// networking payoff, captured so it survives the day.
@@ -31,9 +32,11 @@ class PeopleMetScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text("Couldn't open contacts on this device."),
-          ));
+          ..showSnackBar(
+            const SnackBar(
+              content: Text("Couldn't open contacts on this device."),
+            ),
+          );
       }
     }
   }
@@ -47,7 +50,7 @@ class PeopleMetScreen extends ConsumerWidget {
         title: const Text('People you met'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_2_rounded),
+            icon: const Icon(CoolIcons.qrCode),
             tooltip: 'Share my card',
             onPressed: () => context.push('/profile/card'),
           ),
@@ -63,9 +66,10 @@ class PeopleMetScreen extends ConsumerWidget {
         data: (list) {
           if (list.isEmpty) {
             return const EmptyView(
-              icon: Icons.groups_outlined,
+              icon: CoolIcons.usersGroup,
               title: 'No connections yet',
-              message: 'Once the schedule runs, everyone you sit with turns up '
+              message:
+                  'Once the schedule runs, everyone you sit with turns up '
                   'here — ready to save.',
             );
           }
@@ -129,8 +133,9 @@ class _MetCard extends StatelessWidget {
                     children: [
                       Text(
                         person.name.isEmpty ? 'A member' : person.name,
-                        style: context.text.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: context.text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       if (sub.isNotEmpty)
                         Text(
@@ -152,7 +157,7 @@ class _MetCard extends StatelessWidget {
                   ),
                 ),
                 IconButton.filledTonal(
-                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                  icon: const Icon(CoolIcons.userPlusCornerFill),
                   tooltip: 'Save to contacts',
                   onPressed: onSave,
                 ),

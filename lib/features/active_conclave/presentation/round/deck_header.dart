@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../domain/active_conclave_models.dart';
 import 'round_timer.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The glanceable top strip: round/table, the phase line, the one dynamic status
 /// (live countdown or a single "Paused"), and a slim bar showing how far through
@@ -83,20 +84,27 @@ class DeckHeader extends StatelessWidget {
                     ? Container(
                         key: const ValueKey('paused'),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: context.scheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.pause_rounded, color: ink, size: 18),
-                          const SizedBox(width: 4),
-                          Text('Paused',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(CoolIcons.pauseFill, color: ink, size: 18),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Paused',
                               style: context.text.labelLarge?.copyWith(
                                 color: ink,
                                 fontWeight: FontWeight.w800,
-                              )),
-                        ]),
+                              ),
+                            ),
+                          ],
+                        ),
                       )
                     : const SizedBox.shrink(key: ValueKey('live')),
               ),
@@ -114,10 +122,12 @@ class DeckHeader extends StatelessWidget {
                 curve: Curves.easeOut,
                 builder: (context, v, _) => LinearProgressIndicator(
                   value: v,
-                  backgroundColor:
-                      context.scheme.outlineVariant.withValues(alpha: 0.45),
+                  backgroundColor: context.scheme.outlineVariant.withValues(
+                    alpha: 0.45,
+                  ),
                   valueColor: AlwaysStoppedAnimation(
-                      paused ? muted : ink.withValues(alpha: 0.85)),
+                    paused ? muted : ink.withValues(alpha: 0.85),
+                  ),
                 ),
               ),
             ),
@@ -145,16 +155,24 @@ class _SyncChip extends StatelessWidget {
           color: context.scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(999),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.cloud_upload_outlined,
-              size: 16, color: context.scheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text('$pending',
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              CoolIcons.cloudUpload,
+              size: 16,
+              color: context.scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$pending',
               style: context.text.labelMedium?.copyWith(
                 color: context.scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
-              )),
-        ]),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

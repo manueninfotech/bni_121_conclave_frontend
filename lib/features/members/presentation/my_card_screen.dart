@@ -7,6 +7,7 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../profile/data/profile_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The member's own digital business card as a scannable vCard QR — the
 /// consented way to hand your contact to someone you just met: they point their
@@ -17,8 +18,10 @@ class MyCardScreen extends ConsumerWidget {
 
   String _vcard(UserProfile p) {
     // Escape the few characters vCard treats specially.
-    String e(String s) =>
-        s.replaceAll('\\', '\\\\').replaceAll(',', '\\,').replaceAll(';', '\\;');
+    String e(String s) => s
+        .replaceAll('\\', '\\\\')
+        .replaceAll(',', '\\,')
+        .replaceAll(';', '\\;');
     return [
       'BEGIN:VCARD',
       'VERSION:3.0',
@@ -48,7 +51,7 @@ class MyCardScreen extends ConsumerWidget {
         data: (p) {
           if (p == null) {
             return const EmptyView(
-              icon: Icons.badge_outlined,
+              icon: CoolIcons.idBadge,
               title: 'No profile yet',
             );
           }
@@ -65,8 +68,9 @@ class MyCardScreen extends ConsumerWidget {
                     Text(
                       p.name.isEmpty ? 'Unnamed' : p.name,
                       textAlign: TextAlign.center,
-                      style: context.text.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: context.text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     if (p.businessName.isNotEmpty)
                       Text(

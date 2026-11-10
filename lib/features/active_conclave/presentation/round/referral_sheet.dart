@@ -5,6 +5,7 @@ import '../../../../core/theme/tokens.dart';
 import '../../domain/active_conclave_models.dart';
 import 'round_avatar.dart';
 import 'round_timer.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Who this member has referred / written a note for this round — the live
 /// state the referral sheet renders from.
@@ -39,21 +40,26 @@ void showReferralSheet(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Give a referral',
-                      style: ctx.text.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800)),
+                  Text(
+                    'Give a referral',
+                    style: ctx.text.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'Pass a lead to someone at your table — then add the contact as a note.',
-                    style: ctx.text.bodySmall
-                        ?.copyWith(color: ctx.scheme.onSurfaceVariant),
+                    style: ctx.text.bodySmall?.copyWith(
+                      color: ctx.scheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: Gap.md),
                   Flexible(
                     child: ListView.separated(
                       shrinkWrap: true,
                       itemCount: tablemates.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: Gap.sm),
                       itemBuilder: (ctx, i) {
                         final seat = tablemates[i];
                         return ReferralSheetRow(
@@ -108,33 +114,72 @@ class ReferralSheetRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(seat.name,
-                    style: context.text.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  seat.name,
+                  style: context.text.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (seat.category.isNotEmpty)
-                  Text(seat.category,
-                      style: context.text.bodySmall
-                          ?.copyWith(color: context.scheme.onSurfaceVariant),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    seat.category,
+                    style: context.text.bodySmall?.copyWith(
+                      color: context.scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                // Their Conclave Specific Ask — the lead to listen for.
+                if (seat.ask != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Ask: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: context.scheme.onSurface,
+                            ),
+                          ),
+                          TextSpan(text: seat.ask),
+                        ],
+                      ),
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
               ],
             ),
           ),
           const SizedBox(width: Gap.sm),
           if (referred) ...[
-            Icon(Icons.check_circle, color: context.scheme.primary, size: 20),
+            Icon(
+              CoolIcons.circleCheckFill,
+              color: context.scheme.primary,
+              size: 20,
+            ),
             const SizedBox(width: 6),
             OutlinedButton.icon(
               onPressed: onNote,
-              icon: Icon(hasNote ? Icons.edit_note : Icons.sticky_note_2_outlined,
-                  size: 16),
+              icon: Icon(
+                hasNote ? CoolIcons.noteEdit : CoolIcons.note,
+                size: 16,
+              ),
               label: Text(hasNote ? 'Edit note' : 'Add note'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: kDeckBottom,
                 side: const BorderSide(color: kDeckBottom),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 visualDensity: VisualDensity.compact,
               ),
             ),
@@ -164,11 +209,13 @@ Widget _sheetAvatar(BuildContext context, TableSeat seat) {
     ),
     alignment: Alignment.center,
     child: seat.photoUrl != null
-        ? Image.network(seat.photoUrl!,
+        ? Image.network(
+            seat.photoUrl!,
             width: 46,
             height: 46,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => roundInitialAvatarText(context, seat))
+            errorBuilder: (_, _, _) => roundInitialAvatarText(context, seat),
+          )
         : roundInitialAvatarText(context, seat),
   );
 }

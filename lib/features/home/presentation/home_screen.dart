@@ -14,6 +14,7 @@ import '../../members/data/my_referrals_repository.dart';
 import '../../members/data/one_to_ones_repository.dart';
 import '../../notifications/data/notifications_repository.dart';
 import '../../profile/data/profile_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The landing hub: what's happening for this member right now — their next
 /// conclave, pending 1-2-1 requests, and the business they've generated —
@@ -99,7 +100,11 @@ class _HomeHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          context.pagePadding, topInset + Gap.md, context.pagePadding, Gap.xl),
+        context.pagePadding,
+        topInset + Gap.md,
+        context.pagePadding,
+        Gap.xl,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -125,13 +130,15 @@ class _HomeHeader extends StatelessWidget {
               children: [
                 Text(
                   greeting,
-                  style: context.text.bodyMedium
-                      ?.copyWith(color: context.scheme.onSurfaceVariant),
+                  style: context.text.bodyMedium?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                  ),
                 ),
                 Text(
                   firstName.isEmpty ? 'Welcome' : firstName,
-                  style: context.text.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: context.text.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -176,8 +183,7 @@ class _ImpactCard extends ConsumerWidget {
         .fold<int>(0, (s, r) => s + r.closedAmount);
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(vertical: Gap.md, horizontal: Gap.sm),
+      padding: const EdgeInsets.symmetric(vertical: Gap.md, horizontal: Gap.sm),
       decoration: BoxDecoration(
         color: context.scheme.surface,
         borderRadius: BorderRadius.circular(Radii.lg),
@@ -186,24 +192,28 @@ class _ImpactCard extends ConsumerWidget {
       child: Row(
         children: [
           _ImpactStat(
-              icon: Icons.call_made_rounded,
-              value: '$given',
-              label: 'Given',
-              onTap: () => context.push('/profile/referrals')),
+            icon: CoolIcons.arrowUpRight,
+            value: '$given',
+            label: 'Given',
+            onTap: () => context.push('/profile/referrals'),
+          ),
           _ImpactDivider(),
           _ImpactStat(
-              icon: Icons.call_received_rounded,
-              value: '$received',
-              label: 'Received',
-              onTap: () => context.push('/profile/referrals')),
+            icon: CoolIcons.arrowDownLeft,
+            value: '$received',
+            label: 'Received',
+            onTap: () => context.push('/profile/referrals'),
+          ),
           _ImpactDivider(),
           _ImpactStat(
-            icon: Icons.verified_outlined,
+            icon: CoolIcons.wavyCheck,
             value: closed == 0
                 ? '₹0'
                 : NumberFormat.compactCurrency(
-                        locale: 'en_IN', symbol: '₹', decimalDigits: 0)
-                    .format(closed),
+                    locale: 'en_IN',
+                    symbol: '₹',
+                    decimalDigits: 0,
+                  ).format(closed),
             label: 'Closed',
             onTap: () => context.push('/profile/referrals'),
           ),
@@ -249,8 +259,9 @@ class _ImpactStat extends StatelessWidget {
               ),
               Text(
                 label,
-                style: context.text.labelSmall
-                    ?.copyWith(color: context.scheme.onSurfaceVariant),
+                style: context.text.labelSmall?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -278,7 +289,7 @@ class _QuickActions extends StatelessWidget {
         children: [
           Expanded(
             child: _HomeActionTile(
-              icon: Icons.qr_code_2_rounded,
+              icon: CoolIcons.qrCode,
               label: 'My card',
               onTap: () => context.push('/profile/card'),
             ),
@@ -286,7 +297,7 @@ class _QuickActions extends StatelessWidget {
           const SizedBox(width: Gap.md),
           Expanded(
             child: _HomeActionTile(
-              icon: Icons.groups_2_outlined,
+              icon: CoolIcons.usersGroup,
               label: 'Members',
               onTap: () => context.go('/members'),
             ),
@@ -294,7 +305,7 @@ class _QuickActions extends StatelessWidget {
           const SizedBox(width: Gap.md),
           Expanded(
             child: _HomeActionTile(
-              icon: Icons.swap_horiz_rounded,
+              icon: CoolIcons.arrowLeftRight,
               label: 'Referrals',
               onTap: () => context.push('/profile/referrals'),
             ),
@@ -302,7 +313,7 @@ class _QuickActions extends StatelessWidget {
           const SizedBox(width: Gap.md),
           Expanded(
             child: _HomeActionTile(
-              icon: Icons.coffee_outlined,
+              icon: CoolIcons.coffee,
               label: '1-2-1s',
               onTap: () => context.push('/profile/one-to-ones'),
             ),
@@ -330,8 +341,10 @@ class _HomeActionTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: Gap.xs, vertical: Gap.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.xs,
+            vertical: Gap.md,
+          ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -342,8 +355,9 @@ class _HomeActionTile extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: context.text.labelMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: context.text.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -365,7 +379,7 @@ class _NotificationBell extends ConsumerWidget {
       icon: Badge(
         isLabelVisible: unread > 0,
         label: Text('$unread'),
-        child: const Icon(Icons.notifications_none_rounded),
+        child: const Icon(CoolIcons.bell),
       ),
     );
   }
@@ -378,12 +392,15 @@ class _NextConclave extends ConsumerWidget {
   Conclave? _pick(List<Conclave> all) {
     final live = all.where((c) => c.status == ConclaveStatus.running).toList();
     if (live.isNotEmpty) return live.first;
-    final upcoming = all
-        .where((c) =>
-            c.status != ConclaveStatus.completed &&
-            c.status != ConclaveStatus.cancelled)
-        .toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final upcoming =
+        all
+            .where(
+              (c) =>
+                  c.status != ConclaveStatus.completed &&
+                  c.status != ConclaveStatus.cancelled,
+            )
+            .toList()
+          ..sort((a, b) => a.date.compareTo(b.date));
     return upcoming.isNotEmpty ? upcoming.first : null;
   }
 
@@ -393,10 +410,7 @@ class _NextConclave extends ConsumerWidget {
     return async.when(
       loading: () => const _SectionCard(
         title: 'NEXT UP',
-        child: SizedBox(
-          height: 40,
-          child: Center(child: AppSpinner(size: 28)),
-        ),
+        child: SizedBox(height: 40, child: Center(child: AppSpinner(size: 28))),
       ),
       error: (_, _) => const SizedBox.shrink(),
       data: (all) {
@@ -415,14 +429,16 @@ class _NextConclave extends ConsumerWidget {
             children: [
               Text(
                 c.name,
-                style: context.text.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: context.text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 '${c.venueLocation}  ·  ${DateFormat('EEE, MMM d').format(c.date)}',
-                style: context.text.bodySmall
-                    ?.copyWith(color: context.scheme.onSurfaceVariant),
+                style: context.text.bodySmall?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
               ),
               // As soon as the schedule is locked, the member's Round-1 table is
               // known — surface it here so they see where to go before Round 1
@@ -432,15 +448,20 @@ class _NextConclave extends ConsumerWidget {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: Gap.md, vertical: Gap.sm),
+                    horizontal: Gap.md,
+                    vertical: Gap.sm,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.brandRed.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(Radii.md),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.chair_alt_outlined,
-                          size: 18, color: AppColors.brandRed),
+                      Icon(
+                        CoolIcons.armchair,
+                        size: 18,
+                        color: AppColors.brandRed,
+                      ),
                       const SizedBox(width: Gap.sm),
                       Expanded(
                         child: Text(
@@ -448,8 +469,9 @@ class _NextConclave extends ConsumerWidget {
                               ? 'Your table — Table ${c.userTableNumber}'
                               : 'Go to Table ${c.userTableNumber} for Round 1',
                           style: context.text.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: context.scheme.onSurface),
+                            fontWeight: FontWeight.w700,
+                            color: context.scheme.onSurface,
+                          ),
                         ),
                       ),
                     ],
@@ -465,8 +487,10 @@ class _NextConclave extends ConsumerWidget {
                         ? '/conclaves/${c.id}/active'
                         : '/conclaves/${c.id}',
                   ),
-                  icon: Icon(live ? Icons.play_arrow_rounded : Icons.arrow_forward_rounded),
-                  label: Text(live && c.isRegistered ? 'Join active round' : 'View'),
+                  icon: Icon(live ? CoolIcons.playFill : CoolIcons.arrowRight),
+                  label: Text(
+                    live && c.isRegistered ? 'Join active round' : 'View',
+                  ),
                 ),
               ),
             ],
@@ -496,12 +520,14 @@ class _PendingOneToOnes extends ConsumerWidget {
           for (final m in pending.take(3))
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.coffee_outlined),
+              leading: const Icon(CoolIcons.coffee),
               title: Text(m.otherName.isEmpty ? 'A member' : m.otherName),
-              subtitle: Text(m.proposedAt == null
-                  ? '1-2-1 request'
-                  : DateFormat('EEE, MMM d · h:mm a').format(m.proposedAt!)),
-              trailing: const Icon(Icons.chevron_right_rounded),
+              subtitle: Text(
+                m.proposedAt == null
+                    ? '1-2-1 request'
+                    : DateFormat('EEE, MMM d · h:mm a').format(m.proposedAt!),
+              ),
+              trailing: const Icon(CoolIcons.chevronRight),
               onTap: () => context.push('/profile/one-to-ones'),
             ),
         ],
@@ -546,4 +572,3 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
-

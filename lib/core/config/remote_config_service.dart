@@ -21,7 +21,7 @@ class RemoteConfigService {
   /// Baked-in fallbacks. `prod` is the real deployed backend; `dev` is the
   /// Android-emulator alias for the host's localhost.
   static const String defaultProdUrl =
-      'https://bni-1-2-1-backend.onrender.com/api';
+      'https://conclave-backend.blackpond-26884e90.centralindia.azurecontainerapps.io/api';
   static const String defaultDevUrl = 'http://10.0.2.2:3000/api';
 
   bool _ready = false;

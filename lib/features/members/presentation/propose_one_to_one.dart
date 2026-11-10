@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../data/one_to_ones_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Opens the "request a 1-2-1" sheet. Resolves true if a request was sent.
 Future<bool?> showProposeOneToOne(
@@ -53,7 +54,9 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_when ?? now.add(const Duration(hours: 1))),
+      initialTime: TimeOfDay.fromDateTime(
+        _when ?? now.add(const Duration(hours: 1)),
+      ),
     );
     if (time == null) return;
     setState(() {
@@ -66,7 +69,9 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
     setState(() => _sending = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(oneToOnesRepositoryProvider).propose(
+      await ref
+          .read(oneToOnesRepositoryProvider)
+          .propose(
             toUserId: widget.toUserId,
             proposedAt: _when!,
             location: _location.text.trim(),
@@ -94,7 +99,8 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
         top: Gap.sm,
         // Clear BOTH the keyboard (viewInsets) and the system gesture bar
         // (viewPadding) — otherwise the Send button sits under the nav bar.
-        bottom: MediaQuery.viewInsetsOf(context).bottom +
+        bottom:
+            MediaQuery.viewInsetsOf(context).bottom +
             MediaQuery.viewPaddingOf(context).bottom +
             Gap.xl,
       ),
@@ -104,13 +110,16 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
         children: [
           Text(
             'Request a 1-2-1',
-            style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            style: context.text.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: Gap.xs),
           Text(
             'with ${widget.toName}',
-            style: context.text.bodyMedium
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
+            style: context.text.bodyMedium?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: Gap.lg),
 
@@ -122,8 +131,8 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
               isEmpty: _when == null,
               decoration: const InputDecoration(
                 labelText: 'Date & time',
-                prefixIcon: Icon(Icons.event_rounded),
-                suffixIcon: Icon(Icons.expand_more_rounded),
+                prefixIcon: Icon(CoolIcons.calendarEventFill),
+                suffixIcon: Icon(CoolIcons.chevronDown),
               ),
               child: _when == null
                   ? null
@@ -137,7 +146,7 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
             decoration: const InputDecoration(
               labelText: 'Where (optional)',
               hintText: 'e.g. Café Coffee Day, Brodipet',
-              prefixIcon: Icon(Icons.place_outlined),
+              prefixIcon: Icon(CoolIcons.mapPin),
             ),
           ),
           const SizedBox(height: Gap.md),
@@ -148,7 +157,7 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: 'Note (optional)',
-              prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+              prefixIcon: Icon(CoolIcons.chat),
             ),
           ),
           const SizedBox(height: Gap.lg),
@@ -158,7 +167,7 @@ class _ProposeSheetState extends ConsumerState<_ProposeSheet> {
               onPressed: (_when == null || _sending) ? null : _send,
               icon: _sending
                   ? const AppSpinner(size: 18, color: Colors.white)
-                  : const Icon(Icons.send_rounded),
+                  : const Icon(CoolIcons.paperPlane),
               label: const Text('Send request'),
             ),
           ),

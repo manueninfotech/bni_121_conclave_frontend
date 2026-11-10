@@ -15,6 +15,7 @@ import '../../profile/data/profile_repository.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
 import 'payment_sheet.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Confirm registration.
 ///
@@ -35,7 +36,8 @@ class ConclaveRegisterScreen extends ConsumerStatefulWidget {
       _ConclaveRegisterScreenState();
 }
 
-class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen> {
+class _ConclaveRegisterScreenState
+    extends ConsumerState<ConclaveRegisterScreen> {
   bool _isSubmitting = false;
 
   Future<void> _confirm(Conclave conclave) async {
@@ -77,7 +79,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            icon: Icon(Icons.event_busy_outlined, color: ctx.colors.danger),
+            icon: Icon(CoolIcons.calendarClose, color: ctx.colors.danger),
             title: const Text('Clashes with another conclave'),
             content: Text(e.message),
             actions: [
@@ -118,9 +120,9 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
 
     // Success first: land on the conclaves list and confirm.
     context.go('/conclaves');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("You're registered.")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("You're registered.")));
 
     // Then offer the calendar OVER the conclaves list, via the root navigator so
     // it survives this screen being disposed by the navigation above.
@@ -137,7 +139,7 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
       final add = await showDialog<bool>(
         context: ctx,
         builder: (dctx) => AlertDialog(
-          icon: const Icon(Icons.event_available_outlined),
+          icon: const Icon(CoolIcons.calendarCheck),
           title: const Text('Add to your calendar?'),
           content: const Text(
             "You're registered — we'll remind you an hour before. Add the "
@@ -184,11 +186,13 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
           // Never fall back to `conclaves.first` — registering someone for a
           // DIFFERENT conclave than the one they tapped would be unforgivable,
           // and unfixable, since registration can't be withdrawn.
-          final conclave = all.where((c) => c.id == widget.conclaveId).firstOrNull;
+          final conclave = all
+              .where((c) => c.id == widget.conclaveId)
+              .firstOrNull;
 
           if (conclave == null) {
             return EmptyView(
-              icon: Icons.search_off_rounded,
+              icon: CoolIcons.searchClose,
               title: 'Conclave not found',
               message: 'It may have been cancelled or removed.',
               action: FilledButton(
@@ -204,32 +208,35 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
               children: [
                 Text(
                   conclave.name,
-                  style: context.text.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.text.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: Gap.lg),
 
                 _Card(
                   children: [
                     InfoRow(
-                      icon: Icons.location_on_outlined,
+                      icon: CoolIcons.mapPin,
                       label: 'Venue',
                       value: conclave.venueLocation,
                     ),
                     InfoRow(
-                      icon: Icons.calendar_today_outlined,
+                      icon: CoolIcons.calendar,
                       label: 'Date',
-                      value: DateFormat('EEEE, MMMM d, yyyy').format(conclave.date),
+                      value: DateFormat(
+                        'EEEE, MMMM d, yyyy',
+                      ).format(conclave.date),
                     ),
                     if (conclave.startTime != null)
                       InfoRow(
-                        icon: Icons.schedule,
+                        icon: CoolIcons.clock,
                         label: 'Starts',
                         value: DateFormat('h:mm a').format(conclave.startTime!),
                       ),
                     if (conclave.paymentDetails?.hasFee ?? false)
                       InfoRow(
-                        icon: Icons.payments_outlined,
+                        icon: CoolIcons.banknote,
                         label: 'Fee',
                         value: '₹${conclave.paymentDetails!.registrationFee}',
                       ),
@@ -260,9 +267,11 @@ class _ConclaveRegisterScreenState extends ConsumerState<ConclaveRegisterScreen>
                     onPressed: _isSubmitting ? null : () => _confirm(conclave),
                     child: _isSubmitting
                         ? const AppSpinner(size: 20, color: Colors.white)
-                        : Text((conclave.paymentDetails?.hasFee ?? false)
-                            ? 'Continue to payment'
-                            : 'Confirm registration'),
+                        : Text(
+                            (conclave.paymentDetails?.hasFee ?? false)
+                                ? 'Continue to payment'
+                                : 'Confirm registration',
+                          ),
                   ),
                 ),
                 const SizedBox(height: Gap.sm),
@@ -327,17 +336,19 @@ class _ProfileCheck extends StatelessWidget {
       title: 'You will be seated as',
       children: [
         InfoRow(
-          icon: Icons.person_outline,
+          icon: CoolIcons.user,
           label: 'Name',
           value: profile.name.isEmpty ? 'Not set' : profile.name,
         ),
         InfoRow(
-          icon: Icons.business_outlined,
+          icon: CoolIcons.building2,
           label: 'Business',
-          value: profile.businessName.isEmpty ? 'Not set' : profile.businessName,
+          value: profile.businessName.isEmpty
+              ? 'Not set'
+              : profile.businessName,
         ),
         InfoRow(
-          icon: Icons.category_outlined,
+          icon: CoolIcons.shapes,
           label: 'Business category',
           value: missing ? 'Not set — required' : profile.businessCategory,
         ),
@@ -346,7 +357,7 @@ class _ProfileCheck extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () => context.push('/profile/edit'),
-            icon: const Icon(Icons.edit_outlined, size: 18),
+            icon: const Icon(CoolIcons.pencil, size: 18),
             label: Text(missing ? 'Set your category' : 'Wrong? Edit profile'),
           ),
         ),
@@ -370,7 +381,7 @@ class _Commitment extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, size: 20, color: c.onWarningContainer),
+          Icon(CoolIcons.circleInfo, size: 20, color: c.onWarningContainer),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Column(
@@ -388,8 +399,9 @@ class _Commitment extends StatelessWidget {
                   'You cannot withdraw once registered — the schedule seats and '
                   'pairs you, so an empty seat affects other people\'s tables. '
                   'You also cannot register for another conclave at the same time.',
-                  style: context.text.bodySmall
-                      ?.copyWith(color: c.onWarningContainer),
+                  style: context.text.bodySmall?.copyWith(
+                    color: c.onWarningContainer,
+                  ),
                 ),
               ],
             ),

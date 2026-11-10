@@ -97,11 +97,29 @@ class ConclaveRepository {
 /// approves (and takes payment outside the app); the member is then seated
 /// from the next round. Returns the request status ("pending" / "approved").
 extension WalkInRequests on ConclaveRepository {
-  Future<String> requestWalkIn(String conclaveId) async {
+  Future<String> requestWalkIn(String conclaveId, {String? specificAsk}) async {
     try {
-      final res = await ApiClient.instance
-          .send('POST', '/conclaves/$conclaveId/walk-in', const {});
+      final res = await ApiClient.instance.send(
+          'POST', '/conclaves/$conclaveId/walk-in', {
+        if (specificAsk != null && specificAsk.trim().isNotEmpty)
+          'specificAsk': specificAsk.trim(),
+      });
       return res['status'] as String? ?? 'pending';
+    } on ApiException catch (e) {
+      throw Exception(e.isOffline
+          ? 'Could not reach the server. Check your connection and try again.'
+          : e.message);
+    }
+  }
+}
+
+/// The member's Conclave Specific Ask (empty clears it). Editable until the
+/// conclave starts.
+extension SpecificAsks on ConclaveRepository {
+  Future<void> setSpecificAsk(String conclaveId, String ask) async {
+    try {
+      await ApiClient.instance
+          .send('PUT', '/conclaves/$conclaveId/ask', {'specificAsk': ask.trim()});
     } on ApiException catch (e) {
       throw Exception(e.isOffline
           ? 'Could not reach the server. Check your connection and try again.'

@@ -12,6 +12,7 @@ import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../members/data/my_referrals_repository.dart';
 import '../data/profile_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -45,11 +46,14 @@ class ProfileScreen extends ConsumerWidget {
     if (context.mounted) context.go('/login');
   }
 
-  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.warning_amber_rounded, color: ctx.colors.danger),
+        icon: Icon(CoolIcons.triangleWarning, color: ctx.colors.danger),
         title: const Text('Delete account?'),
         content: const Text(
           'This permanently deletes your account and profile — your details, '
@@ -107,9 +111,10 @@ class ProfileScreen extends ConsumerWidget {
         data: (p) {
           if (p == null) {
             return EmptyView(
-              icon: Icons.person_off_outlined,
+              icon: CoolIcons.userCloseCorner,
               title: 'Profile not found',
-              message: 'We could not find your details. Try signing out and back '
+              message:
+                  'We could not find your details. Try signing out and back '
                   'in, or contact the admin.',
               action: FilledButton(
                 onPressed: () => _confirmLogout(context, ref),
@@ -122,31 +127,27 @@ class ProfileScreen extends ConsumerWidget {
           final facts = <({IconData icon, String label, String value})>[
             if (p.membership.isNotEmpty)
               (
-                icon: p.isBni ? Icons.verified_outlined : Icons.person_outline,
+                icon: p.isBni ? CoolIcons.wavyCheck : CoolIcons.user,
                 label: 'Membership',
-                value: p.membership
+                value: p.membership,
               ),
             if (p.businessCategory.isNotEmpty)
               (
-                icon: Icons.category_outlined,
+                icon: CoolIcons.shapes,
                 label: 'Category',
-                value: p.businessCategory
+                value: p.businessCategory,
               ),
             if (p.location.isNotEmpty)
               (
-                icon: Icons.place_outlined,
+                icon: CoolIcons.mapPin,
                 label: 'Location',
-                value: _titleCase(p.location)
+                value: _titleCase(p.location),
               ),
             if (p.chapter != null && p.chapter!.isNotEmpty)
-              (
-                icon: Icons.groups_2_outlined,
-                label: 'Chapter',
-                value: p.chapter!
-              ),
+              (icon: CoolIcons.usersGroup, label: 'Chapter', value: p.chapter!),
             if (p.region != null && p.region!.isNotEmpty)
-              (icon: Icons.map_outlined, label: 'Region', value: p.region!),
-            (icon: Icons.public, label: 'Country', value: p.country),
+              (icon: CoolIcons.map, label: 'Region', value: p.region!),
+            (icon: CoolIcons.globe, label: 'Country', value: p.country),
           ];
 
           return AppRefresh(
@@ -161,8 +162,9 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: Gap.lg),
                 Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: context.pagePadding),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.pagePadding,
+                  ),
                   child: ContentWidth(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +179,7 @@ class ProfileScreen extends ConsumerWidget {
                               children: [
                                 Expanded(
                                   child: _ActionTile(
-                                    icon: Icons.qr_code_2_rounded,
+                                    icon: CoolIcons.qrCode,
                                     label: 'My card',
                                     onTap: () => context.push('/profile/card'),
                                   ),
@@ -185,7 +187,7 @@ class ProfileScreen extends ConsumerWidget {
                                 const SizedBox(width: Gap.md),
                                 Expanded(
                                   child: _ActionTile(
-                                    icon: Icons.swap_horiz_rounded,
+                                    icon: CoolIcons.arrowLeftRight,
                                     label: 'Referrals',
                                     onTap: () =>
                                         context.push('/profile/referrals'),
@@ -194,7 +196,7 @@ class ProfileScreen extends ConsumerWidget {
                                 const SizedBox(width: Gap.md),
                                 Expanded(
                                   child: _ActionTile(
-                                    icon: Icons.coffee_outlined,
+                                    icon: CoolIcons.coffee,
                                     label: '1-2-1s',
                                     onTap: () =>
                                         context.push('/profile/one-to-ones'),
@@ -203,7 +205,7 @@ class ProfileScreen extends ConsumerWidget {
                                 const SizedBox(width: Gap.md),
                                 Expanded(
                                   child: _ActionTile(
-                                    icon: Icons.edit_outlined,
+                                    icon: CoolIcons.pencil,
                                     label: 'Edit',
                                     onTap: () => context.push('/profile/edit'),
                                   ),
@@ -222,7 +224,9 @@ class ProfileScreen extends ConsumerWidget {
                           _SectionLabel('Networking'),
                           const SizedBox(height: Gap.sm),
                           FadeSlideIn(
-                              index: 3, child: _NetworkingCard(profile: p)),
+                            index: 3,
+                            child: _NetworkingCard(profile: p),
+                          ),
                         ],
                         const SizedBox(height: Gap.lg),
                         _SectionLabel('Contact'),
@@ -233,8 +237,10 @@ class ProfileScreen extends ConsumerWidget {
                           child: TextButton.icon(
                             onPressed: () =>
                                 _confirmDeleteAccount(context, ref),
-                            icon: Icon(Icons.delete_outline,
-                                color: context.colors.danger),
+                            icon: Icon(
+                              CoolIcons.trash,
+                              color: context.colors.danger,
+                            ),
                             label: Text(
                               'Delete account',
                               style: TextStyle(color: context.colors.danger),
@@ -266,10 +272,7 @@ class _ProfileHeader extends ConsumerWidget {
   final UserProfile profile;
   final VoidCallback onSignOut;
 
-  const _ProfileHeader({
-    required this.profile,
-    required this.onSignOut,
-  });
+  const _ProfileHeader({required this.profile, required this.onSignOut});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -291,7 +294,11 @@ class _ProfileHeader extends ConsumerWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          context.pagePadding, topInset + Gap.xs, context.pagePadding, Gap.lg),
+        context.pagePadding,
+        topInset + Gap.xs,
+        context.pagePadding,
+        Gap.lg,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -301,15 +308,14 @@ class _ProfileHeader extends ConsumerWidget {
             AppColors.brandRed.withValues(alpha: 0.02),
           ],
         ),
-        borderRadius:
-            const BorderRadius.vertical(bottom: Radius.circular(36)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(36)),
       ),
       child: Column(
         children: [
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(
-              icon: const Icon(Icons.logout_rounded),
+              icon: const Icon(CoolIcons.logOut),
               tooltip: 'Sign out',
               onPressed: onSignOut,
             ),
@@ -339,16 +345,18 @@ class _ProfileHeader extends ConsumerWidget {
           const SizedBox(height: Gap.md),
           Text(
             profile.name.isEmpty ? 'Unnamed' : profile.name,
-            style: context.text.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style: context.text.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
             textAlign: TextAlign.center,
           ),
           if (tagline.isNotEmpty) ...[
             const SizedBox(height: Gap.xs),
             Text(
               tagline,
-              style: context.text.bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+              style: context.text.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -357,14 +365,18 @@ class _ProfileHeader extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.place_outlined,
-                    size: 14, color: scheme.onSurfaceVariant),
+                Icon(
+                  CoolIcons.mapPin,
+                  size: 14,
+                  color: scheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     _titleCase(profile.location),
-                    style: context.text.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
+                    style: context.text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -374,7 +386,9 @@ class _ProfileHeader extends ConsumerWidget {
           const SizedBox(height: Gap.lg),
           Container(
             padding: const EdgeInsets.symmetric(
-                vertical: Gap.md, horizontal: Gap.sm),
+              vertical: Gap.md,
+              horizontal: Gap.sm,
+            ),
             decoration: BoxDecoration(
               color: scheme.surface,
               borderRadius: BorderRadius.circular(Radii.lg),
@@ -383,24 +397,28 @@ class _ProfileHeader extends ConsumerWidget {
             child: Row(
               children: [
                 _HeaderStat(
-                    icon: Icons.call_made_rounded,
-                    value: '$given',
-                    label: 'Given',
-                    onTap: () => context.push('/profile/referrals')),
+                  icon: CoolIcons.arrowUpRight,
+                  value: '$given',
+                  label: 'Given',
+                  onTap: () => context.push('/profile/referrals'),
+                ),
                 _HeaderStatDivider(),
                 _HeaderStat(
-                    icon: Icons.call_received_rounded,
-                    value: '$received',
-                    label: 'Received',
-                    onTap: () => context.push('/profile/referrals')),
+                  icon: CoolIcons.arrowDownLeft,
+                  value: '$received',
+                  label: 'Received',
+                  onTap: () => context.push('/profile/referrals'),
+                ),
                 _HeaderStatDivider(),
                 _HeaderStat(
-                  icon: Icons.verified_outlined,
+                  icon: CoolIcons.wavyCheck,
                   value: closed == 0
                       ? '₹0'
                       : NumberFormat.compactCurrency(
-                              locale: 'en_IN', symbol: '₹', decimalDigits: 0)
-                          .format(closed),
+                          locale: 'en_IN',
+                          symbol: '₹',
+                          decimalDigits: 0,
+                        ).format(closed),
                   label: 'Closed',
                   onTap: () => context.push('/profile/referrals'),
                 ),
@@ -450,8 +468,9 @@ class _HeaderStat extends StatelessWidget {
               ),
               Text(
                 label,
-                style: context.text.labelSmall
-                    ?.copyWith(color: context.scheme.onSurfaceVariant),
+                style: context.text.labelSmall?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -464,11 +483,7 @@ class _HeaderStat extends StatelessWidget {
 class _HeaderStatDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 34,
-      color: context.colors.hairline,
-    );
+    return Container(width: 1, height: 34, color: context.colors.hairline);
   }
 }
 
@@ -506,10 +521,11 @@ class _AboutCard extends StatelessWidget {
             for (var i = 0; i < rows.length; i++) ...[
               if (i > 0)
                 Divider(
-                    height: 1,
-                    indent: Gap.lg,
-                    endIndent: Gap.lg,
-                    color: context.colors.hairline),
+                  height: 1,
+                  indent: Gap.lg,
+                  endIndent: Gap.lg,
+                  color: context.colors.hairline,
+                ),
               _AboutRow(row: rows[i]),
             ],
           ],
@@ -526,24 +542,25 @@ class _AboutRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       child: Row(
         children: [
           Icon(row.icon, size: 18, color: context.scheme.onSurfaceVariant),
           const SizedBox(width: Gap.md),
           Text(
             row.label,
-            style: context.text.bodyMedium
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
+            style: context.text.bodyMedium?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Text(
               row.value,
               textAlign: TextAlign.right,
-              style:
-                  context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: context.text.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -577,12 +594,12 @@ class _ContactCard extends StatelessWidget {
             ),
             const SizedBox(height: Gap.sm),
             InfoRow(
-              icon: Icons.phone_iphone_rounded,
+              icon: CoolIcons.mobile,
               label: 'Phone',
               value: profile.phone.isEmpty ? 'Not set' : profile.phone,
             ),
             InfoRow(
-              icon: Icons.alternate_email_rounded,
+              icon: CoolIcons.mention,
               label: 'Email',
               // Never surface the synthetic sign-in address.
               value: profile.email.isEmpty ? 'Not set' : profile.email,
@@ -627,8 +644,9 @@ class _ActionTile extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: context.text.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: context.text.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -662,13 +680,13 @@ class _NetworkingCard extends StatelessWidget {
             const SizedBox(height: Gap.sm),
             if (profile.lookingFor.isNotEmpty)
               InfoRow(
-                icon: Icons.search_rounded,
+                icon: CoolIcons.search,
                 label: 'Looking for',
                 value: profile.lookingFor,
               ),
             if (profile.canOffer.isNotEmpty)
               InfoRow(
-                icon: Icons.volunteer_activism_outlined,
+                icon: CoolIcons.handCoins,
                 label: 'Can offer',
                 value: profile.canOffer,
               ),

@@ -13,6 +13,7 @@ import '../../../core/widgets/membership_toggle.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Registration.
 ///
@@ -150,7 +151,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.logout_rounded, color: ctx.scheme.primary),
+        icon: Icon(CoolIcons.logOut, color: ctx.scheme.primary),
         title: const Text('Cancel setup?'),
         content: const Text(
           'Your number is verified, but your account is not finished yet. You '
@@ -179,10 +180,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(msg.replaceFirst('Exception: ', '')),
-        backgroundColor: context.colors.danger,
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg.replaceFirst('Exception: ', '')),
+          backgroundColor: context.colors.danger,
+        ),
+      );
   }
 
   Future<void> _next() async {
@@ -204,7 +207,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ref.read(authRepositoryProvider).verifyPhone(
+      await ref
+          .read(authRepositoryProvider)
+          .verifyPhone(
             phone: _e164,
             onCodeSent: (verId) {
               if (!mounted) return;
@@ -275,8 +280,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
           setState(() => _isLoading = false);
-          _error('Your verification session ended before we could finish. '
-              'Please register again with the same number.');
+          _error(
+            'Your verification session ended before we could finish. '
+            'Please register again with the same number.',
+          );
           await ref.read(authRepositoryProvider).logout();
           return;
         }
@@ -340,79 +347,88 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         _back();
       },
       child: Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: _isLoading ? null : _back,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(CoolIcons.arrowLeft),
+            tooltip: 'Back',
+            onPressed: _isLoading ? null : _back,
+          ),
+          title: Text(
+            _resuming
+                ? 'Finish your account'
+                : 'Step ${_displayStep + 1} of $_totalSteps',
+          ),
         ),
-        title: Text(
-          _resuming ? 'Finish your account' : 'Step ${_displayStep + 1} of $_totalSteps',
-        ),
-      ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(gradient: AppGradients.bloom(AppColors.crimson)),
-        child: SafeArea(
-        child: Column(
-          children: [
-            // No step bar when resuming — there is only one step left.
-            if (!_resuming) _Progress(step: _displayStep, total: _totalSteps),
-            Expanded(
-              child: ContentWidth(
-                max: 440,
-                child: SingleChildScrollView(
+        body: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: AppGradients.bloom(AppColors.crimson),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // No step bar when resuming — there is only one step left.
+                if (!_resuming)
+                  _Progress(step: _displayStep, total: _totalSteps),
+                Expanded(
+                  child: ContentWidth(
+                    max: 440,
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        context.pagePadding,
+                        Gap.xl,
+                        context.pagePadding,
+                        context.pagePadding,
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: Motion.normal,
+                        switchInCurve: Motion.curve,
+                        // Slide in from the direction of travel: forward comes from
+                        // the right, back from the left. Motion that contradicts the
+                        // navigation makes an app feel unmoored.
+                        transitionBuilder: (child, animation) =>
+                            SlideTransition(
+                              position: Tween(
+                                begin: Offset(_goingForward ? 0.06 : -0.06, 0),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            ),
+                        child: KeyedSubtree(
+                          key: ValueKey(_step),
+                          child: switch (_step) {
+                            0 => _credentials(),
+                            1 => _otpStep(),
+                            _ => _profile(),
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
                   padding: EdgeInsets.fromLTRB(
                     context.pagePadding,
-                    Gap.xl,
+                    Gap.sm,
                     context.pagePadding,
-                    context.pagePadding,
+                    Gap.lg,
                   ),
-                  child: AnimatedSwitcher(
-                    duration: Motion.normal,
-                    switchInCurve: Motion.curve,
-                    // Slide in from the direction of travel: forward comes from
-                    // the right, back from the left. Motion that contradicts the
-                    // navigation makes an app feel unmoored.
-                    transitionBuilder: (child, animation) => SlideTransition(
-                      position: Tween(
-                        begin: Offset(_goingForward ? 0.06 : -0.06, 0),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: FadeTransition(opacity: animation, child: child),
-                    ),
-                    child: KeyedSubtree(
-                      key: ValueKey(_step),
-                      child: switch (_step) {
-                        0 => _credentials(),
-                        1 => _otpStep(),
-                        _ => _profile(),
-                      },
+                  child: ContentWidth(
+                    max: 440,
+                    child: PrimaryButton(
+                      label: _step == 2 ? 'Create account' : 'Continue',
+                      icon: _step == 2 ? CoolIcons.check : CoolIcons.arrowRight,
+                      loading: _isLoading,
+                      onPressed: _isLoading ? null : _next,
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                context.pagePadding,
-                Gap.sm,
-                context.pagePadding,
-                Gap.lg,
-              ),
-              child: ContentWidth(
-                max: 440,
-                child: PrimaryButton(
-                  label: _step == 2 ? 'Create account' : 'Continue',
-                  icon: _step == 2 ? Icons.check_rounded : Icons.arrow_forward_rounded,
-                  loading: _isLoading,
-                  onPressed: _isLoading ? null : _next,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-        ),
-      ),
       ),
     );
   }
@@ -451,7 +467,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               decoration: const InputDecoration(
                 labelText: 'Email address',
                 hintText: 'you@example.com',
-                prefixIcon: Icon(Icons.alternate_email_rounded),
+                prefixIcon: Icon(CoolIcons.mention),
               ),
               validator: (v) {
                 final s = v?.trim() ?? '';
@@ -476,13 +492,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               autofillHints: const [AutofillHints.newPassword],
               decoration: InputDecoration(
                 labelText: 'Create a password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                helperText: "New password — you'll use it to sign in. At least 6 characters.",
+                prefixIcon: const Icon(CoolIcons.lock),
+                helperText:
+                    "New password — you'll use it to sign in. At least 6 characters.",
                 helperMaxLines: 2,
                 suffixIcon: IconButton(
-                  icon: Icon(_obscure
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined),
+                  icon: Icon(_obscure ? CoolIcons.eye : CoolIcons.eyeOff),
                   tooltip: _obscure ? 'Show password' : 'Hide password',
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
@@ -521,15 +536,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               counterText: '',
             ),
             maxLength: 6,
-            validator: (v) =>
-                (v == null || v.trim().length < 6) ? 'Enter the 6-digit code' : null,
+            validator: (v) => (v == null || v.trim().length < 6)
+                ? 'Enter the 6-digit code'
+                : null,
           ),
           const SizedBox(height: Gap.md),
           Text(
             "Didn't get it? Go back and check the number.",
             textAlign: TextAlign.center,
-            style: context.text.bodySmall
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
+            style: context.text.bodySmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -560,13 +577,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               autofillHints: const [AutofillHints.newPassword],
               decoration: InputDecoration(
                 labelText: 'Create a password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                helperText: "New password — you'll use it to sign in. At least 6 characters.",
+                prefixIcon: const Icon(CoolIcons.lock),
+                helperText:
+                    "New password — you'll use it to sign in. At least 6 characters.",
                 helperMaxLines: 2,
                 suffixIcon: IconButton(
-                  icon: Icon(_obscure
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined),
+                  icon: Icon(_obscure ? CoolIcons.eye : CoolIcons.eyeOff),
                   tooltip: _obscure ? 'Show password' : 'Hide password',
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
@@ -588,7 +604,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               autofillHints: const [AutofillHints.email],
               decoration: const InputDecoration(
                 labelText: 'Email address',
-                prefixIcon: Icon(Icons.alternate_email_rounded),
+                prefixIcon: Icon(CoolIcons.mention),
                 helperText: 'So the admin can reach you about the conclave',
                 helperMaxLines: 2,
               ),
@@ -616,7 +632,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               labelText: 'Full name',
-              prefixIcon: Icon(Icons.person_outline),
+              prefixIcon: Icon(CoolIcons.user),
             ),
             validator: (v) =>
                 (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
@@ -628,10 +644,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               labelText: 'Business name',
-              prefixIcon: Icon(Icons.business_outlined),
+              prefixIcon: Icon(CoolIcons.building2),
             ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Enter your business name' : null,
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? 'Enter your business name'
+                : null,
           ),
           const SizedBox(height: Gap.md),
 
@@ -649,7 +666,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             decoration: const InputDecoration(
               labelText: 'Location',
               hintText: 'e.g. Guntur',
-              prefixIcon: Icon(Icons.place_outlined),
+              prefixIcon: Icon(CoolIcons.mapPin),
             ),
             validator: (v) =>
                 (v == null || v.trim().isEmpty) ? 'Enter your city' : null,
@@ -660,7 +677,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Chapter (optional)',
-              prefixIcon: Icon(Icons.groups_2_outlined),
+              prefixIcon: Icon(CoolIcons.usersGroup),
             ),
           ),
           const SizedBox(height: Gap.md),
@@ -671,7 +688,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             decoration: const InputDecoration(
               labelText: 'Region (optional)',
               hintText: 'e.g. Guntur Region',
-              prefixIcon: Icon(Icons.map_outlined),
+              prefixIcon: Icon(CoolIcons.map),
             ),
           ),
           const SizedBox(height: Gap.lg),
@@ -699,13 +716,16 @@ class _Heading extends StatelessWidget {
       children: [
         Text(
           title,
-          style: context.text.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: context.text.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: Gap.xs),
         Text(
           subtitle,
-          style: context.text.bodyMedium
-              ?.copyWith(color: context.scheme.onSurfaceVariant),
+          style: context.text.bodyMedium?.copyWith(
+            color: context.scheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: Gap.xl),
       ],

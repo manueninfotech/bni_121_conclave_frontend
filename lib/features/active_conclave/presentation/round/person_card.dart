@@ -8,6 +8,7 @@ import 'animated_countdown.dart';
 import 'card_backdrop.dart';
 import 'round_avatar.dart';
 import 'round_timer.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// One person at the table, as a BNI-red gradient card. The card fills its slot
 /// (identity on top, a hero in the middle, actions at the bottom) so there's no
@@ -55,10 +56,13 @@ class PersonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final remaining = turn?.remainingAt(now);
     final progress = (turn != null && turn!.length.inMilliseconds > 0)
-        ? (remaining!.inMilliseconds / turn!.length.inMilliseconds)
-            .clamp(0.0, 1.0)
+        ? (remaining!.inMilliseconds / turn!.length.inMilliseconds).clamp(
+            0.0,
+            1.0,
+          )
         : null;
-    final urgent = !paused &&
+    final urgent =
+        !paused &&
         remaining != null &&
         remaining.inSeconds <= 10 &&
         remaining.inSeconds > 0;
@@ -87,7 +91,9 @@ class PersonCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       seat.businessName,
-                      style: context.text.bodyMedium?.copyWith(color: Colors.white),
+                      style: context.text.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -96,7 +102,9 @@ class PersonCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       seat.category,
-                      style: context.text.bodySmall?.copyWith(color: Colors.white70),
+                      style: context.text.bodySmall?.copyWith(
+                        color: Colors.white70,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -108,6 +116,12 @@ class PersonCard extends StatelessWidget {
               _captainBadge(context, standIn: seat.isStandIn),
           ],
         ),
+        // Their Conclave Specific Ask: what they hope to get from today, so a
+        // tablemate who can help sees it while they listen.
+        if (seat.ask != null) ...[
+          const SizedBox(height: Gap.md),
+          _ask(context, seat.ask!),
+        ],
         const SizedBox(height: Gap.lg),
         // Cross-fade between hero states (tablemate -> speaking -> done) so a
         // turn change eases in instead of popping. Keyed by the KIND of hero,
@@ -172,7 +186,9 @@ class PersonCard extends StatelessWidget {
 
   CardMood get _mood {
     if (paused) return CardMood.paused;
-    if (preview || round.phaseAt(now) != RoundPhase.active) return CardMood.move;
+    if (preview || round.phaseAt(now) != RoundPhase.active) {
+      return CardMood.move;
+    }
     if (turn?.kind == TurnKind.referral || round.isReferralOpenAt(now)) {
       return CardMood.referral;
     }
@@ -180,7 +196,9 @@ class PersonCard extends StatelessWidget {
   }
 
   String _heroKind(Duration? remaining) {
-    if (isSpeaker && remaining != null) return 'speak-${turn!.kind.name}-$paused';
+    if (isSpeaker && remaining != null) {
+      return 'speak-${turn!.kind.name}-$paused';
+    }
     if (seat.isSelf && !preview) return 'qr';
     return 'info';
   }
@@ -198,16 +216,21 @@ class PersonCard extends StatelessWidget {
           children: [
             // The live pulse only makes sense while the clock is running.
             if (!paused)
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                const PulseDot(),
-                const SizedBox(width: 8),
-                Text(label,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const PulseDot(),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
                     style: context.text.labelLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8,
-                    )),
-              ]),
+                    ),
+                  ),
+                ],
+              ),
             if (!paused) const SizedBox(height: 10),
             AnimatedCountdown(
               remaining: remaining,
@@ -234,9 +257,11 @@ class PersonCard extends StatelessWidget {
     }
 
     final chips = <Widget>[];
-    if (seat.metBefore) chips.add(_tag(context, Icons.history, 'Met before'));
+    if (seat.metBefore) {
+      chips.add(_tag(context, CoolIcons.history, 'Met before'));
+    }
     if (preview) {
-      chips.add(_tag(context, Icons.groups_2_outlined, 'Joining your next table'));
+      chips.add(_tag(context, CoolIcons.usersGroup, 'Joining your next table'));
     }
     return Center(
       child: Column(
@@ -244,17 +269,24 @@ class PersonCard extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(18),
-            decoration:
-                const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-            child: const Icon(Icons.work_outline_rounded,
-                color: Colors.white, size: 34),
+            decoration: const BoxDecoration(
+              color: Colors.white24,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              CoolIcons.briefcase,
+              color: Colors.white,
+              size: 34,
+            ),
           ),
           const SizedBox(height: 14),
           Text(
             seat.category.isNotEmpty ? seat.category : 'At your table',
             textAlign: TextAlign.center,
-            style: context.text.titleMedium
-                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+            style: context.text.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           if (chips.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -274,27 +306,55 @@ class PersonCard extends StatelessWidget {
     final items = <Widget>[];
     if (canMark) {
       if (attendance == true) {
-        items.add(_chip(context, Icons.check_circle, 'Here', filled: true));
+        items.add(
+          _chip(context, CoolIcons.circleCheckFill, 'Here', filled: true),
+        );
       } else if (seat.isSelf) {
-        items.add(_chip(context, Icons.pan_tool_alt_outlined, "I'm here",
-            onTap: () => onAttendance(true)));
+        items.add(
+          _chip(
+            context,
+            CoolIcons.handPointer,
+            "I'm here",
+            onTap: () => onAttendance(true),
+          ),
+        );
       } else {
-        items.add(_chip(context, Icons.check, 'Present',
-            onTap: () => onAttendance(true)));
-        items.add(_chip(context, Icons.close, 'Absent',
-            onTap: () => onAttendance(false)));
+        items.add(
+          _chip(
+            context,
+            CoolIcons.check,
+            'Present',
+            onTap: () => onAttendance(true),
+          ),
+        );
+        items.add(
+          _chip(
+            context,
+            CoolIcons.close,
+            'Absent',
+            onTap: () => onAttendance(false),
+          ),
+        );
       }
     }
     if (alreadyReferred) {
-      items.add(_chip(context, Icons.handshake, 'Referred', filled: true));
+      items.add(
+        _chip(context, CoolIcons.handshakeFill, 'Referred', filled: true),
+      );
     } else if (canRefer) {
-      items.add(_chip(context, Icons.handshake_outlined, 'Give referral',
-          onTap: onRefer));
+      items.add(
+        _chip(context, CoolIcons.handshake, 'Give referral', onTap: onRefer),
+      );
     }
     if (canNote) {
-      items.add(_chip(context, Icons.sticky_note_2_outlined,
+      items.add(
+        _chip(
+          context,
+          CoolIcons.note,
           hasNote ? 'Edit note' : 'Add note',
-          onTap: onAddNote));
+          onTap: onAddNote,
+        ),
+      );
     }
     if (items.isEmpty) return const SizedBox.shrink();
     return Wrap(spacing: 8, runSpacing: 8, children: items);
@@ -329,8 +389,12 @@ class PersonCard extends StatelessWidget {
     );
   }
 
-  Widget _avatar(BuildContext context,
-      {required double size, double? progress, bool urgent = false}) {
+  Widget _avatar(
+    BuildContext context, {
+    required double size,
+    double? progress,
+    bool urgent = false,
+  }) {
     // The ring greys out while paused — a quiet "frozen" cue, no words.
     final ringColor = paused
         ? Colors.white38
@@ -378,6 +442,42 @@ class PersonCard extends StatelessWidget {
     );
   }
 
+  Widget _ask(BuildContext context, String ask) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            seat.isSelf ? 'YOUR ASK' : 'THEIR ASK',
+            style: context.text.labelSmall?.copyWith(
+              color: Colors.white70,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            ask,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.bodyMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// A clear "Captain" pill — the captain anchors the table, so it is labelled,
   /// not left as a bare star that reads like a favourite.
   Widget _captainBadge(BuildContext context, {bool standIn = false}) {
@@ -387,14 +487,20 @@ class PersonCard extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.workspace_premium_rounded,
-            color: Colors.amberAccent, size: 15),
-        const SizedBox(width: 4),
-        Text(standIn ? 'Captain this round' : 'Captain',
-            style: context.text.labelSmall
-                ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(CoolIcons.crownFill, color: Colors.amberAccent, size: 15),
+          const SizedBox(width: 4),
+          Text(
+            standIn ? 'Captain this round' : 'Captain',
+            style: context.text.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -405,16 +511,27 @@ class PersonCard extends StatelessWidget {
         color: Colors.white24,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: Colors.white),
-        const SizedBox(width: 6),
-        Text(label, style: context.text.labelSmall?.copyWith(color: Colors.white)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: context.text.labelSmall?.copyWith(color: Colors.white),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _chip(BuildContext context, IconData icon, String label,
-      {VoidCallback? onTap, bool filled = false}) {
+  Widget _chip(
+    BuildContext context,
+    IconData icon,
+    String label, {
+    VoidCallback? onTap,
+    bool filled = false,
+  }) {
     final child = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -422,15 +539,20 @@ class PersonCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white, width: 1.2),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 16, color: filled ? kDeckBottom : Colors.white),
-        const SizedBox(width: 6),
-        Text(label,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: filled ? kDeckBottom : Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
             style: context.text.labelLarge?.copyWith(
               color: filled ? kDeckBottom : Colors.white,
               fontWeight: FontWeight.w700,
-            )),
-      ]),
+            ),
+          ),
+        ],
+      ),
     );
     if (onTap == null) return child;
     return InkWell(
@@ -468,7 +590,10 @@ class _PulseDotState extends State<PulseDot>
       child: Container(
         width: 10,
         height: 10,
-        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }

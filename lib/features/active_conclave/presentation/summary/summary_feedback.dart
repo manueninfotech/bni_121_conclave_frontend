@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../data/feedback_repository.dart';
 import '../round/deck_footer.dart' show roundPanel;
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 // --- Post-conclave feedback (replaces the Google Form) ---------------------
 
@@ -46,7 +47,6 @@ class _FeedbackCardState extends ConsumerState<SummaryFeedbackCard> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final muted = context.scheme.onSurfaceVariant;
@@ -58,41 +58,48 @@ class _FeedbackCardState extends ConsumerState<SummaryFeedbackCard> {
         child: Ink(
           padding: const EdgeInsets.all(Gap.md),
           decoration: roundPanel(context),
-          child: Row(children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: context.scheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: context.scheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _done ? CoolIcons.check : CoolIcons.star,
+                  size: 20,
+                  color: _done
+                      ? context.colors.success
+                      : context.scheme.onSurface,
+                ),
               ),
-              child: Icon(
-                _done ? Icons.check_rounded : Icons.star_outline_rounded,
-                size: 20,
-                color: _done ? context.colors.success : context.scheme.onSurface,
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _done
+                          ? 'Thanks for your feedback'
+                          : 'How was the conclave?',
+                      style: context.text.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      _done
+                          ? 'It shapes the next one.'
+                          : 'Share 30 seconds of feedback',
+                      style: context.text.bodySmall?.copyWith(color: muted),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _done ? 'Thanks for your feedback' : 'How was the conclave?',
-                    style: context.text.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    _done
-                        ? 'It shapes the next one.'
-                        : 'Share 30 seconds of feedback',
-                    style: context.text.bodySmall?.copyWith(color: muted),
-                  ),
-                ],
-              ),
-            ),
-            if (!_done) Icon(Icons.chevron_right_rounded, color: muted),
-          ]),
+              if (!_done) Icon(CoolIcons.chevronRight, color: muted),
+            ],
+          ),
         ),
       ),
     );
@@ -125,12 +132,16 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
     if (_rating == 0) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Please tap a star rating.')));
+        ..showSnackBar(
+          const SnackBar(content: Text('Please tap a star rating.')),
+        );
       return;
     }
     setState(() => _submitting = true);
     try {
-      await ref.read(feedbackRepositoryProvider).submit(
+      await ref
+          .read(feedbackRepositoryProvider)
+          .submit(
             widget.conclaveId,
             rating: _rating,
             timing: _timing,
@@ -143,10 +154,12 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: context.colors.danger,
-        ));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: context.colors.danger,
+          ),
+        );
     }
   }
 
@@ -163,12 +176,19 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('How was the conclave?',
-              style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'How was the conclave?',
+            style: context.text.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: Gap.xs),
-          Text('Your feedback shapes the next one.',
-              style: context.text.bodySmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant)),
+          Text(
+            'Your feedback shapes the next one.',
+            style: context.text.bodySmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: Gap.lg),
 
           // Star rating.
@@ -179,7 +199,7 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
               return IconButton(
                 onPressed: () => setState(() => _rating = i + 1),
                 icon: Icon(
-                  filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                  filled ? CoolIcons.starFill : CoolIcons.star,
                   color: filled ? Colors.amber : context.scheme.outline,
                   size: 38,
                 ),
@@ -188,9 +208,12 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
           ),
           const SizedBox(height: Gap.md),
 
-          Text('Round timing',
-              style: context.text.labelSmall
-                  ?.copyWith(color: context.scheme.onSurfaceVariant)),
+          Text(
+            'Round timing',
+            style: context.text.labelSmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: Gap.xs),
           Wrap(
             spacing: Gap.sm,
@@ -214,7 +237,7 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               labelText: 'Referrals / 1-2-1s you got (optional)',
-              prefixIcon: Icon(Icons.handshake_outlined),
+              prefixIcon: Icon(CoolIcons.handshake),
             ),
           ),
           const SizedBox(height: Gap.md),

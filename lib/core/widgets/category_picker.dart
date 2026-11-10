@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/business_categories.dart';
 import '../theme/tokens.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The business-category chooser.
 ///
@@ -21,42 +22,42 @@ class CategoryPickerField extends FormField<String> {
     String? helperText = 'No two people of the same category share a table',
     List<String>? categories,
   }) : super(
-          initialValue: value,
-          validator: (v) =>
-              (v == null || v.isEmpty) ? 'Choose your business category' : null,
-          builder: (field) {
-            final context = field.context;
-            return InkWell(
-              borderRadius: BorderRadius.circular(Radii.md),
-              onTap: () async {
-                FocusScope.of(context).unfocus();
-                final picked = await showCategoryPicker(
-                  context,
-                  selected: field.value,
-                  categories: categories,
-                );
-                if (picked != null) {
-                  field.didChange(picked);
-                  onChanged(picked);
-                }
-              },
-              child: InputDecorator(
-                isEmpty: field.value == null || field.value!.isEmpty,
-                decoration: InputDecoration(
-                  labelText: label,
-                  prefixIcon: const Icon(Icons.category_outlined),
-                  helperText: helperText,
-                  helperMaxLines: 2,
-                  errorText: field.errorText,
-                  suffixIcon: const Icon(Icons.expand_more_rounded),
-                ),
-                child: field.value == null || field.value!.isEmpty
-                    ? null
-                    : Text(field.value!, overflow: TextOverflow.ellipsis),
-              ),
-            );
-          },
-        );
+         initialValue: value,
+         validator: (v) =>
+             (v == null || v.isEmpty) ? 'Choose your business category' : null,
+         builder: (field) {
+           final context = field.context;
+           return InkWell(
+             borderRadius: BorderRadius.circular(Radii.md),
+             onTap: () async {
+               FocusScope.of(context).unfocus();
+               final picked = await showCategoryPicker(
+                 context,
+                 selected: field.value,
+                 categories: categories,
+               );
+               if (picked != null) {
+                 field.didChange(picked);
+                 onChanged(picked);
+               }
+             },
+             child: InputDecorator(
+               isEmpty: field.value == null || field.value!.isEmpty,
+               decoration: InputDecoration(
+                 labelText: label,
+                 prefixIcon: const Icon(CoolIcons.shapes),
+                 helperText: helperText,
+                 helperMaxLines: 2,
+                 errorText: field.errorText,
+                 suffixIcon: const Icon(CoolIcons.chevronDown),
+               ),
+               child: field.value == null || field.value!.isEmpty
+                   ? null
+                   : Text(field.value!, overflow: TextOverflow.ellipsis),
+             ),
+           );
+         },
+       );
 }
 
 /// Opens the picker and resolves to the chosen category, or null if dismissed.
@@ -124,14 +125,16 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                 children: [
                   Text(
                     'Business category',
-                    style: context.text.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    style: context.text.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: Gap.xs),
                   Text(
                     'No two people of the same category share a table.',
-                    style: context.text.bodySmall
-                        ?.copyWith(color: context.scheme.onSurfaceVariant),
+                    style: context.text.bodySmall?.copyWith(
+                      color: context.scheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: Gap.md),
                   TextField(
@@ -139,11 +142,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: 'Search categories',
-                      prefixIcon: const Icon(Icons.search_rounded),
+                      prefixIcon: const Icon(CoolIcons.search),
                       suffixIcon: _query.isEmpty
                           ? null
                           : IconButton(
-                              icon: const Icon(Icons.close_rounded),
+                              icon: const Icon(CoolIcons.close),
                               tooltip: 'Clear',
                               onPressed: () {
                                 _search.clear();
@@ -161,15 +164,17 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                   ? Center(
                       child: Text(
                         'No category matches "$_query".',
-                        style: context.text.bodyMedium
-                            ?.copyWith(color: context.scheme.onSurfaceVariant),
+                        style: context.text.bodyMedium?.copyWith(
+                          color: context.scheme.onSurfaceVariant,
+                        ),
                       ),
                     )
                   : ListView.builder(
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: EdgeInsets.only(
-                        bottom: MediaQuery.viewPaddingOf(context).bottom + Gap.md,
+                        bottom:
+                            MediaQuery.viewPaddingOf(context).bottom + Gap.md,
                       ),
                       itemCount: results.length,
                       itemBuilder: (context, i) {
@@ -178,8 +183,10 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                         return ListTile(
                           title: Text(c),
                           trailing: isSelected
-                              ? Icon(Icons.check_rounded,
-                                  color: context.scheme.primary)
+                              ? Icon(
+                                  CoolIcons.check,
+                                  color: context.scheme.primary,
+                                )
                               : null,
                           selected: isSelected,
                           onTap: () => Navigator.pop(context, c),

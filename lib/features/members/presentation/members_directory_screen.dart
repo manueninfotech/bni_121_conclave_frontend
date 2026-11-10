@@ -12,6 +12,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/members_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The app-wide member directory: every registered member, searchable.
 ///
@@ -65,13 +66,14 @@ class _MembersDirectoryScreenState
   }
 
   Future<void> _pickRegion(List<Member> all) async {
-    final regions = all
-        .map((m) => m.region)
-        .whereType<String>()
-        .where((r) => r.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final regions =
+        all
+            .map((m) => m.region)
+            .whereType<String>()
+            .where((r) => r.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     if (regions.isEmpty) return;
 
     final picked = await showModalBottomSheet<String>(
@@ -85,7 +87,7 @@ class _MembersDirectoryScreenState
               ListTile(
                 title: Text(r),
                 trailing: r == _region
-                    ? Icon(Icons.check_rounded, color: ctx.scheme.primary)
+                    ? Icon(CoolIcons.check, color: ctx.scheme.primary)
                     : null,
                 onTap: () => Navigator.pop(ctx, r),
               ),
@@ -105,7 +107,13 @@ class _MembersDirectoryScreenState
       // No app bar: a tinted header with the member count leads the screen, then
       // the search box — a title bar would just repeat the nav word (#17 / #13).
       body: members.when(
-        loading: () => const MembersListSkeleton(),
+        // The header is real from the first frame; only the list shimmers.
+        loading: () => const Column(
+          children: [
+            _MembersHeader(count: null),
+            Expanded(child: MembersListSkeleton()),
+          ],
+        ),
         error: (e, _) => ErrorView(
           message: 'Could not load members.',
           detail: e.toString(),
@@ -137,11 +145,11 @@ class _MembersDirectoryScreenState
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: 'Search name, business, category…',
-                      prefixIcon: const Icon(Icons.search_rounded),
+                      prefixIcon: const Icon(CoolIcons.search),
                       suffixIcon: _query.isEmpty
                           ? null
                           : IconButton(
-                              icon: const Icon(Icons.close_rounded),
+                              icon: const Icon(CoolIcons.close),
                               tooltip: 'Clear',
                               onPressed: () {
                                 _search.clear();
@@ -166,13 +174,13 @@ class _MembersDirectoryScreenState
               Expanded(
                 child: results.isEmpty
                     ? EmptyView(
-                        icon: Icons.person_search_rounded,
+                        icon: CoolIcons.userSearchCorner,
                         title: all.isEmpty ? 'No members yet' : 'No matches',
                         message: all.isEmpty
                             ? 'Members appear here as people join.'
                             : (_query.isNotEmpty
-                                ? 'No one matches “$_query”.'
-                                : 'No one matches these filters.'),
+                                  ? 'No one matches “$_query”.'
+                                  : 'No one matches these filters.'),
                       )
                     : AppRefresh(
                         onRefresh: () async => ref.invalidate(membersProvider),
@@ -202,7 +210,8 @@ class _MembersDirectoryScreenState
 
 /// Tinted header for the directory: title + how many members are in the network.
 class _MembersHeader extends StatelessWidget {
-  final int count;
+  /// Null while loading: the header shows without a count.
+  final int? count;
   const _MembersHeader({required this.count});
 
   @override
@@ -211,7 +220,11 @@ class _MembersHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          context.pagePadding, topInset + Gap.md, context.pagePadding, Gap.md),
+        context.pagePadding,
+        topInset + Gap.md,
+        context.pagePadding,
+        Gap.md,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -227,15 +240,17 @@ class _MembersHeader extends StatelessWidget {
         children: [
           Text(
             'Members',
-            style: context.text.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style: context.text.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
           Text(
-            count == 0
+            (count ?? 0) == 0
                 ? 'Your network'
                 : '$count ${count == 1 ? 'member' : 'members'} in your network',
-            style: context.text.bodySmall
-                ?.copyWith(color: context.scheme.onSurfaceVariant),
+            style: context.text.bodySmall?.copyWith(
+              color: context.scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -281,15 +296,19 @@ class _MemberCard extends StatelessWidget {
               Flexible(
                 child: Text(
                   member.name,
-                  style: context.text.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.text.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isMe) ...[
                 const SizedBox(width: Gap.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: context.scheme.primaryContainer,
                     borderRadius: BorderRadius.circular(Radii.pill),
@@ -308,7 +327,7 @@ class _MemberCard extends StatelessWidget {
           subtitle: subtitle.isEmpty
               ? null
               : Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-          trailing: const Icon(Icons.chevron_right_rounded),
+          trailing: const Icon(CoolIcons.chevronRight),
           onTap: () => context.push('/members/${member.uid}'),
         ),
       ),
@@ -365,7 +384,7 @@ class _FilterBar extends StatelessWidget {
           ),
           const SizedBox(width: Gap.sm),
           InputChip(
-            avatar: const Icon(Icons.category_outlined, size: 18),
+            avatar: const Icon(CoolIcons.shapes, size: 18),
             label: Text(category ?? 'Category'),
             selected: category != null,
             onPressed: onCategory,
@@ -373,7 +392,7 @@ class _FilterBar extends StatelessWidget {
           ),
           const SizedBox(width: Gap.sm),
           InputChip(
-            avatar: const Icon(Icons.map_outlined, size: 18),
+            avatar: const Icon(CoolIcons.map, size: 18),
             label: Text(region ?? 'Region'),
             selected: region != null,
             onPressed: onRegion,

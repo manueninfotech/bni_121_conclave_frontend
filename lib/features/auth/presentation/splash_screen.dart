@@ -3,6 +3,7 @@ import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/tokens.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// The first thing anyone sees.
 ///
@@ -26,13 +27,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   // Starts at 0.85, not 0: the splash is often on screen for only a moment (the
   // auth check), and a logo caught mid-grow from nothing looked like a tiny
   // glitch. This way any glimpse of it is already a sensible size.
-  late final Animation<double> _logoScale = Tween<double>(
-    begin: 0.85,
-    end: 1,
-  ).animate(CurvedAnimation(
-    parent: _controller,
-    curve: const Interval(0, 0.6, curve: Curves.easeOutBack),
-  ));
+  late final Animation<double> _logoScale = Tween<double>(begin: 0.85, end: 1)
+      .animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0, 0.6, curve: Curves.easeOutBack),
+        ),
+      );
 
   late final Animation<double> _fade = CurvedAnimation(
     parent: _controller,
@@ -95,7 +96,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ),
                   // The client is providing artwork; it drops in here.
                   child: Icon(
-                    Icons.groups_rounded,
+                    CoolIcons.usersGroupFill,
                     size: 56,
                     color: scheme.onPrimaryContainer,
                   ),

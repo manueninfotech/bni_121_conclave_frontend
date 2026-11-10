@@ -9,6 +9,7 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// Sign in.
 ///
@@ -73,7 +74,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ? Phone.toE164(_country, _identifier.text)
           : _identifier.text.trim();
 
-      await ref.read(authRepositoryProvider).login(identifier, _password.text.trim());
+      await ref
+          .read(authRepositoryProvider)
+          .login(identifier, _password.text.trim());
       Analytics.login(_method == LoginMethod.phone ? 'phone' : 'email');
       // The router's redirect handles navigation once auth state changes.
     } catch (e) {
@@ -102,8 +105,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ? "We couldn't sign you in. Check the number and password — and that the country code is right."
           : "We couldn't sign you in. Check your email and password.";
     }
-    if (s.contains('network')) return 'No connection. Check your signal and try again.';
-    if (s.contains('too many')) return 'Too many attempts. Wait a moment, then try again.';
+    if (s.contains('network')) {
+      return 'No connection. Check your signal and try again.';
+    }
+    if (s.contains('too many')) {
+      return 'Too many attempts. Wait a moment, then try again.';
+    }
     return raw;
   }
 
@@ -114,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: Icon(Icons.lock_reset_rounded, color: ctx.scheme.primary),
+          icon: Icon(CoolIcons.key, color: ctx.scheme.primary),
           title: const Text('Reset by phone'),
           content: const Text(
             'Your account is registered to a phone number, so there is no email '
@@ -155,7 +162,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             const SizedBox(height: Gap.xs),
             Text(
               "We'll email you a link to set a new one.",
-              style: ctx.text.bodyMedium?.copyWith(color: ctx.scheme.onSurfaceVariant),
+              style: ctx.text.bodyMedium?.copyWith(
+                color: ctx.scheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: Gap.lg),
             TextField(
@@ -164,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'Email address',
-                prefixIcon: Icon(Icons.alternate_email_rounded),
+                prefixIcon: Icon(CoolIcons.mention),
               ),
               onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
             ),
@@ -217,175 +226,202 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         statusBarBrightness: Brightness.dark, // iOS
       ),
       child: Scaffold(
-      // The keyboard slides OVER the hero rather than squashing it — the form
-      // scrolls, the brand stays put.
-      resizeToAvoidBottomInset: false,
-      body: Column(
-        // stretch, not the default centre: without it the hero shrink-wraps to
-        // its text and leaves pale margins down both sides of a panel that is
-        // meant to be full-bleed.
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Hero(animation: _intro),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // The system navigation bar (gesture pill or 3-button) eats the
-                // bottom edge. Without reserving it here, "New here?" — which the
-                // Spacer pins to the very bottom — gets drawn UNDER the nav bar
-                // and becomes untappable. This reserves it on every device size
-                // rather than hard-coding a margin. The keyboard inset is 0 while
-                // resizeToAvoidBottomInset is false, but we keep it in the sum so
-                // the padding stays correct if that ever changes.
-                final safeBottom = MediaQuery.paddingOf(context).bottom;
-                final bottomInset =
-                    MediaQuery.viewInsetsOf(context).bottom + safeBottom + Gap.lg;
-                return SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  context.pagePadding,
-                  Gap.xl,
-                  context.pagePadding,
-                  bottomInset,
-                ),
-                child: ConstrainedBox(
-                  // Fill the space below the hero so the form can push "New
-                  // here?" to the bottom instead of leaving a dead half-screen.
-                  //
-                  // minHeight alone is not enough: a SingleChildScrollView hands
-                  // its child an UNBOUNDED max height, so the Column would
-                  // shrink-wrap and the Spacer inside it (an Expanded) would
-                  // throw "non-zero flex but incoming height constraints are
-                  // unbounded". IntrinsicHeight is what actually bounds it.
-                  // Cheap here — the subtree is a short form.
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - Gap.xl - bottomInset,
-                  ),
-                  child: IntrinsicHeight(
-                    child: ContentWidth(
-                    max: 440,
-                    child: FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: _intro,
-                        curve: const Interval(0.3, 1, curve: Curves.easeOut),
+        // The keyboard slides OVER the hero rather than squashing it — the form
+        // scrolls, the brand stays put.
+        resizeToAvoidBottomInset: false,
+        body: Column(
+          // stretch, not the default centre: without it the hero shrink-wraps to
+          // its text and leaves pale margins down both sides of a panel that is
+          // meant to be full-bleed.
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Hero(animation: _intro),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // The system navigation bar (gesture pill or 3-button) eats the
+                  // bottom edge. Without reserving it here, "New here?" — which the
+                  // Spacer pins to the very bottom — gets drawn UNDER the nav bar
+                  // and becomes untappable. This reserves it on every device size
+                  // rather than hard-coding a margin. The keyboard inset is 0 while
+                  // resizeToAvoidBottomInset is false, but we keep it in the sum so
+                  // the padding stays correct if that ever changes.
+                  final safeBottom = MediaQuery.paddingOf(context).bottom;
+                  final bottomInset =
+                      MediaQuery.viewInsetsOf(context).bottom +
+                      safeBottom +
+                      Gap.lg;
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      context.pagePadding,
+                      Gap.xl,
+                      context.pagePadding,
+                      bottomInset,
+                    ),
+                    child: ConstrainedBox(
+                      // Fill the space below the hero so the form can push "New
+                      // here?" to the bottom instead of leaving a dead half-screen.
+                      //
+                      // minHeight alone is not enough: a SingleChildScrollView hands
+                      // its child an UNBOUNDED max height, so the Column would
+                      // shrink-wrap and the Spacer inside it (an Expanded) would
+                      // throw "non-zero flex but incoming height constraints are
+                      // unbounded". IntrinsicHeight is what actually bounds it.
+                      // Cheap here — the subtree is a short form.
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - Gap.xl - bottomInset,
                       ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                        MethodToggle(
-                          value: _method,
-                          onChanged: (m) => setState(() {
-                            _method = m;
-                            _identifier.clear();
-                            _error = null;
-                          }),
-                        ),
-                        const SizedBox(height: Gap.md),
-
-                        // Asking which, rather than sniffing it from one field,
-                        // is what lets the phone path carry a country code — and
-                        // it removes the guess that broke sign-in.
-                        if (_method == LoginMethod.phone)
-                          PhoneField(
-                            controller: _identifier,
-                            country: _country,
-                            onCountryChanged: (c) => setState(() => _country = c),
-                            onSubmitted: _passwordFocus.requestFocus,
-                          )
-                        else
-                          TextFormField(
-                            controller: _identifier,
-                            autofillHints: const [AutofillHints.email],
-                            textInputAction: TextInputAction.next,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: 'Email address',
-                              prefixIcon: Icon(Icons.alternate_email_rounded),
+                      child: IntrinsicHeight(
+                        child: ContentWidth(
+                          max: 440,
+                          child: FadeTransition(
+                            opacity: CurvedAnimation(
+                              parent: _intro,
+                              curve: const Interval(
+                                0.3,
+                                1,
+                                curve: Curves.easeOut,
+                              ),
                             ),
-                            onFieldSubmitted: (_) => _passwordFocus.requestFocus(),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Enter your email address'
-                                : null,
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  MethodToggle(
+                                    value: _method,
+                                    onChanged: (m) => setState(() {
+                                      _method = m;
+                                      _identifier.clear();
+                                      _error = null;
+                                    }),
+                                  ),
+                                  const SizedBox(height: Gap.md),
+
+                                  // Asking which, rather than sniffing it from one field,
+                                  // is what lets the phone path carry a country code — and
+                                  // it removes the guess that broke sign-in.
+                                  if (_method == LoginMethod.phone)
+                                    PhoneField(
+                                      controller: _identifier,
+                                      country: _country,
+                                      onCountryChanged: (c) =>
+                                          setState(() => _country = c),
+                                      onSubmitted: _passwordFocus.requestFocus,
+                                    )
+                                  else
+                                    TextFormField(
+                                      controller: _identifier,
+                                      autofillHints: const [
+                                        AutofillHints.email,
+                                      ],
+                                      textInputAction: TextInputAction.next,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Email address',
+                                        prefixIcon: Icon(CoolIcons.mention),
+                                      ),
+                                      onFieldSubmitted: (_) =>
+                                          _passwordFocus.requestFocus(),
+                                      validator: (v) =>
+                                          (v == null || v.trim().isEmpty)
+                                          ? 'Enter your email address'
+                                          : null,
+                                    ),
+                                  const SizedBox(height: Gap.md),
+
+                                  TextFormField(
+                                    controller: _password,
+                                    focusNode: _passwordFocus,
+                                    obscureText: _obscure,
+                                    autofillHints: const [
+                                      AutofillHints.password,
+                                    ],
+                                    textInputAction: TextInputAction.done,
+                                    decoration: InputDecoration(
+                                      labelText: 'Password',
+                                      prefixIcon: const Icon(CoolIcons.lock),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscure
+                                              ? CoolIcons.eye
+                                              : CoolIcons.eyeOff,
+                                        ),
+                                        tooltip: _obscure
+                                            ? 'Show password'
+                                            : 'Hide password',
+                                        onPressed: () => setState(
+                                          () => _obscure = !_obscure,
+                                        ),
+                                      ),
+                                    ),
+                                    onFieldSubmitted: (_) => _login(),
+                                    validator: (v) => (v == null || v.isEmpty)
+                                        ? 'Enter your password'
+                                        : null,
+                                  ),
+
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: _isLoading
+                                          ? null
+                                          : _forgotPassword,
+                                      child: const Text('Forgot password?'),
+                                    ),
+                                  ),
+
+                                  if (_error != null) ...[
+                                    _ErrorNote(message: _error!),
+                                    const SizedBox(height: Gap.md),
+                                  ],
+
+                                  PrimaryButton(
+                                    label: 'Sign in',
+                                    loading: _isLoading,
+                                    onPressed: _isLoading ? null : _login,
+                                  ),
+
+                                  // Fills the space rather than leaving a dead half-screen
+                                  // below the form.
+                                  const Spacer(),
+                                  const SizedBox(height: Gap.lg),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'New here?',
+                                        style: context.text.bodyMedium
+                                            ?.copyWith(
+                                              color: context
+                                                  .scheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                      ),
+                                      TextButton(
+                                        // push, not go: this stacks Create-account ON TOP
+                                        // of sign-in, so the back button (and the register
+                                        // screen's own back arrow) returns here instead of
+                                        // doing nothing.
+                                        onPressed: () =>
+                                            context.push('/register'),
+                                        child: const Text('Create an account'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        const SizedBox(height: Gap.md),
-
-                        TextFormField(
-                          controller: _password,
-                          focusNode: _passwordFocus,
-                          obscureText: _obscure,
-                          autofillHints: const [AutofillHints.password],
-                          textInputAction: TextInputAction.done,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline_rounded),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
-                              tooltip: _obscure ? 'Show password' : 'Hide password',
-                              onPressed: () => setState(() => _obscure = !_obscure),
-                            ),
-                          ),
-                          onFieldSubmitted: (_) => _login(),
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Enter your password' : null,
-                        ),
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _isLoading ? null : _forgotPassword,
-                            child: const Text('Forgot password?'),
-                          ),
-                        ),
-
-                        if (_error != null) ...[
-                          _ErrorNote(message: _error!),
-                          const SizedBox(height: Gap.md),
-                        ],
-
-                        PrimaryButton(
-                          label: 'Sign in',
-                          loading: _isLoading,
-                          onPressed: _isLoading ? null : _login,
-                        ),
-
-                        // Fills the space rather than leaving a dead half-screen
-                        // below the form.
-                        const Spacer(),
-                        const SizedBox(height: Gap.lg),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'New here?',
-                              style: context.text.bodyMedium
-                                  ?.copyWith(color: context.scheme.onSurfaceVariant),
-                            ),
-                            TextButton(
-                              // push, not go: this stacks Create-account ON TOP
-                              // of sign-in, so the back button (and the register
-                              // screen's own back arrow) returns here instead of
-                              // doing nothing.
-                              onPressed: () => context.push('/register'),
-                              child: const Text('Create an account'),
-                            ),
-                          ],
-                        ),
-                          ],
                         ),
                       ),
                     ),
-                  ),
-                  ),
-                ),
-              );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -406,7 +442,9 @@ class _Hero extends StatelessWidget {
     final top = MediaQuery.paddingOf(context).top;
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(Radii.xl)),
+      borderRadius: const BorderRadius.vertical(
+        bottom: Radius.circular(Radii.xl),
+      ),
       child: Stack(
         children: [
           // Both gradients fill the WHOLE panel, outside the padding.
@@ -452,9 +490,15 @@ class _Hero extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(Radii.md),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
                     ),
-                    child: const Icon(Icons.groups_rounded, size: 28, color: Colors.white),
+                    child: const Icon(
+                      CoolIcons.usersGroupFill,
+                      size: 28,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(height: Gap.xl),
@@ -468,7 +512,9 @@ class _Hero extends StatelessWidget {
                     children: [
                       Text(
                         'Welcome back',
-                        style: context.text.displaySmall?.copyWith(color: Colors.white),
+                        style: context.text.displaySmall?.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
                       const SizedBox(height: Gap.xs),
                       Text(
@@ -508,7 +554,10 @@ class _ErrorNote extends StatelessWidget {
       curve: Motion.curve,
       builder: (context, t, child) => Opacity(
         opacity: t.clamp(0, 1),
-        child: Transform.translate(offset: Offset(0, -6 * (1 - t)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, -6 * (1 - t)),
+          child: child,
+        ),
       ),
       child: Container(
         padding: const EdgeInsets.all(Gap.md),
@@ -520,12 +569,14 @@ class _ErrorNote extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.error_outline_rounded, size: 18, color: c.onDangerContainer),
+            Icon(CoolIcons.circleWarning, size: 18, color: c.onDangerContainer),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Text(
                 message,
-                style: context.text.bodySmall?.copyWith(color: c.onDangerContainer),
+                style: context.text.bodySmall?.copyWith(
+                  color: c.onDangerContainer,
+                ),
               ),
             ),
           ],

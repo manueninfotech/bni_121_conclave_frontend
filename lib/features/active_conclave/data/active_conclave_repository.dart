@@ -263,6 +263,11 @@ class ActiveConclaveRepository {
       return t.captainId == pid;
     }
 
+    // Everyone's Conclave Specific Ask, by uid.
+    final asks = data['specificAsks'] is Map
+        ? Map<String, dynamic>.from(data['specificAsks'] as Map)
+        : const <String, dynamic>{};
+
     TableSeat seatFor(int pid, ScheduleTable t, int roundNumber) {
       final p = schedule.byParticipantId[pid]!;
       final standIn = standInFor(roundNumber, t.tableNumber);
@@ -279,6 +284,9 @@ class ActiveConclaveRepository {
         isSelf: pid == me.participantId,
         metBefore: metBefore.contains(pid),
         photoUrl: p.photoUrl,
+        ask: (asks[p.uid] as String?)?.trim().isNotEmpty == true
+            ? (asks[p.uid] as String).trim()
+            : null,
       );
     }
 

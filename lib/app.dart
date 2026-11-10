@@ -39,6 +39,7 @@ import 'features/members/presentation/my_referrals_screen.dart';
 import 'features/members/presentation/people_met_screen.dart';
 import 'features/members/presentation/my_card_screen.dart';
 import 'features/members/presentation/one_to_ones_screen.dart';
+import 'features/members/data/members_repository.dart';
 import 'features/members/data/one_to_ones_repository.dart';
 import 'features/members/data/my_referrals_repository.dart';
 import 'features/notifications/data/notifications_repository.dart';
@@ -404,6 +405,7 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     ref.invalidate(myOneToOnesProvider);
     ref.invalidate(myReferralsProvider);
     ref.invalidate(notificationsProvider);
+    ref.invalidate(membersProvider);
   }
 
   @override

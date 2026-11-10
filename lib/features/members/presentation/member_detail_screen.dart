@@ -10,6 +10,7 @@ import '../../auth/data/auth_repository.dart';
 import '../data/members_repository.dart';
 import '../data/one_to_ones_repository.dart';
 import 'propose_one_to_one.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// One member's public profile.
 ///
@@ -41,21 +42,22 @@ class MemberDetailScreen extends ConsumerWidget {
           final member = all.where((m) => m.uid == memberId).firstOrNull;
           if (member == null) {
             return EmptyView(
-              icon: Icons.person_off_outlined,
+              icon: CoolIcons.userCloseCorner,
               title: 'Member not found',
               message: 'They may have left, or the directory has moved on.',
               action: FilledButton(
-                onPressed: () => context.canPop()
-                    ? context.pop()
-                    : context.go('/members'),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/members'),
                 child: const Text('Back to members'),
               ),
             );
           }
-          final requestPending = oneToOnes.any((m) =>
-              m.sent &&
-              m.otherUserId == member.uid &&
-              m.status == OneToOneStatus.pending);
+          final requestPending = oneToOnes.any(
+            (m) =>
+                m.sent &&
+                m.otherUserId == member.uid &&
+                m.status == OneToOneStatus.pending,
+          );
           return _Detail(
             member: member,
             isSelf: member.uid == myUid,
@@ -95,7 +97,9 @@ class _Detail extends StatelessWidget {
           Text(
             member.name,
             textAlign: TextAlign.center,
-            style: context.text.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: context.text.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           if (member.businessCategory.isNotEmpty) ...[
             const SizedBox(height: Gap.sm),
@@ -103,7 +107,7 @@ class _Detail extends StatelessWidget {
               child: StatusBadge(
                 label: member.businessCategory,
                 tone: StatusTone.info,
-                icon: Icons.category_outlined,
+                icon: CoolIcons.shapes,
               ),
             ),
           ],
@@ -116,17 +120,18 @@ class _Detail extends StatelessWidget {
                 onPressed: requestPending
                     ? null
                     : () => showProposeOneToOne(
-                          context,
-                          toUserId: member.uid,
-                          toName:
-                              member.name.isEmpty ? 'this member' : member.name,
-                        ),
-                icon: Icon(requestPending
-                    ? Icons.hourglass_top_rounded
-                    : Icons.coffee_outlined),
-                label: Text(requestPending
-                    ? 'Request pending'
-                    : 'Request a 1-2-1'),
+                        context,
+                        toUserId: member.uid,
+                        toName: member.name.isEmpty
+                            ? 'this member'
+                            : member.name,
+                      ),
+                icon: Icon(
+                  requestPending ? CoolIcons.hourglass : CoolIcons.coffee,
+                ),
+                label: Text(
+                  requestPending ? 'Request pending' : 'Request a 1-2-1',
+                ),
               ),
             ),
             const SizedBox(height: Gap.md),
@@ -140,33 +145,31 @@ class _Detail extends StatelessWidget {
                 children: [
                   if (member.membership.isNotEmpty)
                     InfoRow(
-                      icon: member.isBni
-                          ? Icons.verified_outlined
-                          : Icons.person_outline,
+                      icon: member.isBni ? CoolIcons.wavyCheck : CoolIcons.user,
                       label: 'Membership',
                       value: member.membership,
                     ),
                   if (member.businessName.isNotEmpty)
                     InfoRow(
-                      icon: Icons.business_outlined,
+                      icon: CoolIcons.building2,
                       label: 'Business',
                       value: member.businessName,
                     ),
                   if (member.location.isNotEmpty)
                     InfoRow(
-                      icon: Icons.place_outlined,
+                      icon: CoolIcons.mapPin,
                       label: 'Location',
                       value: _titleCase(member.location),
                     ),
                   if (member.chapter != null && member.chapter!.isNotEmpty)
                     InfoRow(
-                      icon: Icons.groups_2_outlined,
+                      icon: CoolIcons.usersGroup,
                       label: 'Chapter',
                       value: member.chapter!,
                     ),
                   if (member.region != null && member.region!.isNotEmpty)
                     InfoRow(
-                      icon: Icons.map_outlined,
+                      icon: CoolIcons.map,
                       label: 'Region',
                       value: member.region!,
                     ),
@@ -178,7 +181,7 @@ class _Detail extends StatelessWidget {
           if (member.lookingFor.isNotEmpty) ...[
             const SizedBox(height: Gap.md),
             _MatchCard(
-              icon: Icons.search_rounded,
+              icon: CoolIcons.search,
               title: 'Looking for',
               body: member.lookingFor,
             ),
@@ -186,7 +189,7 @@ class _Detail extends StatelessWidget {
           if (member.canOffer.isNotEmpty) ...[
             const SizedBox(height: Gap.md),
             _MatchCard(
-              icon: Icons.volunteer_activism_outlined,
+              icon: CoolIcons.handCoins,
               title: 'Can offer',
               body: member.canOffer,
             ),

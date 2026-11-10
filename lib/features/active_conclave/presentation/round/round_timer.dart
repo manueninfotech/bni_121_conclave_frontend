@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../domain/active_conclave_models.dart';
+import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 /// BNI-red card-gradient endpoints, shared across the live-round deck.
 const kDeckTop = Color(0xFFF04E66);
@@ -69,8 +70,8 @@ class RoundTimer {
         fg: c.onSuccessContainer,
         bg: c.successContainer,
         icon: turn.kind == TurnKind.bio
-            ? Icons.record_voice_over_outlined
-            : Icons.handshake_outlined,
+            ? CoolIcons.userVoice
+            : CoolIcons.handshake,
         kicker: turn.kind == TurnKind.bio ? 'Bio' : 'Referrals',
         remaining: remaining,
         total: turn.length,
@@ -95,10 +96,13 @@ class RoundTimer {
         phase: phase,
         fg: c.onSuccessContainer,
         bg: c.successContainer,
-        icon: beforeReferrals ? Icons.hourglass_top : Icons.forum_outlined,
+        icon: beforeReferrals
+            ? CoolIcons.hourglass
+            : CoolIcons.chatConversation,
         kicker: beforeReferrals ? 'Referrals start soon' : 'Extra time',
-        remaining:
-            ends.difference(now).isNegative ? Duration.zero : ends.difference(now),
+        remaining: ends.difference(now).isNegative
+            ? Duration.zero
+            : ends.difference(now),
         total: beforeReferrals
             ? round.timing.referralOpensAfter
             : round.activeEndsAt.difference(round.referralClosesAt),
@@ -120,15 +124,15 @@ class RoundTimer {
       if (next == null) {
         kicker = 'Round over';
         headline = null;
-        icon = Icons.flag_outlined;
+        icon = CoolIcons.flag;
       } else if (staying) {
         kicker = 'Stay at your table';
         headline = 'Table $next · your next group is arriving';
-        icon = Icons.chair_alt_outlined;
+        icon = CoolIcons.armchair;
       } else {
         kicker = 'Move to your next table';
         headline = 'Move to Table $next';
-        icon = Icons.directions_walk;
+        icon = CoolIcons.route;
       }
       return RoundTimer(
         phase: phase,
@@ -157,7 +161,7 @@ class RoundTimer {
         phase: phase,
         fg: c.onWarningContainer,
         bg: c.warningContainer,
-        icon: staying ? Icons.chair_alt_outlined : Icons.directions_walk,
+        icon: staying ? CoolIcons.armchair : CoolIcons.route,
         kicker: staying ? 'Stay at your table' : 'Move to your next table',
         remaining: Duration.zero,
         total: round.timing.transition,
@@ -175,7 +179,7 @@ class RoundTimer {
       phase: phase,
       fg: context.scheme.onSurfaceVariant,
       bg: context.scheme.surfaceContainerHighest,
-      icon: Icons.hourglass_empty,
+      icon: CoolIcons.hourglass,
       kicker: 'Round ended',
       remaining: Duration.zero,
       total: round.timing.transition,

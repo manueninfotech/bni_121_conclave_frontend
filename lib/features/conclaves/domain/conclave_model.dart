@@ -131,6 +131,9 @@ class Conclave {
   /// For an approved walk-in: the first round they sit in.
   final int? walkInJoinsFrom;
 
+  /// This member's Conclave Specific Ask, if they wrote one.
+  final String? mySpecificAsk;
+
   Conclave({
     required this.id,
     required this.name,
@@ -153,6 +156,7 @@ class Conclave {
     this.walkInOpen = false,
     this.walkInStatus,
     this.walkInJoinsFrom,
+    this.mySpecificAsk,
   });
 
   /// Status corrected for the passage of time.
@@ -289,6 +293,7 @@ class Conclave {
       walkInJoinsFrom: data['walkIn'] is Map
           ? ((data['walkIn'] as Map)['joinsFromRound'] as num?)?.toInt()
           : null,
+      mySpecificAsk: data['mySpecificAsk'] as String?,
     );
   }
 
@@ -314,6 +319,7 @@ class Conclave {
       walkInOpen: walkInOpen,
       walkInStatus: walkInStatus,
       walkInJoinsFrom: walkInJoinsFrom,
+      mySpecificAsk: mySpecificAsk,
       personsPerTable: personsPerTable,
       roundCount: roundCount,
       paymentDetails: paymentDetails,
