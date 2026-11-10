@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config/remote_config_service.dart';
 import '../navigation.dart';
+import '../widgets/app_dialog.dart';
+import '../theme/cool_icons.dart';
 
 /// Keeps clients current — with the mechanism each store actually provides.
 ///
@@ -141,33 +143,22 @@ class AppUpdateService {
       barrierDismissible: !forced,
       builder: (ctx) => PopScope(
         canPop: !forced,
-        child: AlertDialog(
-          title: Text(forced ? 'Update required' : 'Update available'),
-          content: Text(
-            forced
-                ? 'This version is out of date and can no longer be used. '
-                    'Please update to keep using the app.'
-                : 'A newer version is available on the $storeName.',
-          ),
-          actions: [
-            if (!forced)
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Later'),
-              ),
-            FilledButton(
-              onPressed: () {
-                launchUrl(
-                  Uri.parse(storeUrl),
-                  mode: LaunchMode.externalApplication,
-                );
-                // Soft nudge closes; a forced dialog stays up so a user who
-                // backs out of the App Store without updating is still blocked.
-                if (!forced) Navigator.of(ctx).pop();
-              },
-              child: const Text('Update'),
-            ),
-          ],
+        child: AppDialog(
+          icon: CoolIcons.arrowUpRight,
+          title: forced ? 'Update required' : 'Update available',
+          message: forced
+              ? 'This version is out of date and can no longer be used. '
+                  'Please update to keep using the app.'
+              : 'A newer version is available on the $storeName.',
+          primaryLabel: 'Update',
+          onPrimary: () {
+            launchUrl(Uri.parse(storeUrl), mode: LaunchMode.externalApplication);
+            // Soft nudge closes; a forced dialog stays up so a user who backs
+            // out of the store without updating is still blocked.
+            if (!forced) Navigator.of(ctx).pop();
+          },
+          secondaryLabel: forced ? null : 'Later',
+          onSecondary: forced ? null : () => Navigator.of(ctx).pop(),
         ),
       ),
     );

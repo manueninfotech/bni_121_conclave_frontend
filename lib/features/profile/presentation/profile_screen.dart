@@ -16,6 +16,7 @@ import '../../auth/data/auth_repository.dart';
 import '../../members/data/my_referrals_repository.dart';
 import '../data/profile_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
 import 'package:conclave_1_2_1/core/widgets/powered_by_footer.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -24,24 +25,13 @@ class ProfileScreen extends ConsumerWidget {
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     // Signing out at a live event means re-authenticating in a room with no
     // signal. Worth one tap of confirmation.
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'You will need to sign in again to take part in a conclave.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sign out'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirm(
+      context,
+      icon: CoolIcons.logOut,
+      title: 'Sign out?',
+      message: 'You will need to sign in again to take part in a conclave.',
+      confirmLabel: 'Sign out',
+      destructive: true,
     );
 
     if (confirmed != true) return;
@@ -54,27 +44,15 @@ class ProfileScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: Icon(CoolIcons.triangleWarning, color: ctx.colors.danger),
-        title: const Text('Delete account?'),
-        content: const Text(
-          'This permanently deletes your account and profile — your details, '
-          'networking info, referrals, and one-to-ones. This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ctx.colors.danger),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete account'),
-          ),
-        ],
-      ),
+    final confirmed = await showAppConfirm(
+      context,
+      icon: CoolIcons.triangleWarning,
+      title: 'Delete account?',
+      message:
+          'This permanently deletes your account and profile: your details, '
+          'networking info, referrals and one-to-ones. This cannot be undone.',
+      confirmLabel: 'Delete account',
+      destructive: true,
     );
     if (confirmed != true || !context.mounted) return;
 

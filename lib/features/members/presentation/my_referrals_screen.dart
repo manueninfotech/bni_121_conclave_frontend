@@ -10,6 +10,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/my_referrals_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
 
 /// This member's referrals across every conclave — who they referred, and who
 /// referred them, plus what came of each (accepted / closed / didn't work out).
@@ -111,8 +112,11 @@ class MyReferralsScreen extends ConsumerWidget {
     final noteCtrl = TextEditingController(text: e.outcomeNote);
     return showDialog<(int, String)>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Closed business'),
+      useRootNavigator: true,
+      builder: (ctx) => AppDialog(
+        icon: CoolIcons.currencyRupee,
+        title: 'Closed business',
+        message: 'Record the value of the business this referral brought you.',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -133,19 +137,13 @@ class MyReferralsScreen extends ConsumerWidget {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final amt = int.tryParse(amountCtrl.text.trim()) ?? 0;
-              Navigator.pop(ctx, (amt, noteCtrl.text.trim()));
-            },
-            child: const Text('Save'),
-          ),
-        ],
+        primaryLabel: 'Save',
+        onPrimary: () {
+          final amt = int.tryParse(amountCtrl.text.trim()) ?? 0;
+          Navigator.pop(ctx, (amt, noteCtrl.text.trim()));
+        },
+        secondaryLabel: 'Cancel',
+        onSecondary: () => Navigator.pop(ctx),
       ),
     );
   }

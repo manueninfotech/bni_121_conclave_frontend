@@ -258,11 +258,17 @@ class AppTheme {
         insetPadding: const EdgeInsets.all(Gap.lg),
       ),
 
+      // Matches AppDialog (lib/core/widgets/app_dialog.dart) for any system
+      // dialog (date/time pickers, etc.).
       dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: scheme.surfaceContainerLowest,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.xl),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        titleTextStyle: TextStyle(
+          fontFamily: _font,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: scheme.onSurface,
         ),
       ),
 

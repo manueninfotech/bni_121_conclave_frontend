@@ -16,6 +16,7 @@ import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
 import 'payment_sheet.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
 
 /// Confirm registration.
 ///
@@ -76,19 +77,11 @@ class _ConclaveRegisterScreenState
       // A clash is a decision the user has to understand, not a passing message
       // — and it cannot be undone by unregistering elsewhere.
       if (mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            icon: Icon(CoolIcons.calendarClose, color: ctx.colors.danger),
-            title: const Text('Clashes with another conclave'),
-            content: Text(e.message),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
+        await showAppNotice(
+          context,
+          icon: CoolIcons.calendarClose,
+          title: 'Clashes with another conclave',
+          message: e.message,
         );
       }
     } catch (e) {
@@ -136,26 +129,15 @@ class _ConclaveRegisterScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final ctx = rootNavigatorKey.currentContext;
       if (ctx == null) return;
-      final add = await showDialog<bool>(
-        context: ctx,
-        builder: (dctx) => AlertDialog(
-          icon: const Icon(CoolIcons.calendarCheck),
-          title: const Text('Add to your calendar?'),
-          content: const Text(
-            "You're registered — we'll remind you an hour before. Add the "
+      final add = await showAppConfirm(
+        ctx,
+        icon: CoolIcons.calendarCheck,
+        title: 'Add to your calendar?',
+        message:
+            "You're registered, and we'll remind you an hour before. Add the "
             'conclave to your calendar so it blocks your day too.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dctx, false),
-              child: const Text('Not now'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dctx, true),
-              child: const Text('Add to calendar'),
-            ),
-          ],
-        ),
+        confirmLabel: 'Add to calendar',
+        cancelLabel: 'Not now',
       );
       if (add == true) {
         try {

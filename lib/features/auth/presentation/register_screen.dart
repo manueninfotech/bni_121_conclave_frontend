@@ -14,6 +14,7 @@ import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
 
 /// Registration.
 ///
@@ -148,26 +149,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _cancelResume() async {
-    final leave = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: Icon(CoolIcons.logOut, color: ctx.scheme.primary),
-        title: const Text('Cancel setup?'),
-        content: const Text(
+    final leave = await showAppConfirm(
+      context,
+      icon: CoolIcons.logOut,
+      title: 'Cancel setup?',
+      message:
           'Your number is verified, but your account is not finished yet. You '
           'can complete it later by registering with the same number.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep going'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cancel setup'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Cancel setup',
+      cancelLabel: 'Keep going',
+      destructive: true,
     );
     if (leave == true) {
       // Signing out flips auth state; the router redirect takes it from here.
