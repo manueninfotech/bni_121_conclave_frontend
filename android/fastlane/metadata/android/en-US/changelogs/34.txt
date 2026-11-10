@@ -1,0 +1,8 @@
+What's new in 1.5.0
+
+- New name and look: 1-2-1 Connect, with a fresh icon and a redesigned app
+- Add your Conclave Specific Ask so your table knows what you need
+- Forgot password: reset it yourself by phone or email
+- Swipe back from the left edge on iPhone
+- Redesigned sign-in, sign-up, profile, referrals and 1-2-1s
+- Fixes and polish

@@ -47,7 +47,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
               top: false,
               minimum: const EdgeInsets.only(bottom: Gap.md),
               child: Center(
-                child: _NavPill(
+                child: AppNavPill(
                   currentIndex: navigationShell.currentIndex,
                   onTap: _go,
                 ),
@@ -60,11 +60,12 @@ class ScaffoldWithNavBar extends StatelessWidget {
   }
 }
 
-class _NavPill extends StatelessWidget {
+/// The floating tab bar itself (public so store screenshots can render it).
+class AppNavPill extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const _NavPill({required this.currentIndex, required this.onTap});
+  const AppNavPill({super.key, required this.currentIndex, required this.onTap});
 
   static const _items = <({IconData icon, IconData selected, String label})>[
     (icon: CoolIcons.house, selected: CoolIcons.houseFill, label: 'Home'),

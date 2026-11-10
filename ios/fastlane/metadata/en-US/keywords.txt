@@ -1,1 +1,1 @@
-BNI,conclave,networking,referral,business,121,one to one,member,meeting,directory,professional
+BNI,conclave,121,one to one,networking,referral,business,meeting,chapter,member,TYFCB,table,round

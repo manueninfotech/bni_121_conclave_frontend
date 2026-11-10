@@ -1,8 +1,8 @@
-What's new in 1.4.0
+What's new in 1.5.0
 
-- A new end-of-conclave summary: your referrals, the people you met and your rounds
-- After each round you see your next table, who sits there and who speaks first
-- Late arrivals can join as walk-ins from the next round
-- Conclaves can run with or without table captains
-- A cleaner live round screen with one clear timer
+- New name and look: 1-2-1 Connect, with a fresh icon and a redesigned app
+- Add your Conclave Specific Ask so your table knows what you need
+- Forgot password: reset it yourself by phone or email
+- Swipe back from the left edge on iPhone
+- Redesigned sign-in, sign-up, profile, referrals and 1-2-1s
 - Fixes and polish

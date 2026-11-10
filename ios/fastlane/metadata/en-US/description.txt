@@ -1,10 +1,29 @@
-BNI 121 Conclave is the companion app for members and guests at BNI 121 Conclave networking events.
+1-2-1 Connect is the companion app for BNI 1-2-1 conclaves: structured one-to-one networking, from your first table to your last referral.
 
-• Register for conclaves and check in fast with QR codes
-• Browse the member directory and find the right people to meet
-• Request and manage one-to-one meetings
-• Pass referrals, track their outcome, and record closed business
-• Get timely alerts as rounds begin and referrals arrive
-• Save the people you meet straight to your contacts
+YOUR SEAT, EVERY ROUND
+- See your table, the people at it and the speaking order
+- A live timer shows who is speaking and how long they have left
+- Read each person's ask before they speak
+- When the round ends, the app tells you where to go next
 
-Built for the room, tuned for the day — everything you need to make your conclave count.
+PASS BUSINESS IN ONE TAP
+- Give a referral to anyone at your table during the referral slot
+- Add a note so the lead is clear
+- Track every referral you give and receive, and record closed business
+
+ATTENDANCE THAT WORKS WITHOUT SIGNAL
+- Table captains scan you in with your QR code
+- Works offline at the venue and syncs when you are back online
+
+SEE WHAT YOU BUILT
+- After the conclave, your summary shows your rounds, referrals and everyone you met
+- Save the people you met straight to your contacts
+- Share your own contact card with a QR code
+
+ALSO
+- Browse upcoming conclaves and register in seconds
+- Set your Conclave Specific Ask so your table knows what you need
+- Request and manage 1-2-1 meetings with other members
+- Get alerts as rounds begin and referrals arrive
+
+1-2-1 Connect requires an account. Any payment in the app is a registration fee for a physical networking event.
