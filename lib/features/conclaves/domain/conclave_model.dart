@@ -89,6 +89,9 @@ class Conclave {
   final String id;
   final String name;
   final String venueLocation;
+
+  /// BNI region the conclave belongs to (e.g. "Guntur Region"); may be empty.
+  final String region;
   final DateTime date;
 
   /// Last day of a multi-day event. Null for a single-day conclave (use [date]).
@@ -142,6 +145,7 @@ class Conclave {
     required this.id,
     required this.name,
     required this.venueLocation,
+    this.region = '',
     required this.date,
     this.endDate,
     required this.status,
@@ -280,6 +284,7 @@ class Conclave {
       id: id,
       name: data['name'] ?? 'Unnamed Conclave',
       venueLocation: data['venueLocation'] ?? 'Unknown Venue',
+      region: (data['region'] as String?)?.trim() ?? '',
       date: date,
       endDate: endDate,
       startTime:
@@ -321,6 +326,7 @@ class Conclave {
       id: id,
       name: name,
       venueLocation: venueLocation,
+      region: region,
       date: date,
       endDate: endDate,
       startTime: startTime,

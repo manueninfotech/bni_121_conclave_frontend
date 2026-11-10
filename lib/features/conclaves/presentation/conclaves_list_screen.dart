@@ -8,7 +8,9 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/shimmer.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import '../data/conclave_filters.dart';
 import 'list/conclave_cards.dart';
+import 'list/conclave_filter_bar.dart';
 import 'list/conclave_segments.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
@@ -68,6 +70,9 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
           .toList(),
   };
 
+  List<Conclave> _filtered(List<Conclave> all, int tab, ConclaveFilters f) =>
+      _filter(all, tab).where((c) => f.matches(c, upcoming: tab == 1)).toList();
+
   /// Open on Ongoing when something is live, else Upcoming — once, on first
   /// data, so we never yank the member off a tab they picked.
   bool _pickedInitialTab = false;
@@ -84,7 +89,16 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
     final conclaves = ref.watch(conclavesStreamProvider);
     final all = conclaves.asData?.value ?? const <Conclave>[];
     _pickInitialTab(all);
-    final counts = [for (var t = 0; t < 3; t++) _filter(all, t).length];
+    final filters = ref.watch(conclaveFiltersProvider);
+    // Counts follow the filters, so the switcher shows where matches are.
+    final counts = [
+      for (var t = 0; t < 3; t++) _filtered(all, t, filters).length,
+    ];
+    final regions = {
+      for (final c in all)
+        if (c.region.isNotEmpty) c.region,
+    }.toList()
+      ..sort();
 
     return Scaffold(
       // No app bar: the tinted header leads, with the segment switcher in it.
@@ -102,6 +116,23 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
               ],
             ),
           ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.pagePadding,
+              Gap.md,
+              context.pagePadding,
+              0,
+            ),
+            child: ContentWidth(
+              child: AnimatedBuilder(
+                animation: _tabController,
+                builder: (context, _) => ConclaveFilterBar(
+                  tab: _tabController.index,
+                  regions: regions,
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: conclaves.when(
               // A skeleton, not a spinner: it says what is coming and how much
@@ -116,7 +147,12 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
                 controller: _tabController,
                 children: List.generate(
                   3,
-                  (tab) => _ConclaveList(conclaves: _filter(all, tab), tab: tab),
+                  (tab) => _ConclaveList(
+                    conclaves: _filtered(all, tab, filters),
+                    tab: tab,
+                    filtered: filters.isActive,
+                    onClear: ref.read(conclaveFiltersProvider.notifier).clear,
+                  ),
                 ),
               ),
             ),
@@ -191,11 +227,35 @@ class _ConclavesHeader extends StatelessWidget {
 class _ConclaveList extends StatelessWidget {
   final List<Conclave> conclaves;
   final int tab;
+  final bool filtered;
+  final VoidCallback onClear;
 
-  const _ConclaveList({required this.conclaves, required this.tab});
+  const _ConclaveList({
+    required this.conclaves,
+    required this.tab,
+    required this.filtered,
+    required this.onClear,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (conclaves.isEmpty && filtered) {
+      return ListView(
+        physics: const ClampingScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.1),
+          EmptyView(
+            icon: CoolIcons.searchClose,
+            title: 'No conclaves match',
+            message: 'Try a different search or clear the filters.',
+            action: OutlinedButton(
+              onPressed: onClear,
+              child: const Text('Clear filters'),
+            ),
+          ),
+        ],
+      );
+    }
     if (conclaves.isEmpty) {
       return ListView(
         physics: const ClampingScrollPhysics(),
