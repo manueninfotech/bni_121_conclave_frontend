@@ -147,34 +147,31 @@ class _ConclaveSummaryScreenState extends ConsumerState<ConclaveSummaryScreen> {
 
             return AppRefresh(
               onRefresh: _sync,
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: SummaryHero(
-                      conclaveName: journey.conclaveName,
-                      rounds: journey.rounds.length,
-                      peopleMet: journey.people.length,
-                      syncing: _syncing,
-                      onBack: _back,
-                      onSync: _sync,
-                    ),
+              child: ListView(
+                physics: const ClampingScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [
+                  // One column, so the stats card (drawn after the hero) sits
+                  // ON TOP of the hero's lower edge instead of under it.
+                  SummaryHero(
+                    conclaveName: journey.conclaveName,
+                    rounds: journey.rounds.length,
+                    peopleMet: journey.people.length,
+                    syncing: _syncing,
+                    onBack: _back,
+                    onSync: _sync,
                   ),
-                  SliverToBoxAdapter(
-                    child: ContentWidth(
-                      child: Transform.translate(
-                        // The stats card rides up over the hero's lower edge.
-                        offset: const Offset(0, -SummaryHero.overlap),
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: Gap.lg),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (var i = 0; i < sections.length; i++)
-                                FadeSlideIn(index: i ~/ 3, child: sections[i]),
-                            ],
-                          ),
+                  ContentWidth(
+                    child: Transform.translate(
+                      offset: const Offset(0, -SummaryHero.overlap),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (var i = 0; i < sections.length; i++)
+                              FadeSlideIn(index: i ~/ 3, child: sections[i]),
+                          ],
                         ),
                       ),
                     ),

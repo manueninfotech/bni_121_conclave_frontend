@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -81,13 +82,28 @@ class _Shell extends StatelessWidget {
 void _back(BuildContext context) =>
     context.canPop() ? context.pop() : context.go('/conclaves');
 
-class _Detail extends StatelessWidget {
+class _Detail extends StatefulWidget {
   final Conclave conclave;
   const _Detail({required this.conclave});
 
   @override
+  State<_Detail> createState() => _DetailState();
+}
+
+class _DetailState extends State<_Detail> {
+  /// 0..1: how far the header has scrolled under the top bar — fades the
+  /// conclave name into the bar so it always says where you are.
+  final _titleIn = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _titleIn.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final c = conclave;
+    final c = widget.conclave;
     final tint = Color.alphaBlend(
       AppColors.brandRed.withValues(alpha: 0.10),
       context.scheme.surface,
@@ -99,9 +115,16 @@ class _Detail extends StatelessWidget {
 
     return Column(
       children: [
-        _TopBar(tint: tint),
+        _TopBar(tint: tint, title: c.name, titleIn: _titleIn),
         Expanded(
-          child: ListView(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              if (n.metrics.axis == Axis.vertical) {
+                _titleIn.value = (n.metrics.pixels / 56).clamp(0.0, 1.0);
+              }
+              return false;
+            },
+            child: ListView(
             physics: const ClampingScrollPhysics(),
             padding: EdgeInsets.zero,
             children: [
@@ -146,6 +169,7 @@ class _Detail extends StatelessWidget {
               ),
             ],
           ),
+          ),
         ),
         if (action != null) _ActionBar(child: action),
       ],
@@ -186,10 +210,13 @@ class _Detail extends StatelessWidget {
   }
 }
 
-/// Fixed top bar: a round back button aligned with the page's content edge.
+/// Fixed top bar: a small frosted back button on the content edge, and the
+/// conclave's name fading in once the header scrolls away.
 class _TopBar extends StatelessWidget {
   final Color tint;
-  const _TopBar({required this.tint});
+  final String title;
+  final ValueListenable<double> titleIn;
+  const _TopBar({required this.tint, required this.title, required this.titleIn});
 
   @override
   Widget build(BuildContext context) {
@@ -199,28 +226,46 @@ class _TopBar extends StatelessWidget {
         context.pagePadding,
         MediaQuery.paddingOf(context).top + Gap.xs,
         context.pagePadding,
-        Gap.sm,
+        Gap.xs,
       ),
       child: ContentWidth(
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Material(
-            color: context.scheme.surfaceContainerLowest,
-            shape: CircleBorder(side: BorderSide(color: context.colors.hairline)),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => _back(context),
-              child: Semantics(
-                button: true,
-                label: 'Back',
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(CoolIcons.arrowLeft, size: 20),
+        child: SizedBox(
+          height: 44,
+          child: Row(children: [
+            Material(
+              color: Colors.white.withValues(alpha: 0.6),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _back(context),
+                child: Semantics(
+                  button: true,
+                  label: 'Back',
+                  child: const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Icon(CoolIcons.chevronLeft, size: 22),
+                  ),
                 ),
               ),
             ),
-          ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: ValueListenableBuilder<double>(
+                valueListenable: titleIn,
+                builder: (context, v, _) => Opacity(
+                  opacity: v,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 36 + Gap.md), // balances the back button
+          ]),
         ),
       ),
     );

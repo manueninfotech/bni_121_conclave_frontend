@@ -212,73 +212,91 @@ class SummaryAvatar extends StatelessWidget {
   }
 }
 
-/// The people they sat with: a row of faces, tap through to the full list.
+/// The people they sat with: faces, who they are, and one clear Save action.
 class SummaryPeople extends StatelessWidget {
   final List<ScheduleParticipant> people;
   final VoidCallback onOpen;
 
   const SummaryPeople({super.key, required this.people, required this.onOpen});
 
+  String get _names {
+    final first = [for (final p in people) p.name.split(' ').first];
+    if (first.isEmpty) return '';
+    if (first.length == 1) return first.first;
+    if (first.length == 2) return '${first[0]} and ${first[1]}';
+    return '${first[0]}, ${first[1]} and ${first.length - 2} more';
+  }
+
   @override
   Widget build(BuildContext context) {
-    const shown = 6;
-    final extra = people.length - shown;
+    const shown = 3;
+    const size = 36.0;
+    const step = 24.0;
+    final faces = people.take(shown).toList();
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onOpen,
         child: Ink(
-          padding: const EdgeInsets.all(Gap.md),
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.sm, Gap.md),
           decoration: roundPanel(context),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: Stack(
-                    children: [
-                      for (var i = 0; i < people.length && i < shown; i++)
-                        Positioned(
-                          left: i * 30.0,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: context.scheme.surfaceContainerLowest,
-                            ),
-                            child: SummaryAvatar(
-                              name: people[i].name,
-                              photoUrl: people[i].photoUrl,
-                              size: 40,
-                            ),
-                          ),
-                        ),
-                      if (extra > 0)
-                        Positioned(
-                          left: shown * 30.0 + 6,
-                          top: 12,
-                          child: Text(
-                            '+$extra',
-                            style: context.text.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: context.scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                    ],
+          child: Row(children: [
+            SizedBox(
+              width: size + step * (faces.length - 1) + 4,
+              height: size + 4,
+              child: Stack(children: [
+                for (var i = 0; i < faces.length; i++)
+                  Positioned(
+                    left: i * step,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: context.scheme.surfaceContainerLowest,
+                      ),
+                      child: SummaryAvatar(
+                        name: faces[i].name,
+                        photoUrl: faces[i].photoUrl,
+                        size: size,
+                      ),
+                    ),
                   ),
+              ]),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Text(
+                _names,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(width: Gap.sm),
+            Material(
+              color: AppColors.brandRed.withValues(alpha: 0.08),
+              shape: const StadiumBorder(),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(CoolIcons.userPlusCorner, size: 16, color: AppColors.brandRed),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Save',
+                      style: context.text.labelLarge?.copyWith(
+                        color: AppColors.brandRed,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ]),
                 ),
               ),
-              Text(
-                'Save contacts',
-                style: context.text.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Icon(CoolIcons.chevronRight),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );

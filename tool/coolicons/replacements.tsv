@@ -21,6 +21,7 @@ check_circle	circleCheckFill
 check_circle_outline	circleCheck
 check_circle_rounded	circleCheckFill
 check_rounded	check
+chevron_left_back	chevronLeft
 chevron_right_rounded	chevronRight
 circle_outlined	circle
 close	close
