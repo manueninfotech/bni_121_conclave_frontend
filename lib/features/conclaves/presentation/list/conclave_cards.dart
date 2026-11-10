@@ -260,12 +260,44 @@ class PastConclaveRow extends StatelessWidget {
                   ],
                 ),
               ),
-              if (attended)
-                Text('Summary',
-                    style: context.text.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
-              Icon(CoolIcons.chevronRight, color: muted),
+              if (attended) ...[
+                const SizedBox(width: Gap.sm),
+                _SummaryPill(onTap: () => context.push('/conclaves/${c.id}/summary')),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The past-row action: a tinted pill that reads as a button, not a label.
+class _SummaryPill extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SummaryPill({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.brandRed.withValues(alpha: 0.08),
+      shape: const StadiumBorder(),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(CoolIcons.receipt, size: 16, color: AppColors.brandRed),
+            const SizedBox(width: 6),
+            Text(
+              'Summary',
+              style: context.text.labelLarge?.copyWith(
+                color: AppColors.brandRed,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ]),
         ),
       ),
     );
