@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,11 +9,11 @@ import '../../../core/theme/cool_icons.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../active_conclave/presentation/round/card_backdrop.dart';
 import '../../active_conclave/presentation/round/deck_footer.dart' show roundPanel;
 import '../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
-import 'list/date_tile.dart';
 import 'specific_ask_card.dart';
 import 'walk_in_action.dart';
 
@@ -82,93 +81,66 @@ class _Shell extends StatelessWidget {
 void _back(BuildContext context) =>
     context.canPop() ? context.pop() : context.go('/conclaves');
 
-class _Detail extends StatefulWidget {
+class _Detail extends StatelessWidget {
   final Conclave conclave;
   const _Detail({required this.conclave});
 
   @override
-  State<_Detail> createState() => _DetailState();
-}
-
-class _DetailState extends State<_Detail> {
-  /// 0..1: how far the header has scrolled under the top bar — fades the
-  /// conclave name into the bar so it always says where you are.
-  final _titleIn = ValueNotifier<double>(0);
-
-  @override
-  void dispose() {
-    _titleIn.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final c = widget.conclave;
-    final tint = Color.alphaBlend(
-      AppColors.brandRed.withValues(alpha: 0.10),
-      context.scheme.surface,
-    );
+    final c = conclave;
     final action = _actionFor(context, c);
-    final upcoming = c.effectiveStatus != ConclaveStatus.running &&
-        c.effectiveStatus != ConclaveStatus.completed &&
-        c.effectiveStatus != ConclaveStatus.cancelled;
+    final status = c.effectiveStatus;
+    final upcoming = status != ConclaveStatus.running &&
+        status != ConclaveStatus.completed &&
+        status != ConclaveStatus.cancelled;
 
     return Column(
       children: [
-        _TopBar(tint: tint, title: c.name, titleIn: _titleIn),
         Expanded(
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (n) {
-              if (n.metrics.axis == Axis.vertical) {
-                _titleIn.value = (n.metrics.pixels / 56).clamp(0.0, 1.0);
-              }
-              return false;
-            },
-            child: ListView(
+          child: ListView(
             physics: const ClampingScrollPhysics(),
             padding: EdgeInsets.zero,
             children: [
-              _Header(conclave: c, tint: tint),
+              _Hero(conclave: c),
+              // Drawn after the hero, so it sits ON its lower edge.
               ContentWidth(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    context.pagePadding,
-                    Gap.md,
-                    context.pagePadding,
-                    Gap.xl + (action == null ? context.bottomInset : 0),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      FadeSlideIn(index: 0, child: _WhenWhere(conclave: c, upcoming: upcoming)),
-                      const SizedBox(height: Gap.md),
-                      FadeSlideIn(index: 1, child: _Glance(conclave: c, upcoming: upcoming)),
-                      if (c.isRegistered) ...[
+                child: Transform.translate(
+                  offset: const Offset(0, -_Hero.overlap),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      context.pagePadding,
+                      0,
+                      context.pagePadding,
+                      Gap.lg + (action == null ? context.bottomInset : 0),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Numbers(conclave: c, upcoming: upcoming),
+                        if (c.isRegistered) ...[
+                          const SizedBox(height: Gap.xl),
+                          const _Label('Your place'),
+                          _YourPlace(conclave: c),
+                          const SizedBox(height: Gap.md),
+                          SpecificAskCard(conclave: c),
+                        ],
                         const SizedBox(height: Gap.xl),
-                        const _Label('Your place'),
-                        FadeSlideIn(index: 2, child: _YourPlace(conclave: c)),
-                        const SizedBox(height: Gap.md),
-                        FadeSlideIn(index: 3, child: SpecificAskCard(conclave: c)),
-                      ],
-                      const SizedBox(height: Gap.xl),
-                      const _Label('How it works'),
-                      FadeSlideIn(index: 4, child: _HowItWorks(conclave: c)),
-                      if (c.description.isNotEmpty || c.coordinator.isNotEmpty) ...[
+                        const _Label('Details'),
+                        _Details(conclave: c, upcoming: upcoming),
                         const SizedBox(height: Gap.xl),
-                        const _Label('About'),
-                        FadeSlideIn(index: 5, child: _About(conclave: c)),
+                        const _Label('How it works'),
+                        _HowItWorks(conclave: c),
+                        if (c.chiefGuests.isNotEmpty) ...[
+                          const SizedBox(height: Gap.xl),
+                          const _Label('Chief guests'),
+                          _Guests(names: c.chiefGuests),
+                        ],
                       ],
-                      if (c.chiefGuests.isNotEmpty) ...[
-                        const SizedBox(height: Gap.xl),
-                        const _Label('Chief guests'),
-                        FadeSlideIn(index: 6, child: _Guests(names: c.chiefGuests)),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               ),
             ],
-          ),
           ),
         ),
         if (action != null) _ActionBar(child: action),
@@ -177,7 +149,7 @@ class _DetailState extends State<_Detail> {
   }
 
   /// Exactly one action, decided by state — or none when there is nothing to
-  /// do (the header's status already says ended / cancelled / closed).
+  /// do (the hero's status already says ended / cancelled / closed).
   Widget? _actionFor(BuildContext context, Conclave c) {
     final status = c.effectiveStatus;
     if (status == ConclaveStatus.running && c.isRegistered) {
@@ -210,268 +182,252 @@ class _DetailState extends State<_Detail> {
   }
 }
 
-/// Fixed top bar: a small frosted back button on the content edge, and the
-/// conclave's name fading in once the header scrolls away.
-class _TopBar extends StatelessWidget {
-  final Color tint;
-  final String title;
-  final ValueListenable<double> titleIn;
-  const _TopBar({required this.tint, required this.title, required this.titleIn});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: tint,
-      padding: EdgeInsets.fromLTRB(
-        context.pagePadding,
-        MediaQuery.paddingOf(context).top + Gap.xs,
-        context.pagePadding,
-        Gap.xs,
-      ),
-      child: ContentWidth(
-        child: SizedBox(
-          height: 44,
-          child: Row(children: [
-            Material(
-              color: Colors.white.withValues(alpha: 0.6),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => _back(context),
-                child: Semantics(
-                  button: true,
-                  label: 'Back',
-                  child: const SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Icon(CoolIcons.chevronLeft, size: 22),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: ValueListenableBuilder<double>(
-                valueListenable: titleIn,
-                builder: (context, v, _) => Opacity(
-                  opacity: v,
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 36 + Gap.md), // balances the back button
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-/// Tinted header: date tile beside the name and one status line.
-class _Header extends StatelessWidget {
+/// The page's header, in the same language as the summary: one band with
+/// rounded bottom corners and the back button inside it. Silk when the
+/// conclave is live (the one red moment), a soft tint otherwise.
+class _Hero extends StatelessWidget {
   final Conclave conclave;
-  final Color tint;
-  const _Header({required this.conclave, required this.tint});
+  const _Hero({required this.conclave});
 
-  (String, Color, IconData) _status(BuildContext context) {
+  /// How far the numbers card rides up over the hero's lower edge.
+  static const double overlap = 40;
+
+  (String, IconData) get _kicker {
     final c = conclave;
     final status = c.effectiveStatus;
     if (c.isRegistered &&
         status != ConclaveStatus.running &&
         status != ConclaveStatus.completed &&
         status != ConclaveStatus.cancelled) {
-      return ("You're registered", context.colors.success, CoolIcons.circleCheckFill);
+      return ("YOU'RE REGISTERED", CoolIcons.circleCheckFill);
     }
-    final muted = context.scheme.onSurfaceVariant;
     return switch (status) {
-      ConclaveStatus.running => ('Live now', kDeckBottom, CoolIcons.broadcast),
-      ConclaveStatus.completed => (
-          c.isRegistered ? 'Attended' : 'Ended',
-          c.isRegistered ? context.colors.success : muted,
-          CoolIcons.check,
-        ),
-      ConclaveStatus.cancelled => ('Cancelled', context.colors.danger, CoolIcons.close),
-      ConclaveStatus.registrationOpen => (
-          'Registration open',
-          context.scheme.onSurface,
-          CoolIcons.userCheckCorner,
-        ),
-      ConclaveStatus.registrationNotOpen => ('Registration opens soon', muted, CoolIcons.clock),
-      _ => ('Registration closed', muted, CoolIcons.lock),
+      ConclaveStatus.running => ('LIVE NOW', CoolIcons.broadcast),
+      ConclaveStatus.completed => (c.isRegistered ? 'ATTENDED' : 'ENDED', CoolIcons.check),
+      ConclaveStatus.cancelled => ('CANCELLED', CoolIcons.close),
+      ConclaveStatus.registrationOpen => ('REGISTRATION OPEN', CoolIcons.userCheckCorner),
+      ConclaveStatus.registrationNotOpen => ('REGISTRATION OPENS SOON', CoolIcons.clock),
+      _ => ('REGISTRATION CLOSED', CoolIcons.lock),
     };
   }
 
   @override
   Widget build(BuildContext context) {
     final c = conclave;
-    final (label, color, icon) = _status(context);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [tint, context.scheme.surface],
-        ),
-      ),
-      padding: EdgeInsets.fromLTRB(context.pagePadding, Gap.sm, context.pagePadding, Gap.md),
-      child: ContentWidth(
-        child: Row(
-          children: [
-            DateTile(date: c.date, muted: c.effectiveStatus == ConclaveStatus.completed),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    c.name,
-                    style: context.text.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    Icon(icon, size: 16, color: color),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        label,
-                        style: context.text.labelLarge?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ]),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// When and where, in one card, with the two things you'd do with them.
-class _WhenWhere extends StatelessWidget {
-  final Conclave conclave;
-  final bool upcoming;
-  const _WhenWhere({required this.conclave, required this.upcoming});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = conclave;
+    final live = c.effectiveStatus == ConclaveStatus.running;
+    final ink = live ? Colors.white : context.scheme.onSurface;
+    final soft = live ? Colors.white.withValues(alpha: 0.85) : context.scheme.onSurfaceVariant;
+    final (kicker, kickerIcon) = _kicker;
     final time = c.startTime == null
         ? null
         : c.endTime == null
             ? DateFormat('h:mm a').format(c.startTime!)
             : '${DateFormat('h:mm a').format(c.startTime!)} – ${DateFormat('h:mm a').format(c.endTime!)}';
+    final top = MediaQuery.paddingOf(context).top;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: live
+                ? const CardBackdrop(mood: CardMood.bio, seed: 4.4)
+                : DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.alphaBlend(
+                            AppColors.brandRed.withValues(alpha: 0.14),
+                            context.scheme.surface,
+                          ),
+                          Color.alphaBlend(
+                            AppColors.brandRed.withValues(alpha: 0.05),
+                            context.scheme.surface,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+          ContentWidth(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                context.pagePadding - Gap.sm,
+                top + Gap.xs,
+                context.pagePadding,
+                Gap.xl + overlap,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => _back(context),
+                    icon: Icon(CoolIcons.arrowLeft, color: ink),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: Gap.sm),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: Gap.sm),
+                        Row(children: [
+                          Icon(kickerIcon, size: 14, color: soft),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              kicker,
+                              style: context.text.labelMedium?.copyWith(
+                                color: soft,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.6,
+                              ),
+                            ),
+                          ),
+                        ]),
+                        const SizedBox(height: Gap.xs),
+                        Text(
+                          c.name,
+                          style: context.text.headlineMedium?.copyWith(
+                            color: ink,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                          ),
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        Text(
+                          [DateFormat('EEE, d MMM yyyy').format(c.date), ?time].join('  ·  '),
+                          style: context.text.bodyMedium?.copyWith(
+                            color: ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          c.venueLocation,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.bodyMedium?.copyWith(color: soft),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Three numbers in one white card, overlapping the hero (as on the summary).
+class _Numbers extends StatelessWidget {
+  final Conclave conclave;
+  final bool upcoming;
+  const _Numbers({required this.conclave, required this.upcoming});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
+    final items = upcoming
+        ? [
+            (
+              c.memberLimit > 0 ? '${c.registrationCount}/${c.memberLimit}' : '${c.registrationCount}',
+              'Registered',
+            ),
+            ('${c.personsPerTable}', 'Per table'),
+            ('${c.roundCount}', 'Rounds'),
+          ]
+        : [
+            ('${c.registrationCount}', 'Members'),
+            ('${c.roundCount}', 'Rounds'),
+            ('${c.referralCount}', 'Referrals'),
+          ];
+    final divider = Container(
+      width: 1,
+      height: 36,
+      color: context.scheme.outlineVariant.withValues(alpha: 0.6),
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: Gap.sm),
+      decoration: roundPanel(context, radius: 22),
+      child: Row(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) divider,
+            Expanded(
+              child: Column(children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    items[i].$1,
+                    style: context.text.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                Text(
+                  items[i].$2.toUpperCase(),
+                  style: context.text.labelSmall?.copyWith(
+                    color: context.scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Where, the calendar, who organises it, and what it's about — one card.
+class _Details extends StatelessWidget {
+  final Conclave conclave;
+  final bool upcoming;
+  const _Details({required this.conclave, required this.upcoming});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
     final rows = <Widget>[
-      _Row(icon: CoolIcons.calendar, label: 'Date', value: DateFormat('EEE, d MMM yyyy').format(c.date)),
-      if (time != null) _Row(icon: CoolIcons.clock, label: 'Time', value: time),
       _Row(
         icon: CoolIcons.mapPin,
         label: 'Venue',
         value: c.venueLocation,
-        action: ('Directions', () => launchUrl(
-              Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(c.venueLocation)}'),
-              mode: LaunchMode.externalApplication,
-            )),
+        action: (
+          'Directions',
+          () => launchUrl(
+                Uri.parse(
+                    'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(c.venueLocation)}'),
+                mode: LaunchMode.externalApplication,
+              ),
+        ),
       ),
       if (upcoming)
         _Row(
           icon: CoolIcons.calendarPlusCorner,
           label: 'Calendar',
-          value: 'Add a reminder',
-          action: ('Add', () => ConclaveCalendar.addToCalendar(c)),
+          value: 'Get a reminder before it starts',
+          action: ('Add to calendar', () => ConclaveCalendar.addToCalendar(c)),
+        ),
+      if (c.coordinator.isNotEmpty)
+        _Row(icon: CoolIcons.user, label: 'Organised by', value: c.coordinator),
+      if (c.region.isNotEmpty) _Row(icon: CoolIcons.map, label: 'Region', value: c.region),
+      if (c.description.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Text(c.description, style: context.text.bodyMedium?.copyWith(height: 1.45)),
         ),
     ];
     return _Card(children: rows);
-  }
-}
-
-/// The numbers that make a conclave real: who came, what came of it.
-class _Glance extends StatelessWidget {
-  final Conclave conclave;
-  final bool upcoming;
-  const _Glance({required this.conclave, required this.upcoming});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = conclave;
-    final spots = c.memberLimit > 0
-        ? '${c.registrationCount} of ${c.memberLimit}'
-        : '${c.registrationCount}';
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _Tile(
-              icon: CoolIcons.users,
-              value: upcoming ? spots : '${c.registrationCount}',
-              caption: upcoming ? 'spots taken' : 'members',
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: upcoming
-                ? _Tile(
-                    icon: CoolIcons.usersGroup,
-                    value: '${(c.registrationCount / c.personsPerTable.clamp(1, 8)).ceil()}',
-                    caption: 'tables so far',
-                  )
-                : _Tile(
-                    icon: CoolIcons.handshake,
-                    value: '${c.referralCount}',
-                    caption: 'referrals passed',
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _About extends StatelessWidget {
-  final Conclave conclave;
-  const _About({required this.conclave});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = conclave;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(Gap.lg),
-      decoration: roundPanel(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (c.description.isNotEmpty)
-            Text(c.description, style: context.text.bodyMedium?.copyWith(height: 1.45)),
-          if (c.description.isNotEmpty && c.coordinator.isNotEmpty)
-            const SizedBox(height: Gap.md),
-          if (c.coordinator.isNotEmpty)
-            Row(children: [
-              Icon(CoolIcons.user, size: 16, color: context.scheme.onSurfaceVariant),
-              const SizedBox(width: Gap.sm),
-              Text('Organised by ',
-                  style: context.text.bodySmall?.copyWith(color: context.scheme.onSurfaceVariant)),
-              Flexible(
-                child: Text(c.coordinator,
-                    style: context.text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
-              ),
-            ]),
-        ],
-      ),
-    );
   }
 }
 
@@ -502,6 +458,9 @@ class _Row extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+
+  /// Optional link under the value (e.g. Directions), so a long value keeps
+  /// the full width instead of being squeezed beside a button.
   final (String, VoidCallback)? action;
   const _Row({required this.icon, required this.label, required this.value, this.action});
 
@@ -509,10 +468,14 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     final muted = context.scheme.onSurfaceVariant;
     return Padding(
-      padding: EdgeInsets.fromLTRB(Gap.lg, Gap.md, action == null ? Gap.lg : Gap.sm, Gap.md),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: muted),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 18, color: muted),
+          ),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Column(
@@ -520,19 +483,28 @@ class _Row extends StatelessWidget {
               children: [
                 Text(label, style: context.text.labelSmall?.copyWith(color: muted)),
                 Text(value, style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                if (action != null)
+                  InkWell(
+                    onTap: action!.$2,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 2),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(
+                          action!.$1,
+                          style: context.text.labelLarge?.copyWith(
+                            color: AppColors.brandRed,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(CoolIcons.arrowUpRight, size: 14, color: AppColors.brandRed),
+                      ]),
+                    ),
+                  ),
               ],
             ),
           ),
-          if (action != null)
-            TextButton(
-              onPressed: action!.$2,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.brandRed,
-                textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                visualDensity: VisualDensity.compact,
-              ),
-              child: Text(action!.$1),
-            ),
         ],
       ),
     );
@@ -557,40 +529,7 @@ class _Label extends StatelessWidget {
       );
 }
 
-/// A small square-ish tile: icon, value, caption.
-class _Tile extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String caption;
-  const _Tile({required this.icon, required this.value, required this.caption});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: roundPanel(context, radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: AppColors.brandRed),
-          const SizedBox(height: Gap.sm),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          Text(
-            caption,
-            maxLines: 2,
-            style: context.text.bodySmall?.copyWith(color: context.scheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+/// The three rules, as quiet rows in one card.
 class _HowItWorks extends StatelessWidget {
   final Conclave conclave;
   const _HowItWorks({required this.conclave});
@@ -598,39 +537,42 @@ class _HowItWorks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = conclave;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _Tile(
-              icon: CoolIcons.usersGroup,
-              value: 'Up to ${c.personsPerTable}',
-              caption: 'per table',
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: _Tile(
-              icon: CoolIcons.repeat,
-              value: '${c.roundCount} rounds',
-              caption: 'new table each round',
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          const Expanded(
-            child: _Tile(
-              icon: CoolIcons.shapes,
-              value: 'Mixed',
-              caption: 'one per business category',
-            ),
-          ),
-        ],
+    return _Card(children: [
+      _Rule(
+        icon: CoolIcons.usersGroup,
+        text: 'Up to ${c.personsPerTable} people at each table, kept even',
       ),
+      _Rule(
+        icon: CoolIcons.repeat,
+        text: '${c.roundCount} rounds, and you meet a new table every round',
+      ),
+      const _Rule(
+        icon: CoolIcons.shapes,
+        text: 'Never two people from the same business category at one table',
+      ),
+    ]);
+  }
+}
+
+class _Rule extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Rule({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+      child: Row(children: [
+        Icon(icon, size: 18, color: AppColors.brandRed),
+        const SizedBox(width: Gap.md),
+        Expanded(child: Text(text, style: context.text.bodyMedium)),
+      ]),
     );
   }
 }
 
+/// Role and table, as two rows in one card.
 class _YourPlace extends StatelessWidget {
   final Conclave conclave;
   const _YourPlace({required this.conclave});
@@ -639,30 +581,20 @@ class _YourPlace extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = conclave;
     final captain = c.userRole == ConclaveRole.captain;
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _Tile(
-              icon: captain ? CoolIcons.crownFill : CoolIcons.user,
-              value: captain ? 'Captain' : 'Member',
-              caption: captain ? 'you anchor a table' : 'you move each round',
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: _Tile(
-              icon: CoolIcons.armchair,
-              value: c.userTableNumber != null ? 'Table ${c.userTableNumber}' : 'Table soon',
-              caption: c.userTableNumber != null
-                  ? 'for round 1'
-                  : 'shown once seating is ready',
-            ),
-          ),
-        ],
+    return _Card(children: [
+      _Row(
+        icon: captain ? CoolIcons.crownFill : CoolIcons.user,
+        label: 'Role',
+        value: captain ? 'Captain, you anchor a table' : 'Member, you move each round',
       ),
-    );
+      _Row(
+        icon: CoolIcons.armchair,
+        label: 'Round 1 table',
+        value: c.userTableNumber != null
+            ? 'Table ${c.userTableNumber}'
+            : 'Shown once seating is ready',
+      ),
+    ]);
   }
 }
 
@@ -751,7 +683,7 @@ class _Primary extends StatelessWidget {
           backgroundColor: kDeckBottom,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          textStyle: const TextStyle(fontFamily: 'PlusJakartaSans', fontWeight: FontWeight.w800, fontSize: 16),
         ),
         icon: Icon(icon, size: 20),
         label: Text(label),

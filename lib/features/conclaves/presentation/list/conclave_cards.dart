@@ -88,7 +88,7 @@ class LiveConclaveCard extends StatelessWidget {
                           backgroundColor: Colors.white,
                           foregroundColor: kDeckBottom,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                          textStyle: const TextStyle(fontFamily: 'PlusJakartaSans', fontWeight: FontWeight.w800, fontSize: 15),
                         ),
                         child: Text(label),
                       ),
@@ -164,7 +164,7 @@ class UpcomingConclaveCard extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                        textStyle: const TextStyle(fontFamily: 'PlusJakartaSans', fontWeight: FontWeight.w800),
                       ),
                       child: const Text('Register'),
                     )
