@@ -77,6 +77,7 @@ class _MembersDirectoryScreenState
     if (regions.isEmpty) return;
 
     final picked = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(

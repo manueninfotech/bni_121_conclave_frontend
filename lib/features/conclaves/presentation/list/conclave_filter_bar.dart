@@ -11,15 +11,20 @@ import '../../data/conclave_filters.dart';
 class ConclaveFilterBar extends ConsumerStatefulWidget {
   final int tab;
   final List<String> regions;
-  const ConclaveFilterBar({super.key, required this.tab, required this.regions});
+  const ConclaveFilterBar({
+    super.key,
+    required this.tab,
+    required this.regions,
+  });
 
   @override
   ConsumerState<ConclaveFilterBar> createState() => _ConclaveFilterBarState();
 }
 
 class _ConclaveFilterBarState extends ConsumerState<ConclaveFilterBar> {
-  late final TextEditingController _q =
-      TextEditingController(text: ref.read(conclaveFiltersProvider).query);
+  late final TextEditingController _q = TextEditingController(
+    text: ref.read(conclaveFiltersProvider).query,
+  );
   final _focus = FocusNode();
   bool _searching = false;
 
@@ -51,6 +56,7 @@ class _ConclaveFilterBarState extends ConsumerState<ConclaveFilterBar> {
   Future<void> _pickRegion() async {
     final current = ref.read(conclaveFiltersProvider).region;
     final picked = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => _OptionSheet(
@@ -68,6 +74,7 @@ class _ConclaveFilterBarState extends ConsumerState<ConclaveFilterBar> {
   Future<void> _pickWhen() async {
     final current = ref.read(conclaveFiltersProvider).when;
     final picked = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => _OptionSheet(
@@ -179,7 +186,9 @@ class _Chip extends StatelessWidget {
             : (quiet ? Colors.transparent : scheme.surfaceContainerLowest),
         shape: StadiumBorder(
           side: BorderSide(
-            color: selected || quiet ? Colors.transparent : context.colors.hairline,
+            color: selected || quiet
+                ? Colors.transparent
+                : context.colors.hairline,
           ),
         ),
         child: InkWell(
@@ -187,26 +196,33 @@ class _Chip extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: 16, color: quiet ? scheme.onSurfaceVariant : fg),
-              const SizedBox(width: 6),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.text.labelLarge?.copyWith(
-                    color: quiet ? scheme.onSurfaceVariant : fg,
-                    fontWeight: FontWeight.w700,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 16,
+                  color: quiet ? scheme.onSurfaceVariant : fg,
+                ),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 160),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.labelLarge?.copyWith(
+                      color: quiet ? scheme.onSurfaceVariant : fg,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              if (dropdown) ...[
-                const SizedBox(width: 2),
-                Icon(CoolIcons.chevronDown, size: 14, color: fg),
+                if (dropdown) ...[
+                  const SizedBox(width: 2),
+                  Icon(CoolIcons.chevronDown, size: 14, color: fg),
+                ],
               ],
-            ]),
+            ),
           ),
         ),
       ),
@@ -237,35 +253,41 @@ class _SearchField extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: context.colors.hairline),
       ),
-      child: Row(children: [
-        const SizedBox(width: 12),
-        Icon(CoolIcons.search, size: 16, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 8),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            focusNode: focus,
-            onChanged: onChanged,
-            textInputAction: TextInputAction.search,
-            style: context.text.bodyMedium,
-            decoration: const InputDecoration(
-              hintText: 'Conclave, venue or region',
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              filled: false,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
+      child: Row(
+        children: [
+          const SizedBox(width: 12),
+          Icon(CoolIcons.search, size: 16, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              focusNode: focus,
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              style: context.text.bodyMedium,
+              decoration: const InputDecoration(
+                hintText: 'Conclave, venue or region',
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
-        ),
-        IconButton(
-          tooltip: 'Close search',
-          visualDensity: VisualDensity.compact,
-          onPressed: onClose,
-          icon: Icon(CoolIcons.close, size: 18, color: scheme.onSurfaceVariant),
-        ),
-      ]),
+          IconButton(
+            tooltip: 'Close search',
+            visualDensity: VisualDensity.compact,
+            onPressed: onClose,
+            icon: Icon(
+              CoolIcons.close,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -291,8 +313,12 @@ class _OptionSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(Gap.xl, 0, Gap.xl, Gap.sm),
-            child: Text(title,
-                style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            child: Text(
+              title,
+              style: context.text.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           Flexible(
             child: ListView(

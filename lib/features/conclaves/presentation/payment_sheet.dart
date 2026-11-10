@@ -25,6 +25,7 @@ Future<bool?> showRegistrationPaymentSheet({
   String? prefillContact,
 }) {
   return showModalBottomSheet<bool>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

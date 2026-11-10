@@ -67,6 +67,7 @@ Future<String?> showCategoryPicker(
   List<String>? categories,
 }) {
   return showModalBottomSheet<String>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

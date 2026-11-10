@@ -26,6 +26,7 @@ void showReferralSheet(
   required void Function(TableSeat) onNote,
 }) {
   showModalBottomSheet<void>(
+    useRootNavigator: true,
     context: context,
     showDragHandle: true,
     isScrollControlled: true,

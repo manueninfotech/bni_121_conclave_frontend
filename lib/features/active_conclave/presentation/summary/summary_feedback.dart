@@ -35,6 +35,7 @@ class _FeedbackCardState extends ConsumerState<SummaryFeedbackCard> {
 
   Future<void> _open() async {
     final ok = await showModalBottomSheet<bool>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

@@ -88,6 +88,7 @@ class SpecificAskCard extends ConsumerWidget {
     String current,
   ) async {
     final saved = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

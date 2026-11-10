@@ -24,6 +24,7 @@ class _WalkInActionState extends ConsumerState<WalkInAction> {
 
   Future<void> _ask() async {
     final ask = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

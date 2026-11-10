@@ -60,6 +60,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   /// Presents the photo options and runs the chosen one.
   Future<void> _editPhoto(bool hasPhoto) async {
     final action = await showModalBottomSheet<_PhotoAction>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(

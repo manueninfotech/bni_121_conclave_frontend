@@ -200,6 +200,7 @@ class _ActiveRoundScreenState extends ConsumerState<ActiveRoundScreen>
     final controller = TextEditingController(text: existing ?? '');
 
     final saved = await showModalBottomSheet<bool>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true, // sheet must ride above the keyboard
       showDragHandle: true,

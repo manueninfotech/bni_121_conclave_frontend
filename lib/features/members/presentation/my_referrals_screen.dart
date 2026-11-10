@@ -25,6 +25,7 @@ class MyReferralsScreen extends ConsumerWidget {
     ReferralEntry e,
   ) async {
     final choice = await showModalBottomSheet<ReferralOutcome>(
+      useRootNavigator: true,
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(

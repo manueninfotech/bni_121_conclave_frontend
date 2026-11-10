@@ -14,6 +14,7 @@ Future<bool?> showProposeOneToOne(
   required String toName,
 }) {
   return showModalBottomSheet<bool>(
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

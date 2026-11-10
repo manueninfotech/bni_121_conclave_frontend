@@ -141,6 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     final controller = TextEditingController(text: _identifier.text.trim());
     final email = await showModalBottomSheet<String>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       showDragHandle: true,

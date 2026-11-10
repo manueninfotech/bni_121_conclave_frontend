@@ -38,6 +38,7 @@ class PhoneField extends StatefulWidget {
 class _PhoneFieldState extends State<PhoneField> {
   Future<void> _pickCountry() async {
     final picked = await showModalBottomSheet<Country>(
+      useRootNavigator: true,
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
