@@ -31,21 +31,14 @@ class PoweredByFooter extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: Gap.sm),
+        // The logo spells out "Manuen Infotech"; no separate name line.
         Image.asset(
           'assets/images/manuen_logo.png',
-          height: 34,
+          height: 30,
           semanticLabel: 'Manuen Infotech',
         ),
-        const SizedBox(height: Gap.xs),
-        Text(
-          'Manuen Infotech',
-          style: context.text.bodySmall?.copyWith(
-            color: context.scheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
         if (version != null) ...[
-          const SizedBox(height: 2),
+          const SizedBox(height: Gap.sm),
           Text(
             '1-2-1 Connect  ·  Version $version',
             style: context.text.labelSmall?.copyWith(color: muted),
