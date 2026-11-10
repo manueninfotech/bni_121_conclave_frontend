@@ -492,7 +492,13 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
         );
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: scaler),
-          child: child!,
+          // Tapping any blank spot closes the keyboard, on every screen.
+          // Buttons and fields still win their own taps (they sit deeper).
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: child!,
+          ),
         );
       },
     );
