@@ -3,16 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme/cool_icons.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../active_conclave/presentation/round/deck_footer.dart' show roundPanel;
+import '../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'list/date_tile.dart';
 import 'specific_ask_card.dart';
 import 'walk_in_action.dart';
-import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
-/// One conclave: what it is, where, when, and the one thing you can do about it.
+/// One conclave: what it is, when and where, how it runs, your place in it —
+/// and the one thing you can do about it, pinned at the bottom.
 class ConclaveDetailScreen extends ConsumerWidget {
   final String conclaveId;
 
@@ -33,11 +37,9 @@ class ConclaveDetailScreen extends ConsumerWidget {
           ),
         ),
         data: (all) {
-          // The old code used `orElse: () => conclaves.first`, so a bad id
-          // silently showed a DIFFERENT conclave — the user would be reading
-          // someone else's event and never know.
+          // Never fall back to another conclave for a bad id — the member
+          // would be reading someone else's event and never know.
           final conclave = all.where((c) => c.id == conclaveId).firstOrNull;
-
           if (conclave == null) {
             return _Shell(
               child: EmptyView(
@@ -51,7 +53,6 @@ class ConclaveDetailScreen extends ConsumerWidget {
               ),
             );
           }
-
           return _Detail(conclave: conclave);
         },
       ),
@@ -59,7 +60,7 @@ class ConclaveDetailScreen extends ConsumerWidget {
   }
 }
 
-/// An app bar for the states where we have no conclave to title it with.
+/// A plain bar for the states where there is no conclave to show.
 class _Shell extends StatelessWidget {
   final Widget child;
   const _Shell({required this.child});
@@ -75,241 +76,213 @@ class _Shell extends StatelessWidget {
   }
 }
 
+void _back(BuildContext context) =>
+    context.canPop() ? context.pop() : context.go('/conclaves');
+
 class _Detail extends StatelessWidget {
   final Conclave conclave;
-
   const _Detail({required this.conclave});
 
-  (String, StatusTone, IconData) get _status {
-    // Lead with the member's own status when they're in — the registration
-    // window stops mattering to them. Live/completed/cancelled still win, as
-    // those drive the action below (join / view summary).
-    if (conclave.isRegistered &&
-        conclave.effectiveStatus != ConclaveStatus.running &&
-        conclave.effectiveStatus != ConclaveStatus.completed &&
-        conclave.effectiveStatus != ConclaveStatus.cancelled) {
-      return (
-        "You're registered",
-        StatusTone.success,
-        CoolIcons.circleCheckFill,
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
+    final tint = Color.alphaBlend(
+      AppColors.brandRed.withValues(alpha: 0.10),
+      context.scheme.surface,
+    );
+    final action = _actionFor(context, c);
+
+    return Column(
+      children: [
+        Expanded(
+          child: CustomScrollView(
+            physics: const ClampingScrollPhysics(),
+            slivers: [
+              // Small pinned bar: just the way back. The name lives in the
+              // header below, so nothing collapses or jumps on scroll.
+              SliverAppBar(
+                pinned: true,
+                backgroundColor: tint,
+                surfaceTintColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+                leading: IconButton(
+                  icon: const Icon(CoolIcons.arrowLeft),
+                  tooltip: 'Back',
+                  onPressed: () => _back(context),
+                ),
+              ),
+              SliverToBoxAdapter(child: _Header(conclave: c, tint: tint)),
+              SliverToBoxAdapter(
+                child: ContentWidth(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      context.pagePadding,
+                      Gap.lg,
+                      context.pagePadding,
+                      Gap.xl + (action == null ? context.bottomInset : 0),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (c.isRegistered) ...[
+                          const _Label('Your place'),
+                          FadeSlideIn(index: 0, child: _YourPlace(conclave: c)),
+                          const SizedBox(height: Gap.md),
+                          FadeSlideIn(index: 1, child: SpecificAskCard(conclave: c)),
+                          const SizedBox(height: Gap.xl),
+                        ],
+                        const _Label('How it works'),
+                        FadeSlideIn(index: 2, child: _HowItWorks(conclave: c)),
+                        if (c.chiefGuests.isNotEmpty) ...[
+                          const SizedBox(height: Gap.xl),
+                          const _Label('Chief guests'),
+                          FadeSlideIn(index: 3, child: _Guests(names: c.chiefGuests)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (action != null) _ActionBar(child: action),
+      ],
+    );
+  }
+
+  /// Exactly one action, decided by state — or none when there is nothing to
+  /// do (the header's status already says ended / cancelled / closed).
+  Widget? _actionFor(BuildContext context, Conclave c) {
+    final status = c.effectiveStatus;
+    if (status == ConclaveStatus.running && c.isRegistered) {
+      return _Primary(
+        icon: CoolIcons.playFill,
+        label: 'Join active round',
+        onTap: () => context.push('/conclaves/${c.id}/active'),
       );
     }
-    return switch (conclave.effectiveStatus) {
-      ConclaveStatus.running => (
-        'Live now',
-        StatusTone.success,
-        CoolIcons.broadcast,
-      ),
+    if (status == ConclaveStatus.completed && c.isRegistered) {
+      return _Primary(
+        icon: CoolIcons.receipt,
+        label: 'View my summary',
+        onTap: () => context.push('/conclaves/${c.id}/summary'),
+      );
+    }
+    if (status == ConclaveStatus.running &&
+        !c.isRegistered &&
+        (c.walkInStatus == 'pending' || c.walkInOpen)) {
+      return WalkInAction(conclave: c);
+    }
+    if (c.canRegister && !c.isRegistered) {
+      return _Primary(
+        icon: CoolIcons.userCheckCorner,
+        label: 'Register for this conclave',
+        onTap: () => context.push('/conclaves/${c.id}/register'),
+      );
+    }
+    return null;
+  }
+}
+
+/// Tinted header: date tile, name, one status chip, when + where.
+class _Header extends StatelessWidget {
+  final Conclave conclave;
+  final Color tint;
+  const _Header({required this.conclave, required this.tint});
+
+  (String, Color, IconData) _status(BuildContext context) {
+    final c = conclave;
+    final status = c.effectiveStatus;
+    if (c.isRegistered &&
+        status != ConclaveStatus.running &&
+        status != ConclaveStatus.completed &&
+        status != ConclaveStatus.cancelled) {
+      return ("You're registered", context.colors.success, CoolIcons.circleCheckFill);
+    }
+    final muted = context.scheme.onSurfaceVariant;
+    return switch (status) {
+      ConclaveStatus.running => ('Live now', kDeckBottom, CoolIcons.broadcast),
       ConclaveStatus.completed => (
-        'Completed',
-        StatusTone.neutral,
-        CoolIcons.check,
-      ),
-      ConclaveStatus.cancelled => (
-        'Cancelled',
-        StatusTone.danger,
-        CoolIcons.close,
-      ),
+          c.isRegistered ? 'Attended' : 'Ended',
+          c.isRegistered ? context.colors.success : muted,
+          CoolIcons.check,
+        ),
+      ConclaveStatus.cancelled => ('Cancelled', context.colors.danger, CoolIcons.close),
       ConclaveStatus.registrationOpen => (
-        'Registration open',
-        StatusTone.info,
-        CoolIcons.userCheckCorner,
-      ),
-      ConclaveStatus.registrationNotOpen => (
-        'Registration not open yet',
-        StatusTone.warning,
-        CoolIcons.lockKeyhole,
-      ),
-      _ => ('Upcoming', StatusTone.warning, CoolIcons.clock),
+          'Registration open',
+          context.scheme.onSurface,
+          CoolIcons.userCheckCorner,
+        ),
+      ConclaveStatus.registrationNotOpen => ('Registration opens soon', muted, CoolIcons.clock),
+      _ => ('Registration closed', muted, CoolIcons.lock),
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final (label, tone, icon) = _status;
+    final c = conclave;
+    final (label, color, icon) = _status(context);
+    final muted = context.scheme.onSurfaceVariant;
+    final time = c.startTime == null
+        ? null
+        : c.endTime == null
+            ? DateFormat('h:mm a').format(c.startTime!)
+            : '${DateFormat('h:mm a').format(c.startTime!)} – ${DateFormat('h:mm a').format(c.endTime!)}';
 
-    return CustomScrollView(
-      slivers: [
-        // A large title that collapses on scroll — gives the name room to
-        // breathe on arrival, then gets out of the way.
-        SliverAppBar.large(
-          title: Text(conclave.name),
-          leading: IconButton(
-            icon: const Icon(CoolIcons.arrowLeft),
-            // A manual leading button (unlike the auto-injected BackButton) gets
-            // no default label, so a screen reader would announce a bare
-            // "button". Name it.
-            tooltip: 'Back',
-            onPressed: () =>
-                context.canPop() ? context.pop() : context.go('/conclaves'),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [tint, context.scheme.surface],
         ),
-        SliverToBoxAdapter(
-          child: ContentWidth(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                context.pagePadding,
-                0,
-                context.pagePadding,
-                // Clear the system nav bar — the register/join CTA is the last
-                // thing in this scroll view.
-                context.pagePadding + context.bottomInset,
-              ),
+      ),
+      padding: EdgeInsets.fromLTRB(context.pagePadding, 0, context.pagePadding, Gap.sm),
+      child: ContentWidth(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DateTile(date: c.date, muted: c.effectiveStatus == ConclaveStatus.completed),
+            const SizedBox(width: Gap.md),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  StatusBadge(label: label, tone: tone, icon: icon),
-                  const SizedBox(height: Gap.xl),
-
-                  FadeSlideIn(
-                    index: 0,
-                    child: _Card(
-                      children: [
-                        InfoRow(
-                          icon: CoolIcons.mapPin,
-                          label: 'Venue',
-                          value: conclave.venueLocation,
-                        ),
-                        InfoRow(
-                          icon: CoolIcons.calendar,
-                          label: 'Date',
-                          value: DateFormat(
-                            'EEEE, MMMM d, yyyy',
-                          ).format(conclave.date),
-                        ),
-                        if (conclave.startTime != null)
-                          InfoRow(
-                            icon: CoolIcons.clock,
-                            label: conclave.endTime != null ? 'Time' : 'Starts',
-                            value: conclave.endTime != null
-                                ? '${DateFormat('h:mm a').format(conclave.startTime!)}'
-                                      ' – ${DateFormat('h:mm a').format(conclave.endTime!)}'
-                                : DateFormat(
-                                    'h:mm a',
-                                  ).format(conclave.startTime!),
-                          ),
-                      ],
+                  Text(
+                    c.name,
+                    style: context.text.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
                     ),
                   ),
-
-                  if (conclave.isRegistered) ...[
-                    const SizedBox(height: Gap.md),
-                    FadeSlideIn(
-                      index: 1,
-                      child: _Card(
-                        title: 'Your place',
-                        children: [
-                          InfoRow(
-                            icon: conclave.userRole == ConclaveRole.captain
-                                ? CoolIcons.star
-                                : CoolIcons.user,
-                            label: 'Role',
-                            value: conclave.userRole == ConclaveRole.captain
-                                ? 'Captain — you anchor a table'
-                                : 'Member — you rotate each round',
-                          ),
-                          InfoRow(
-                            icon: CoolIcons.armchair,
-                            label: 'Table',
-                            value:
-                                conclave.userTableNumber?.toString() ??
-                                'Assigned when the schedule is published',
-                          ),
-                        ],
+                  const SizedBox(height: Gap.sm),
+                  Row(children: [
+                    Icon(icon, size: 16, color: color),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: context.text.labelLarge?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ],
-
-                  if (conclave.chiefGuests.isNotEmpty) ...[
-                    const SizedBox(height: Gap.md),
-                    FadeSlideIn(
-                      index: 2,
-                      child: _Card(
-                        title: 'Chief guests',
-                        children: [
-                          for (final g in conclave.chiefGuests)
-                            InfoRow(
-                              icon: CoolIcons.star,
-                              label: 'Guest',
-                              value: g,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-
+                  ]),
                   const SizedBox(height: Gap.md),
-                  FadeSlideIn(
-                    index: 3,
-                    child: _Card(
-                      title: 'How it works',
-                      children: [
-                        InfoRow(
-                          icon: CoolIcons.usersGroup,
-                          label: 'Table size',
-                          value:
-                              '${conclave.personsPerTable} people, '
-                              'including the captain',
-                        ),
-                        InfoRow(
-                          icon: CoolIcons.repeat,
-                          label: 'Rounds',
-                          value:
-                              '${conclave.roundCount} — you move tables each round',
-                        ),
-                        InfoRow(
-                          icon: CoolIcons.shapes,
-                          label: 'Seating rule',
-                          value:
-                              'No two people from the same business category '
-                              'ever share a table',
-                        ),
-                      ],
-                    ),
+                  _Meta(
+                    icon: CoolIcons.calendar,
+                    text: [
+                      DateFormat('EEEE, d MMMM yyyy').format(c.date),
+                      ?time,
+                    ].join('  ·  '),
+                    color: muted,
                   ),
-
-                  if (conclave.isRegistered) ...[
-                    const SizedBox(height: Gap.xl),
-                    SpecificAskCard(conclave: conclave),
-                  ],
-                  const SizedBox(height: Gap.xl),
-                  _Action(conclave: conclave),
+                  _Meta(icon: CoolIcons.mapPin, text: c.venueLocation, color: muted),
                 ],
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final String? title;
-  final List<Widget> children;
-
-  const _Card({this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title != null) ...[
-              Text(
-                title!.toUpperCase(),
-                style: context.text.labelSmall?.copyWith(
-                  color: context.scheme.onSurfaceVariant,
-                  letterSpacing: 0.8,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: Gap.sm),
-            ],
-            ...children,
           ],
         ),
       ),
@@ -317,99 +290,252 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// Exactly one action, decided by state. A screen that offers three things at
-/// once makes the user choose; this one already knows what they came for.
-class _Action extends StatelessWidget {
-  final Conclave conclave;
-
-  const _Action({required this.conclave});
+class _Meta extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+  const _Meta({required this.icon, required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    if (conclave.effectiveStatus == ConclaveStatus.running &&
-        conclave.isRegistered) {
-      return SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton.icon(
-          onPressed: () => context.push('/conclaves/${conclave.id}/active'),
-          icon: const Icon(CoolIcons.playFill),
-          label: const Text('Join active round'),
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 15, color: color),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: context.text.bodyMedium?.copyWith(color: context.scheme.onSurface),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Label extends StatelessWidget {
+  final String text;
+  const _Label(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: Gap.xs, bottom: Gap.sm),
+        child: Text(
+          text.toUpperCase(),
+          style: context.text.labelMedium?.copyWith(
+            color: context.scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
         ),
       );
-    }
+}
 
-    if (conclave.effectiveStatus == ConclaveStatus.completed &&
-        conclave.isRegistered) {
-      return SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton.icon(
-          onPressed: () => context.push('/conclaves/${conclave.id}/summary'),
-          icon: const Icon(CoolIcons.receipt),
-          label: const Text('View my summary'),
-        ),
-      );
-    }
+/// A small square-ish tile: icon, value, caption.
+class _Tile extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String caption;
+  const _Tile({required this.icon, required this.value, required this.caption});
 
-    // Late arrivals: the conclave is under way and they aren't seated yet.
-    if (conclave.effectiveStatus == ConclaveStatus.running &&
-        !conclave.isRegistered &&
-        (conclave.walkInStatus == 'pending' || conclave.walkInOpen)) {
-      return WalkInAction(conclave: conclave);
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: roundPanel(context, radius: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppColors.brandRed),
+          const SizedBox(height: Gap.sm),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          Text(
+            caption,
+            maxLines: 2,
+            style: context.text.bodySmall?.copyWith(color: context.scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    if (conclave.canRegister && !conclave.isRegistered) {
-      return SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: FilledButton.icon(
-          onPressed: () => context.push('/conclaves/${conclave.id}/register'),
-          icon: const Icon(CoolIcons.userCheckCorner),
-          label: const Text('Register for this conclave'),
-        ),
-      );
-    }
+class _HowItWorks extends StatelessWidget {
+  final Conclave conclave;
+  const _HowItWorks({required this.conclave});
 
-    if (conclave.isRegistered) {
-      final c = context.colors;
-      return Container(
-        padding: const EdgeInsets.all(Gap.lg),
-        decoration: BoxDecoration(
-          color: c.successContainer,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Row(
-          children: [
-            Icon(CoolIcons.armchair, color: c.onSuccessContainer),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              // The header badge already says "You're registered" — don't repeat
-              // it here. This slot is forward-looking: what happens next.
-              child: Text(
-                "We'll show your table here the moment the conclave goes live.",
-                style: context.text.bodyMedium?.copyWith(
-                  color: c.onSuccessContainer,
-                ),
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _Tile(
+              icon: CoolIcons.usersGroup,
+              value: 'Up to ${c.personsPerTable}',
+              caption: 'per table',
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: _Tile(
+              icon: CoolIcons.repeat,
+              value: '${c.roundCount} rounds',
+              caption: 'new table each round',
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          const Expanded(
+            child: _Tile(
+              icon: CoolIcons.shapes,
+              value: 'Mixed',
+              caption: 'one per business category',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _YourPlace extends StatelessWidget {
+  final Conclave conclave;
+  const _YourPlace({required this.conclave});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
+    final captain = c.userRole == ConclaveRole.captain;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _Tile(
+              icon: captain ? CoolIcons.crownFill : CoolIcons.user,
+              value: captain ? 'Captain' : 'Member',
+              caption: captain ? 'you anchor a table' : 'you move each round',
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: _Tile(
+              icon: CoolIcons.armchair,
+              value: c.userTableNumber != null ? 'Table ${c.userTableNumber}' : 'Table soon',
+              caption: c.userTableNumber != null
+                  ? 'for round 1'
+                  : 'shown once seating is ready',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Guests extends StatelessWidget {
+  final List<String> names;
+  const _Guests({required this.names});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      decoration: roundPanel(context),
+      child: Column(
+        children: [
+          for (var i = 0; i < names.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                indent: Gap.lg,
+                endIndent: Gap.lg,
+                color: context.colors.hairline,
               ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+              child: Row(children: [
+                const Icon(CoolIcons.starFill, size: 16, color: Color(0xFFE0A200)),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Text(
+                    names[i],
+                    style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ]),
             ),
           ],
-        ),
-      );
-    }
+        ],
+      ),
+    );
+  }
+}
 
+/// The pinned action area at the bottom of the page.
+class _ActionBar extends StatelessWidget {
+  final Widget child;
+  const _ActionBar({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.scheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        context.pagePadding,
+        Gap.md,
+        context.pagePadding,
+        Gap.md + context.bottomInset,
+      ),
+      child: ContentWidth(child: child),
+    );
+  }
+}
+
+class _Primary extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _Primary({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 52,
-      child: OutlinedButton(
-        onPressed: null,
-        child: Text(switch (conclave.effectiveStatus) {
-          ConclaveStatus.completed => 'This conclave has ended',
-          ConclaveStatus.cancelled => 'This conclave was cancelled',
-          ConclaveStatus.running => 'This conclave is already running',
-          ConclaveStatus.registrationNotOpen => 'Registration opens soon',
-          _ => 'Registration closed',
-        }),
+      child: FilledButton.icon(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: kDeckBottom,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        icon: Icon(icon, size: 20),
+        label: Text(label),
       ),
     );
   }
