@@ -58,22 +58,10 @@ class WelcomeVisual extends StatelessWidget {
   const WelcomeVisual({super.key});
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(44),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFC8102E).withValues(alpha: 0.35),
-              blurRadius: 40,
-              offset: const Offset(0, 18),
-            ),
-          ],
-        ),
-        child: Image.asset(
-          'assets/images/app_mark.png',
-          width: 168,
-          semanticLabel: '1-2-1 Connect',
-        ),
+  Widget build(BuildContext context) => Image.asset(
+        'assets/images/app_mark.png',
+        width: 168,
+        semanticLabel: '1-2-1 Connect',
       );
 }
 

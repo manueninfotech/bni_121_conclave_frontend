@@ -193,6 +193,9 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # iOS app icons only — Android icons are the Android Studio adaptive set.
+# NOTE: the live iOS icon is ios/Runner/AppIcon121.icon (Icon Composer).
+# Running flutter_launcher_icons rewrites Runner's project settings (app icon
+# name, accent/widget colours) — restore project.pbxproj from git afterwards.
 flutter_launcher_icons:
   android: false
   ios: true

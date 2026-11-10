@@ -142,7 +142,12 @@ void main() async {
 
   // Load the first-run flag before the first frame, so the router's synchronous
   // redirect can decide onboarding-vs-login without a flash of the wrong screen.
-  final seenOnboarding = await container.read(onboardingServiceProvider).hasSeen();
+  // Debug-only: `--dart-define=SHOW_ONBOARDING=true` re-shows the tour (after
+  // signing out) on a device that has already seen it. Never in release.
+  const forceOnboarding = bool.fromEnvironment('SHOW_ONBOARDING');
+  final seenOnboarding = (kDebugMode && forceOnboarding)
+      ? false
+      : await container.read(onboardingServiceProvider).hasSeen();
   container.read(onboardingSeenProvider.notifier).set(seenOnboarding);
 
   runApp(

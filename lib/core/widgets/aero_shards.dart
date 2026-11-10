@@ -14,6 +14,9 @@ import 'package:flutter/scheduler.dart';
 class AeroShards extends StatefulWidget {
   final Color shardColor;
   final Color accentColor;
+
+  /// Share of shards drawn in [accentColor] (the rest are [shardColor]).
+  final double accentShare;
   final Color backgroundColor;
   final int count;
   final double speed;
@@ -22,10 +25,12 @@ class AeroShards extends StatefulWidget {
 
   const AeroShards({
     super.key,
-    this.shardColor = const Color(0xFFC8102E),
-    this.accentColor = const Color(0xFFF04E66),
+    // Architectural glass: graphite slivers, a few brand-red accents.
+    this.shardColor = const Color(0xFF3A3F4A),
+    this.accentColor = const Color(0xFFC8102E),
+    this.accentShare = 0.12,
     this.backgroundColor = const Color(0xFFF8F6F5),
-    this.count = 220,
+    this.count = 130,
     this.speed = 1,
     this.markers = true,
     this.interactive = true,
@@ -87,13 +92,14 @@ class _AeroShardsState extends State<AeroShards> with SingleTickerProviderStateM
   static List<_Shard> _make(int n) {
     final r = math.Random(121);
     return List.generate(n, (i) {
-      final sides = 3 + r.nextInt(3);
+      // Elongated four-sided panes and slivers — architectural, not confetti.
+      final long = 1.0 + r.nextDouble() * 1.4;
+      final skew = (r.nextDouble() - 0.5) * 0.5;
       final poly = <Offset>[
-        for (var k = 0; k < sides; k++)
-          Offset.fromDirection(
-            (k / sides) * math.pi * 2 + (r.nextDouble() - 0.5) * 0.9,
-            0.55 + r.nextDouble() * 0.45,
-          ),
+        Offset(-long + skew, -0.42),
+        Offset(long + skew, -0.42),
+        Offset(long - skew, 0.42),
+        Offset(-long - skew, 0.42),
       ];
       final depth = (math.pow(r.nextDouble(), 0.8) * 5).floor().clamp(0, 4);
       return _Shard(
@@ -101,11 +107,12 @@ class _AeroShardsState extends State<AeroShards> with SingleTickerProviderStateM
         depth: depth,
         t: r.nextDouble(),
         lateral: (r.nextDouble() * 2 - 1),
-        size: 6 + r.nextDouble() * 11,
-        angle: r.nextDouble() * math.pi * 2,
-        spin: (r.nextDouble() - 0.5) * 0.8,
+        size: 4 + r.nextDouble() * 6,
+        // Aligned with the flow (ribbons run left-to-right, slightly down).
+        angle: 0.12 + (r.nextDouble() - 0.5) * 0.7,
+        spin: (r.nextDouble() - 0.5) * 0.12,
         poly: poly,
-        hue: r.nextDouble(),
+        hue: r.nextDouble(), // < accentShare -> accent colour
       );
     });
   }
@@ -125,6 +132,7 @@ class _AeroShardsState extends State<AeroShards> with SingleTickerProviderStateM
         size: Size.infinite,
         painter: _ShardsPainter(
           shards: _shards,
+          accentShare: widget.accentShare,
           time: _time,
           pointer: _pointer,
           shard: widget.shardColor,
@@ -148,6 +156,7 @@ class _AeroShardsState extends State<AeroShards> with SingleTickerProviderStateM
 
 class _ShardsPainter extends CustomPainter {
   final List<_Shard> shards;
+  final double accentShare;
   final ValueNotifier<double> time;
   final ValueNotifier<Offset?> pointer;
   final Color shard;
@@ -157,6 +166,7 @@ class _ShardsPainter extends CustomPainter {
 
   _ShardsPainter({
     required this.shards,
+    required this.accentShare,
     required this.time,
     required this.pointer,
     required this.shard,
@@ -167,7 +177,7 @@ class _ShardsPainter extends CustomPainter {
 
   // Per depth layer: scale, opacity, blur sigma, parallax speed.
   static const _scale = [0.45, 0.62, 0.8, 1.0, 1.3];
-  static const _alpha = [0.16, 0.26, 0.4, 0.6, 0.78];
+  static const _alpha = [0.06, 0.1, 0.15, 0.22, 0.3];
   static const _blur = [2.6, 1.6, 0.8, 0.0, 0.0];
   static const _pace = [0.35, 0.5, 0.7, 0.9, 1.15];
 
@@ -231,7 +241,8 @@ class _ShardsPainter extends CustomPainter {
       path.close();
 
       final alpha = _alpha[s.depth];
-      final tint = Color.lerp(shard, accent, s.hue)!;
+      final isAccent = s.hue < accentShare;
+      final tint = isAccent ? accent : shard;
       // Glass: a light-to-tint gradient across the shard.
       fill
         ..maskFilter = _blur[s.depth] > 0 ? MaskFilter.blur(BlurStyle.normal, _blur[s.depth]) : null
@@ -276,7 +287,7 @@ class _ShardsPainter extends CustomPainter {
         final twinkle = 0.5 + 0.5 * math.sin(t * 1.6 + (h % 1000) / 160);
         final a = (0.06 + near * 0.32 * twinkle).clamp(0.0, 0.45);
         if (a < 0.07) continue;
-        bar.color = shard.withValues(alpha: a);
+        bar.color = shard.withValues(alpha: a * 0.8);
         const r = 3.0;
         canvas.drawLine(o - const Offset(r, 0), o + const Offset(r, 0), bar);
         canvas.drawLine(o - const Offset(0, r), o + const Offset(0, r), bar);
