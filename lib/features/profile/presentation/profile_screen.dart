@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/widgets/app_refresh.dart';
@@ -614,7 +616,7 @@ class _ContactCard extends StatelessWidget {
   }
 }
 
-class _ContactRow extends StatelessWidget {
+class _ContactRow extends StatefulWidget {
   final IconData icon;
   final String label;
   final String value;
@@ -625,20 +627,47 @@ class _ContactRow extends StatelessWidget {
   });
 
   @override
+  State<_ContactRow> createState() => _ContactRowState();
+}
+
+/// Copy confirms in place: the copy icon turns into a tick for a moment,
+/// instead of a snackbar.
+class _ContactRowState extends State<_ContactRow> {
+  bool _copied = false;
+  Timer? _reset;
+
+  @override
+  void dispose() {
+    _reset?.cancel();
+    super.dispose();
+  }
+
+  void _copy() {
+    Clipboard.setData(ClipboardData(text: widget.value));
+    HapticFeedback.lightImpact();
+    setState(() => _copied = true);
+    _reset?.cancel();
+    _reset = Timer(const Duration(milliseconds: 1600), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final muted = context.scheme.onSurfaceVariant;
-    final empty = value.isEmpty;
+    final empty = widget.value.isEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xs, Gap.xs, Gap.xs),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: muted),
+          Icon(widget.icon, size: 18, color: muted),
           const SizedBox(width: Gap.md),
-          Text(label, style: context.text.bodyMedium?.copyWith(color: muted)),
+          Text(widget.label,
+              style: context.text.bodyMedium?.copyWith(color: muted)),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Text(
-              empty ? 'Not set' : value,
+              empty ? 'Not set' : widget.value,
               textAlign: TextAlign.right,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -649,21 +678,25 @@ class _ContactRow extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Copy $label',
+            tooltip: _copied ? '${widget.label} copied' : 'Copy ${widget.label}',
             visualDensity: VisualDensity.compact,
-            onPressed: empty
-                ? null
-                : () {
-                    Clipboard.setData(ClipboardData(text: value));
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(SnackBar(
-                        content: Text('$label copied'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                      ));
-                  },
-            icon: Icon(CoolIcons.copy, size: 18, color: muted),
+            onPressed: empty ? null : _copy,
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutBack,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, anim) => ScaleTransition(
+                scale: anim,
+                child: FadeTransition(opacity: anim, child: child),
+              ),
+              child: _copied
+                  ? Icon(CoolIcons.check,
+                      key: const ValueKey('done'),
+                      size: 18,
+                      color: context.colors.success)
+                  : Icon(CoolIcons.copy,
+                      key: const ValueKey('copy'), size: 18, color: muted),
+            ),
           ),
         ],
       ),
