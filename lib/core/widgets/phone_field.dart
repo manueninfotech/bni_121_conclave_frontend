@@ -251,12 +251,13 @@ class MethodToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The app's pill switcher (as on Conclaves): a soft track with a white
+    // thumb under the chosen option.
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: context.scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(Radii.md),
-        border: Border.all(color: context.colors.hairline),
+        color: context.scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         children: [
@@ -264,9 +265,7 @@ class MethodToggle extends StatelessWidget {
             Expanded(
               child: _Segment(
                 label: m == LoginMethod.phone ? 'Phone' : 'Email',
-                icon: m == LoginMethod.phone
-                    ? CoolIcons.phone
-                    : CoolIcons.mention,
+                icon: m == LoginMethod.phone ? CoolIcons.phone : CoolIcons.mention,
                 selected: value == m,
                 onTap: () => onChanged(m),
               ),
@@ -292,34 +291,44 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected
-        ? context.scheme.surface
-        : context.scheme.onSurfaceVariant;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: Motion.fast,
-        curve: Motion.curve,
-        padding: const EdgeInsets.symmetric(vertical: Gap.md),
-        decoration: BoxDecoration(
-          color: selected ? context.scheme.onSurface : Colors.transparent,
-          borderRadius: BorderRadius.circular(Radii.sm),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: fg),
-            const SizedBox(width: Gap.sm),
-            Text(
-              label,
-              style: context.text.labelLarge?.copyWith(
-                color: fg,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    final fg = selected ? context.scheme.onSurface : context.scheme.onSurfaceVariant;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: Motion.fast,
+          curve: Curves.easeOut,
+          height: 40,
+          decoration: BoxDecoration(
+            color: selected ? context.scheme.surfaceContainerLowest : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: context.text.labelLarge?.copyWith(
+                  color: fg,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

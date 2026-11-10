@@ -8,6 +8,12 @@ import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/aero_shards.dart';
+import '../../../core/widgets/powered_by_footer.dart';
+import '../../active_conclave/presentation/round/round_timer.dart'
+    show kDeckBottom;
+import '../../active_conclave/presentation/round/deck_footer.dart'
+    show roundPanel;
 import '../data/auth_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
@@ -123,209 +129,288 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    // The hero is dark, so the status bar icons must be light — otherwise the
-    // clock is near-invisible against it. Scoped to this screen; the rest of the
-    // app follows the theme.
+    // A light page now (like the rest of the app): dark status bar icons.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
+      value: SystemUiOverlayStyle.dark.copyWith(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark, // iOS
       ),
       child: Scaffold(
         // The keyboard slides OVER the hero rather than squashing it — the form
         // scrolls, the brand stays put.
         resizeToAvoidBottomInset: false,
-        body: Column(
-          // stretch, not the default centre: without it the hero shrink-wraps to
-          // its text and leaves pale margins down both sides of a panel that is
-          // meant to be full-bleed.
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        body: Stack(
           children: [
-            _Hero(animation: _intro),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // The system navigation bar (gesture pill or 3-button) eats the
-                  // bottom edge. Without reserving it here, "New here?" — which the
-                  // Spacer pins to the very bottom — gets drawn UNDER the nav bar
-                  // and becomes untappable. This reserves it on every device size
-                  // rather than hard-coding a margin. The keyboard inset is 0 while
-                  // resizeToAvoidBottomInset is false, but we keep it in the sum so
-                  // the padding stays correct if that ever changes.
-                  final safeBottom = MediaQuery.paddingOf(context).bottom;
-                  final bottomInset =
-                      MediaQuery.viewInsetsOf(context).bottom +
-                      safeBottom +
-                      Gap.lg;
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(
-                      context.pagePadding,
-                      Gap.xl,
-                      context.pagePadding,
-                      bottomInset,
-                    ),
-                    child: ConstrainedBox(
-                      // Fill the space below the hero so the form can push "New
-                      // here?" to the bottom instead of leaving a dead half-screen.
-                      //
-                      // minHeight alone is not enough: a SingleChildScrollView hands
-                      // its child an UNBOUNDED max height, so the Column would
-                      // shrink-wrap and the Spacer inside it (an Expanded) would
-                      // throw "non-zero flex but incoming height constraints are
-                      // unbounded". IntrinsicHeight is what actually bounds it.
-                      // Cheap here — the subtree is a short form.
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight - Gap.xl - bottomInset,
-                      ),
-                      child: IntrinsicHeight(
-                        child: ContentWidth(
-                          max: 440,
-                          child: FadeTransition(
-                            opacity: CurvedAnimation(
-                              parent: _intro,
-                              curve: const Interval(
-                                0.3,
-                                1,
-                                curve: Curves.easeOut,
-                              ),
-                            ),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  MethodToggle(
-                                    value: _method,
-                                    onChanged: (m) => setState(() {
-                                      _method = m;
-                                      _identifier.clear();
-                                      _error = null;
-                                    }),
+            // The same living background as onboarding, fading out behind the
+            // form so the fields stay calm.
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: MediaQuery.sizeOf(context).height * 0.5,
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (r) => const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black, Colors.transparent],
+                  stops: [0.55, 1],
+                ).createShader(r),
+                child: const AeroShards(count: 90, interactive: false),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Hero(animation: _intro),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // The system navigation bar (gesture pill or 3-button) eats the
+                      // bottom edge. Without reserving it here, "New here?" — which the
+                      // Spacer pins to the very bottom — gets drawn UNDER the nav bar
+                      // and becomes untappable. This reserves it on every device size
+                      // rather than hard-coding a margin. The keyboard inset is 0 while
+                      // resizeToAvoidBottomInset is false, but we keep it in the sum so
+                      // the padding stays correct if that ever changes.
+                      final safeBottom = MediaQuery.paddingOf(context).bottom;
+                      final bottomInset =
+                          MediaQuery.viewInsetsOf(context).bottom +
+                          safeBottom +
+                          Gap.lg;
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          context.pagePadding,
+                          Gap.xl,
+                          context.pagePadding,
+                          bottomInset,
+                        ),
+                        child: ConstrainedBox(
+                          // Fill the space below the hero so the form can push "New
+                          // here?" to the bottom instead of leaving a dead half-screen.
+                          //
+                          // minHeight alone is not enough: a SingleChildScrollView hands
+                          // its child an UNBOUNDED max height, so the Column would
+                          // shrink-wrap and the Spacer inside it (an Expanded) would
+                          // throw "non-zero flex but incoming height constraints are
+                          // unbounded". IntrinsicHeight is what actually bounds it.
+                          // Cheap here — the subtree is a short form.
+                          constraints: BoxConstraints(
+                            minHeight:
+                                constraints.maxHeight - Gap.xl - bottomInset,
+                          ),
+                          child: IntrinsicHeight(
+                            child: ContentWidth(
+                              max: 440,
+                              child: FadeTransition(
+                                opacity: CurvedAnimation(
+                                  parent: _intro,
+                                  curve: const Interval(
+                                    0.3,
+                                    1,
+                                    curve: Curves.easeOut,
                                   ),
-                                  const SizedBox(height: Gap.md),
-
-                                  // Asking which, rather than sniffing it from one field,
-                                  // is what lets the phone path carry a country code — and
-                                  // it removes the guess that broke sign-in.
-                                  if (_method == LoginMethod.phone)
-                                    PhoneField(
-                                      controller: _identifier,
-                                      country: _country,
-                                      onCountryChanged: (c) =>
-                                          setState(() => _country = c),
-                                      onSubmitted: _passwordFocus.requestFocus,
-                                    )
-                                  else
-                                    TextFormField(
-                                      controller: _identifier,
-                                      autofillHints: const [
-                                        AutofillHints.email,
-                                      ],
-                                      textInputAction: TextInputAction.next,
-                                      keyboardType: TextInputType.emailAddress,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Email address',
-                                        prefixIcon: Icon(CoolIcons.mention),
-                                      ),
-                                      onFieldSubmitted: (_) =>
-                                          _passwordFocus.requestFocus(),
-                                      validator: (v) =>
-                                          (v == null || v.trim().isEmpty)
-                                          ? 'Enter your email address'
-                                          : null,
-                                    ),
-                                  const SizedBox(height: Gap.md),
-
-                                  TextFormField(
-                                    controller: _password,
-                                    focusNode: _passwordFocus,
-                                    obscureText: _obscure,
-                                    autofillHints: const [
-                                      AutofillHints.password,
-                                    ],
-                                    textInputAction: TextInputAction.done,
-                                    decoration: InputDecoration(
-                                      labelText: 'Password',
-                                      prefixIcon: const Icon(CoolIcons.lock),
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscure
-                                              ? CoolIcons.eye
-                                              : CoolIcons.eyeOff,
-                                        ),
-                                        tooltip: _obscure
-                                            ? 'Show password'
-                                            : 'Hide password',
-                                        onPressed: () => setState(
-                                          () => _obscure = !_obscure,
-                                        ),
-                                      ),
-                                    ),
-                                    onFieldSubmitted: (_) => _login(),
-                                    validator: (v) => (v == null || v.isEmpty)
-                                        ? 'Enter your password'
-                                        : null,
-                                  ),
-
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: _isLoading
-                                          ? null
-                                          : _forgotPassword,
-                                      child: const Text('Forgot password?'),
-                                    ),
-                                  ),
-
-                                  if (_error != null) ...[
-                                    _ErrorNote(message: _error!),
-                                    const SizedBox(height: Gap.md),
-                                  ],
-
-                                  PrimaryButton(
-                                    label: 'Sign in',
-                                    loading: _isLoading,
-                                    onPressed: _isLoading ? null : _login,
-                                  ),
-
-                                  // Fills the space rather than leaving a dead half-screen
-                                  // below the form.
-                                  const Spacer(),
-                                  const SizedBox(height: Gap.lg),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      Text(
-                                        'New here?',
-                                        style: context.text.bodyMedium
-                                            ?.copyWith(
-                                              color: context
-                                                  .scheme
-                                                  .onSurfaceVariant,
+                                      Container(
+                                        padding: const EdgeInsets.all(Gap.lg),
+                                        decoration: roundPanel(
+                                          context,
+                                          radius: 24,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            MethodToggle(
+                                              value: _method,
+                                              onChanged: (m) => setState(() {
+                                                _method = m;
+                                                _identifier.clear();
+                                                _error = null;
+                                              }),
                                             ),
+                                            const SizedBox(height: Gap.md),
+
+                                            // Asking which, rather than sniffing it from one field,
+                                            // is what lets the phone path carry a country code — and
+                                            // it removes the guess that broke sign-in.
+                                            if (_method == LoginMethod.phone)
+                                              PhoneField(
+                                                controller: _identifier,
+                                                country: _country,
+                                                onCountryChanged: (c) =>
+                                                    setState(
+                                                      () => _country = c,
+                                                    ),
+                                                onSubmitted:
+                                                    _passwordFocus.requestFocus,
+                                              )
+                                            else
+                                              TextFormField(
+                                                controller: _identifier,
+                                                autofillHints: const [
+                                                  AutofillHints.email,
+                                                ],
+                                                textInputAction:
+                                                    TextInputAction.next,
+                                                keyboardType:
+                                                    TextInputType.emailAddress,
+                                                decoration:
+                                                    const InputDecoration(
+                                                      labelText:
+                                                          'Email address',
+                                                      prefixIcon: Icon(
+                                                        CoolIcons.mention,
+                                                      ),
+                                                    ),
+                                                onFieldSubmitted: (_) =>
+                                                    _passwordFocus
+                                                        .requestFocus(),
+                                                validator: (v) =>
+                                                    (v == null ||
+                                                        v.trim().isEmpty)
+                                                    ? 'Enter your email address'
+                                                    : null,
+                                              ),
+                                            const SizedBox(height: Gap.md),
+
+                                            TextFormField(
+                                              controller: _password,
+                                              focusNode: _passwordFocus,
+                                              obscureText: _obscure,
+                                              autofillHints: const [
+                                                AutofillHints.password,
+                                              ],
+                                              textInputAction:
+                                                  TextInputAction.done,
+                                              decoration: InputDecoration(
+                                                labelText: 'Password',
+                                                prefixIcon: const Icon(
+                                                  CoolIcons.lock,
+                                                ),
+                                                suffixIcon: IconButton(
+                                                  icon: Icon(
+                                                    _obscure
+                                                        ? CoolIcons.eye
+                                                        : CoolIcons.eyeOff,
+                                                  ),
+                                                  tooltip: _obscure
+                                                      ? 'Show password'
+                                                      : 'Hide password',
+                                                  onPressed: () => setState(
+                                                    () => _obscure = !_obscure,
+                                                  ),
+                                                ),
+                                              ),
+                                              onFieldSubmitted: (_) => _login(),
+                                              validator: (v) =>
+                                                  (v == null || v.isEmpty)
+                                                  ? 'Enter your password'
+                                                  : null,
+                                            ),
+
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: TextButton(
+                                                onPressed: _isLoading
+                                                    ? null
+                                                    : _forgotPassword,
+                                                child: const Text(
+                                                  'Forgot password?',
+                                                ),
+                                              ),
+                                            ),
+
+                                            if (_error != null) ...[
+                                              _ErrorNote(message: _error!),
+                                              const SizedBox(height: Gap.md),
+                                            ],
+
+                                            SizedBox(
+                                              height: 52,
+                                              child: FilledButton(
+                                                onPressed: _isLoading
+                                                    ? null
+                                                    : _login,
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor: kDeckBottom,
+                                                  foregroundColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                  ),
+                                                  textStyle: const TextStyle(
+                                                    fontFamily:
+                                                        'PlusJakartaSans',
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                                child: _isLoading
+                                                    ? const SizedBox(
+                                                        width: 20,
+                                                        height: 20,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
+                                                      )
+                                                    : const Text('Sign in'),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      TextButton(
-                                        // push, not go: this stacks Create-account ON TOP
-                                        // of sign-in, so the back button (and the register
-                                        // screen's own back arrow) returns here instead of
-                                        // doing nothing.
-                                        onPressed: () =>
-                                            context.push('/register'),
-                                        child: const Text('Create an account'),
+                                      const SizedBox(height: Gap.md),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'New here?',
+                                            style: context.text.bodyMedium
+                                                ?.copyWith(
+                                                  color: context
+                                                      .scheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                          TextButton(
+                                            // push, not go: Create-account stacks ON TOP of
+                                            // sign-in, so back returns here.
+                                            onPressed: () =>
+                                                context.push('/register'),
+                                            child: const Text(
+                                              'Create an account',
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                      // The rest of the height, then who builds the app.
+                                      const Spacer(),
+                                      const SizedBox(height: Gap.lg),
+                                      const Center(child: PoweredByFooter()),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -334,11 +419,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 }
 
-/// The brand moment.
-///
-/// One deep panel at the top, so the form below has something to sit against.
-/// The alternative — a small logo floating on paper — is what made the screen
-/// read as a placeholder.
+/// The brand moment: the app mark and name, then a bold "Welcome back" —
+/// light, over the living shard field, in the app's own language.
 class _Hero extends StatelessWidget {
   final Animation<double> animation;
 
@@ -347,96 +429,70 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        bottom: Radius.circular(Radii.xl),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        context.pagePadding,
+        top + Gap.lg,
+        context.pagePadding,
+        0,
       ),
-      child: Stack(
-        children: [
-          // Both gradients fill the WHOLE panel, outside the padding.
-          //
-          // Previously the bloom lived inside the padded child, so it filled only
-          // the content box — and the radial hadn't faded to zero by that box's
-          // edge, leaving hard rectangular seams inside the panel that looked
-          // like a rendering fault.
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(gradient: AppGradients.hero),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0.9, -0.8),
-                  radius: 1.1,
-                  colors: [
-                    AppColors.crimson.withValues(alpha: 0.38),
-                    AppColors.crimson.withValues(alpha: 0.0),
-                  ],
-                ),
+      child: ContentWidth(
+        max: 440,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: CurvedAnimation(
+                parent: animation,
+                curve: const Interval(0, 0.7, curve: Motion.spring),
+              ),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Image.asset(
+                    'assets/images/app_mark.png',
+                    width: 40,
+                    height: 40,
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  Text(
+                    '1-2-1 Connect',
+                    style: context.text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(Gap.xl, top + Gap.xl, Gap.xl, Gap.xxl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ScaleTransition(
-                  scale: CurvedAnimation(
-                    parent: animation,
-                    curve: const Interval(0, 0.7, curve: Motion.spring),
-                  ),
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(Radii.md),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: const Icon(
-                      CoolIcons.usersGroupFill,
-                      size: 28,
-                      color: Colors.white,
+            const SizedBox(height: Gap.xxl),
+            FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: const Interval(0.2, 1, curve: Curves.easeOut),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back',
+                    style: context.text.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
                     ),
                   ),
-                ),
-                const SizedBox(height: Gap.xl),
-                FadeTransition(
-                  opacity: CurvedAnimation(
-                    parent: animation,
-                    curve: const Interval(0.2, 1, curve: Curves.easeOut),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    'Sign in to see your table and your rounds.',
+                    style: context.text.bodyLarge?.copyWith(
+                      color: context.scheme.onSurfaceVariant,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome back',
-                        style: context.text.displaySmall?.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: Gap.xs),
-                      Text(
-                        'Sign in to see your table and your rounds.',
-                        style: context.text.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.62),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
