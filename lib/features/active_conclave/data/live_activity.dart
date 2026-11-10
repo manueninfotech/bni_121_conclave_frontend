@@ -1,7 +1,10 @@
 import 'dart:io' show Platform;
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+import '../../../core/api/api_client.dart';
 
 /// The iOS equivalent of the Android ongoing "sticky" notification: a live-round
 /// Live Activity (lock screen + Dynamic Island). Driven from the same app-level
@@ -20,11 +23,46 @@ class LiveActivity {
   static String? _sig;
   static bool _active = false;
 
+  /// The conclave the card belongs to, for registering its push token.
+  static String? _conclaveId;
+  static String? _registeredToken;
+  static bool _listening = false;
+
+  /// v2: iOS issues the activity a push token; register it with the server so
+  /// round changes are pushed to the card while the app is suspended.
+  static void _listen() {
+    if (_listening) return;
+    _listening = true;
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'pushToken' && call.arguments is String) {
+        await _register(call.arguments as String);
+      }
+    });
+  }
+
+  static Future<void> _register(String pushToken) async {
+    final id = _conclaveId;
+    if (id == null || pushToken == _registeredToken) return;
+    try {
+      final fcm = await FirebaseMessaging.instance.getToken();
+      if (fcm == null) return;
+      await ApiClient.instance.send('PUT', '/conclaves/$id/live-activity', {
+        'pushToken': pushToken,
+        'fcmToken': fcm,
+      });
+      _registeredToken = pushToken;
+    } catch (e) {
+      // Offline or refused: the next token refresh (or relaunch) retries.
+      debugPrint('Live Activity token registration failed: $e');
+    }
+  }
+
   /// Start the activity (first call) or update it (subsequent) with the current
   /// round state. [segmentEnd] is the wall-clock instant the countdown reaches
   /// zero; the widget runs a self-counting timer to it, so the countdown stays
   /// live even while the phone is pocketed.
   static Future<void> sync({
+    required String conclaveId,
     required String conclaveName,
     required int round,
     required int totalRounds,
@@ -34,6 +72,11 @@ class LiveActivity {
     required bool paused,
   }) async {
     if (kIsWeb || !Platform.isIOS) return;
+    _listen();
+    if (_conclaveId != conclaveId) {
+      _conclaveId = conclaveId;
+      _registeredToken = null;
+    }
 
     final sig = '$round|$totalRounds|$tableNumber|$line|$paused|'
         '${segmentEnd.millisecondsSinceEpoch ~/ 1000}';
@@ -63,8 +106,16 @@ class LiveActivity {
     if (!_active && _sig == null) return;
     _sig = null;
     _active = false;
+    final id = _conclaveId;
+    _registeredToken = null;
     try {
       await _channel.invokeMethod<void>('end');
     } catch (_) {}
+    // Stop server pushes to a card that no longer exists (best-effort).
+    if (id != null) {
+      try {
+        await ApiClient.instance.send('DELETE', '/conclaves/$id/live-activity');
+      } catch (_) {}
+    }
   }
 }

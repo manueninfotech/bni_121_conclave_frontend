@@ -57,6 +57,16 @@ import ActivityKit
         }
       }
       liveActivityChannel = channel
+
+      // v2: hand each activity's push token to Dart, which registers it with
+      // the server so round changes can be pushed while the app is suspended.
+      if #available(iOS 16.2, *) {
+        LiveActivityManager.shared.onPushToken = { [weak channel] token in
+          DispatchQueue.main.async {
+            channel?.invokeMethod("pushToken", arguments: token)
+          }
+        }
+      }
     }
   }
 }
@@ -65,10 +75,20 @@ import ActivityKit
 /// possible while the app is foreground — guaranteed here because the member is
 /// locked to the round screen when a round goes live), updates it as the round
 /// progresses, and ends it when the round is over.
+///
+/// v2: the activity is requested with a push token, so the server can update it
+/// while the app is suspended (round start, referrals, move break, pause,
+/// resume, end). The token is reported through [onPushToken]. After an app
+/// relaunch the manager reattaches to an activity that is still on screen
+/// instead of starting a duplicate.
 @available(iOS 16.2, *)
 final class LiveActivityManager {
   static let shared = LiveActivityManager()
   private var activity: Activity<RoundActivityAttributes>?
+  private var tokenTask: Task<Void, Never>?
+
+  /// Called with the activity's push token (hex) whenever iOS issues one.
+  var onPushToken: ((String) -> Void)?
 
   func startOrUpdate(_ args: [String: Any]) {
     let state = RoundActivityAttributes.RoundState(
@@ -80,6 +100,12 @@ final class LiveActivityManager {
       paused: (args["paused"] as? NSNumber)?.boolValue ?? false
     )
     let content = ActivityContent(state: state, staleDate: nil)
+
+    // Reattach to a card still on screen from before an app restart.
+    if activity == nil, let existing = Activity<RoundActivityAttributes>.activities.first {
+      activity = existing
+      observeToken(existing)
+    }
 
     if let activity = activity {
       Task { await activity.update(content) }
@@ -93,15 +119,32 @@ final class LiveActivityManager {
       conclaveName: args["conclaveName"] as? String ?? "Conclave"
     )
     do {
-      activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
+      let started = try Activity.request(attributes: attributes, content: content, pushType: .token)
+      activity = started
+      observeToken(started)
     } catch {
       NSLog("LiveActivity start failed: \(error.localizedDescription)")
     }
   }
 
+  private func observeToken(_ activity: Activity<RoundActivityAttributes>) {
+    tokenTask?.cancel()
+    tokenTask = Task { [weak self] in
+      for await data in activity.pushTokenUpdates {
+        let hex = data.map { String(format: "%02x", $0) }.joined()
+        self?.onPushToken?(hex)
+      }
+    }
+  }
+
   func end() {
-    guard let activity = activity else { return }
+    tokenTask?.cancel()
+    tokenTask = nil
+    // End ours and any stray card left from an earlier session.
+    let all = Activity<RoundActivityAttributes>.activities
     self.activity = nil
-    Task { await activity.end(nil, dismissalPolicy: .immediate) }
+    for a in all {
+      Task { await a.end(nil, dismissalPolicy: .immediate) }
+    }
   }
 }

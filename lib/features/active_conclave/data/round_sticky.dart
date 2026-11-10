@@ -61,6 +61,7 @@ final roundStickyDriverProvider = Provider<void>((ref) {
     );
   } else {
     LiveActivity.sync(
+      conclaveId: live.id,
       conclaveName: live.name,
       round: round.roundNumber,
       totalRounds: round.totalRounds,
