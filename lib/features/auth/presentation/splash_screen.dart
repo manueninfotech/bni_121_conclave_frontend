@@ -108,7 +108,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   children: [
                     Text(
-                      'BNI 121 Conclave',
+                      '1-2-1 Connect',
                       textAlign: TextAlign.center,
                       style: context.text.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,

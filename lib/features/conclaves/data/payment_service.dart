@@ -170,7 +170,7 @@ class PaymentService {
         'order_id': order.orderId,
         'amount': order.amount, // paise
         'currency': order.currency,
-        'name': 'BNI 121 Conclave',
+        'name': '1-2-1 Connect',
         'description': 'Registration — $conclaveName',
         'prefill': {
           'email': ?prefillEmail,

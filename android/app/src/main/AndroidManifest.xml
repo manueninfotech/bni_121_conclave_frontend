@@ -53,7 +53,7 @@
          allowBackup/fullBackupContent cover up to Android 11; dataExtractionRules
          covers cloud backup AND device-to-device transfer on Android 12+. -->
     <application
-        android:label="BNI 121 Conclave"
+        android:label="1-2-1 Connect"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

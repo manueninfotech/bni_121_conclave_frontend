@@ -134,6 +134,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    # Company logo for the "Powered by" footer on Profile.
+    - assets/images/manuen_logo.png
+
   # GPU fragment shaders (the live-round silk backdrop).
   shaders:
     - shaders/silk.frag

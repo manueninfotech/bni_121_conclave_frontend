@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,7 @@ import '../../auth/data/auth_repository.dart';
 import '../../members/data/my_referrals_repository.dart';
 import '../data/profile_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'package:conclave_1_2_1/core/widgets/powered_by_footer.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -247,6 +249,8 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        const SizedBox(height: Gap.xl),
+                        const Center(child: PoweredByFooter()),
                       ],
                     ),
                   ),
@@ -571,41 +575,97 @@ class _AboutRow extends StatelessWidget {
   }
 }
 
-/// Contact — kept as full-width rows because emails and numbers are long.
+/// Contact: phone and email in the same row style as About, each with a quiet
+/// copy action. The section title lives outside the card (no repeated label).
 class _ContactCard extends StatelessWidget {
   final UserProfile profile;
   const _ContactCard({required this.profile});
 
   @override
   Widget build(BuildContext context) {
+    final rows = [
+      (icon: CoolIcons.phone, label: 'Phone', value: profile.phone),
+      // Never surface the synthetic sign-in address.
+      (icon: CoolIcons.mention, label: 'Email', value: profile.email),
+    ];
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'CONTACT',
-              style: context.text.labelSmall?.copyWith(
-                color: context.scheme.onSurfaceVariant,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w700,
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  indent: Gap.lg,
+                  endIndent: Gap.lg,
+                  color: context.colors.hairline,
+                ),
+              _ContactRow(
+                icon: rows[i].icon,
+                label: rows[i].label,
+                value: rows[i].value,
               ),
-            ),
-            const SizedBox(height: Gap.sm),
-            InfoRow(
-              icon: CoolIcons.mobile,
-              label: 'Phone',
-              value: profile.phone.isEmpty ? 'Not set' : profile.phone,
-            ),
-            InfoRow(
-              icon: CoolIcons.mention,
-              label: 'Email',
-              // Never surface the synthetic sign-in address.
-              value: profile.email.isEmpty ? 'Not set' : profile.email,
-            ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _ContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.scheme.onSurfaceVariant;
+    final empty = value.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.xs, Gap.xs, Gap.xs),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: muted),
+          const SizedBox(width: Gap.md),
+          Text(label, style: context.text.bodyMedium?.copyWith(color: muted)),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Text(
+              empty ? 'Not set' : value,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: empty ? muted : null,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Copy $label',
+            visualDensity: VisualDensity.compact,
+            onPressed: empty
+                ? null
+                : () {
+                    Clipboard.setData(ClipboardData(text: value));
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(
+                        content: Text('$label copied'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ));
+                  },
+            icon: Icon(CoolIcons.copy, size: 18, color: muted),
+          ),
+        ],
       ),
     );
   }
@@ -656,40 +716,67 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-/// The member's own matchmaking signals — what they're looking for and can offer.
+/// The member's own matchmaking signals — what they're looking for and what
+/// they can offer. Free text, so each sits as a short block, label above.
 class _NetworkingCard extends StatelessWidget {
   final UserProfile profile;
   const _NetworkingCard({required this.profile});
 
   @override
   Widget build(BuildContext context) {
+    final blocks = [
+      if (profile.lookingFor.isNotEmpty)
+        (icon: CoolIcons.search, label: 'Looking for', value: profile.lookingFor),
+      if (profile.canOffer.isNotEmpty)
+        (icon: CoolIcons.handCoins, label: 'Can offer', value: profile.canOffer),
+    ];
+    final muted = context.scheme.onSurfaceVariant;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'NETWORKING',
-              style: context.text.labelSmall?.copyWith(
-                color: context.scheme.onSurfaceVariant,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w700,
+            for (var i = 0; i < blocks.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  indent: Gap.lg,
+                  endIndent: Gap.lg,
+                  color: context.colors.hairline,
+                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.lg, vertical: Gap.md),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(blocks[i].icon, size: 18, color: muted),
+                    ),
+                    const SizedBox(width: Gap.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(blocks[i].label,
+                              style: context.text.bodyMedium
+                                  ?.copyWith(color: muted)),
+                          const SizedBox(height: 2),
+                          Text(
+                            blocks[i].value,
+                            style: context.text.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: Gap.sm),
-            if (profile.lookingFor.isNotEmpty)
-              InfoRow(
-                icon: CoolIcons.search,
-                label: 'Looking for',
-                value: profile.lookingFor,
-              ),
-            if (profile.canOffer.isNotEmpty)
-              InfoRow(
-                icon: CoolIcons.handCoins,
-                label: 'Can offer',
-                value: profile.canOffer,
-              ),
+            ],
           ],
         ),
       ),

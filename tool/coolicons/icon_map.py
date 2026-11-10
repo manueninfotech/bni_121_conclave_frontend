@@ -91,7 +91,7 @@ MAP = {
     "person_rounded": ("fill", "user"),
     "person_search_outlined": ("line", "user-search-corner"),
     "person_search_rounded": ("line", "user-search-corner"),
-    "phone_iphone_rounded": ("line", "mobile"),
+    "phone_iphone_rounded": ("line", "phone"),
     "photo_camera_outlined": ("line", "camera"),
     "photo_camera_rounded": ("fill", "camera"),
     "photo_library_outlined": ("line", "images"),

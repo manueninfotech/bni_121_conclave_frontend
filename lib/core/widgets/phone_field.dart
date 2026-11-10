@@ -264,7 +264,7 @@ class MethodToggle extends StatelessWidget {
               child: _Segment(
                 label: m == LoginMethod.phone ? 'Phone' : 'Email',
                 icon: m == LoginMethod.phone
-                    ? CoolIcons.mobile
+                    ? CoolIcons.phone
                     : CoolIcons.mention,
                 selected: value == m,
                 onTap: () => onChanged(m),

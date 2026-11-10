@@ -457,7 +457,7 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'BNI 121 Conclave',
+      title: '1-2-1 Connect',
       theme: AppTheme.light(),
       darkTheme: AppTheme.light(),
       // Light only, by the client's direction: BNI's look is a white background
