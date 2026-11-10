@@ -137,6 +137,9 @@ flutter:
   assets:
     # Company logo for the "Powered by" footer on Profile.
     - assets/images/manuen_logo.png
+    # App mark (from the 1-2-1 Connect icon art) for onboarding and auth.
+    - assets/images/app_mark.png
+    - assets/images/app_mark_white.png
 
   # GPU fragment shaders (the live-round silk backdrop).
   shaders:

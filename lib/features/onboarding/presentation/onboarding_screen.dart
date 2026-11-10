@@ -5,19 +5,18 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../active_conclave/presentation/round/card_backdrop.dart';
+import '../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
 import '../data/onboarding_service.dart';
-import 'onboarding_art.dart';
-import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'onboarding_visuals.dart';
 
 /// The first-run tour.
 ///
-/// Shown once, to a member who has never opened the app — before the login wall,
-/// so their first impression is what the app does FOR them, not a password field.
-/// The router gates it on [onboardingSeenProvider]; finishing or skipping flips
-/// the flag and it is never shown again.
-///
-/// It renders on the plum hero backdrop the splash and login share, so it reads
-/// as a continuation of the same brand moment rather than a separate screen.
+/// Shown once, before the login wall, so the first impression is what the app
+/// does for the member. Light and calm like the rest of the app: the brand mark
+/// up top, a silk "stage" showing a real slice of the app per page, then one
+/// bold line and one sentence. The router gates it on [onboardingSeenProvider];
+/// finishing or skipping flips the flag for good.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -25,41 +24,48 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
+class _Page {
+  final Widget visual;
+  final CardMood mood;
+  final String title;
+  final String body;
+  const _Page(this.visual, this.mood, this.title, this.body);
+}
+
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
-
-  /// The live, fractional page position. Drives the parallax and the crimson
-  /// bloom so the whole backdrop moves WITH the swipe instead of snapping.
   double _page = 0;
 
-  static const _pages = <_Slide>[
-    _Slide(
-      art: ScheduleArt(),
-      title: 'Your seat, every round',
-      body:
-          'See exactly who you’re meeting and where to sit. Your schedule '
-          'updates the moment a new round begins.',
+  static const _pages = <_Page>[
+    _Page(
+      WelcomeVisual(),
+      CardMood.bio,
+      'Welcome to\n1-2-1 Connect',
+      'Structured one-to-one networking for BNI conclaves, from your first table to your last referral.',
     ),
-    _Slide(
-      art: ScanArt(),
-      title: 'Attendance, signal or not',
-      body:
-          'Captains scan members in seconds. It works with no network and '
-          'syncs the instant you’re back online.',
+    _Page(
+      SeatVisual(),
+      CardMood.move,
+      'Your seat, every round',
+      'See your table and who you are meeting. When the round ends, the app tells you where to go next.',
     ),
-    _Slide(
-      art: ReferralArt(),
-      title: 'Pass business in one tap',
-      body:
-          'Give a referral to anyone at your table with a single tap. Add a '
-          'note only if you want to.',
+    _Page(
+      ScanVisual(),
+      CardMood.bio,
+      'Attendance, signal or not',
+      'Captains scan you in with your QR code. It works without network and syncs when you are back online.',
     ),
-    _Slide(
-      art: SummaryArt(),
-      title: 'See what you built',
-      body:
-          'After the conclave, review every connection you made and every '
-          'referral you gave or received.',
+    _Page(
+      ReferralVisual(),
+      CardMood.referral,
+      'Pass business in one tap',
+      'Give a referral to anyone at your table during the referral slot, with a note if you like.',
+    ),
+    _Page(
+      SummaryVisual(),
+      CardMood.bio,
+      'See what you built',
+      'After the conclave, your summary shows every referral and everyone you met, ready to save.',
     ),
   ];
 
@@ -78,12 +84,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  bool get _onLast => _page.round() >= _pages.length - 1;
+  int get _index => _page.round().clamp(0, _pages.length - 1);
+  bool get _onLast => _index == _pages.length - 1;
 
   Future<void> _finish() async {
     // Persist first, then flip the in-memory flag so the router's redirect sees
-    // "seen" the instant we navigate — otherwise it would bounce us straight
-    // back to /onboarding.
+    // "seen" the instant we navigate.
     await ref.read(onboardingServiceProvider).markSeen();
     ref.read(onboardingSeenProvider.notifier).set(true);
     if (mounted) context.go('/login');
@@ -100,75 +106,128 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final page = _pages[_index];
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark, // iOS
-      ),
-      // Hardware back walks the pages rather than exiting on page one.
+      value: SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
       child: PopScope(
-        canPop: _page.round() == 0,
+        // Hardware back walks the pages rather than exiting on page one.
+        canPop: _index == 0,
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) {
-            _controller.previousPage(
-              duration: Motion.normal,
-              curve: Motion.curve,
-            );
+            _controller.previousPage(duration: Motion.normal, curve: Motion.curve);
           }
         },
         child: Scaffold(
-          body: Stack(
-            children: [
-              const Positioned.fill(child: _Backdrop()),
-              // The crimson bloom drifts across the top as you swipe.
-              Positioned.fill(
-                child: _Bloom(page: _page, count: _pages.length),
-              ),
-              SafeArea(
+          body: SafeArea(
+            child: ContentWidth(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _TopBar(showSkip: !_onLast, onSkip: _finish),
+                    const SizedBox(height: Gap.sm),
+                    _Brand(showSkip: !_onLast, onSkip: _finish),
+                    const SizedBox(height: Gap.lg),
+                    // The stage: one continuous silk surface the visuals slide
+                    // across; its mood blends as you swipe.
                     Expanded(
-                      child: PageView.builder(
-                        controller: _controller,
-                        itemCount: _pages.length,
-                        itemBuilder: (context, i) {
-                          // Parallax: the art lags the text slightly as the page
-                          // slides, giving the layers depth.
-                          final delta = i - _page;
-                          return _SlideView(slide: _pages[i], parallax: delta);
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        context.pagePadding,
-                        Gap.lg,
-                        context.pagePadding,
-                        Gap.lg,
-                      ),
-                      child: ContentWidth(
-                        max: 440,
-                        child: Column(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(32),
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
-                            _Dots(page: _page, count: _pages.length),
-                            const SizedBox(height: Gap.xl),
-                            PrimaryButton(
-                              label: _onLast ? 'Get started' : 'Next',
-                              icon: _onLast
-                                  ? CoolIcons.arrowRight
-                                  : CoolIcons.chevronRight,
-                              onPressed: _next,
+                            CardBackdrop(mood: page.mood, seed: 1.7),
+                            PageView.builder(
+                              controller: _controller,
+                              itemCount: _pages.length,
+                              itemBuilder: (context, i) {
+                                final d = (_page - i).clamp(-1.0, 1.0);
+                                return Opacity(
+                                  opacity: (1 - d.abs()).clamp(0.0, 1.0),
+                                  child: Transform.translate(
+                                    offset: Offset(-d * 60, 0),
+                                    child: Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(Gap.lg),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: _pages[i].visual,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
                       ),
                     ),
+                    const SizedBox(height: Gap.xl),
+                    // Copy cross-fades with the page.
+                    SizedBox(
+                      height: 150,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 280),
+                        child: Column(
+                          key: ValueKey(_index),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              page.title,
+                              style: context.text.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.12,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(height: Gap.sm),
+                            Text(
+                              page.body,
+                              style: context.text.bodyLarge?.copyWith(
+                                color: context.scheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        _Dots(count: _pages.length, page: _page),
+                        const Spacer(),
+                        SizedBox(
+                          height: 52,
+                          child: FilledButton(
+                            onPressed: _next,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: kDeckBottom,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 28),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              textStyle: const TextStyle(
+                                fontFamily: 'PlusJakartaSans',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                              ),
+                            ),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _onLast ? 'Get started' : 'Next',
+                                key: ValueKey(_onLast),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Gap.lg),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -176,184 +235,64 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-class _Slide {
-  final Widget art;
-  final String title;
-  final String body;
-  const _Slide({required this.art, required this.title, required this.body});
-}
-
-/// One page: the animated illustration above, the copy below.
-class _SlideView extends StatelessWidget {
-  final _Slide slide;
-
-  /// Signed distance of this page from the viewport centre (−1..1 while swiping).
-  final double parallax;
-
-  const _SlideView({required this.slide, required this.parallax});
-
-  @override
-  Widget build(BuildContext context) {
-    // Fade and lift the copy as the page settles into place.
-    final settle = (1 - parallax.abs()).clamp(0.0, 1.0);
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
-      child: ContentWidth(
-        max: 440,
-        centerVertically: true,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Transform.translate(
-                // The art slides at a different rate to the page: depth.
-                offset: Offset(parallax * 48, 0),
-                child: Center(
-                  child: AspectRatio(aspectRatio: 1, child: slide.art),
-                ),
-              ),
-            ),
-            const SizedBox(height: Gap.xl),
-            Opacity(
-              opacity: settle,
-              child: Transform.translate(
-                offset: Offset(0, (1 - settle) * 16),
-                child: Column(
-                  children: [
-                    Text(
-                      slide.title,
-                      textAlign: TextAlign.center,
-                      style: context.text.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: Gap.md),
-                    Text(
-                      slide.body,
-                      textAlign: TextAlign.center,
-                      style: context.text.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.66),
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: Gap.xxl),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
+/// The app mark, the name, and Skip.
+class _Brand extends StatelessWidget {
   final bool showSkip;
   final VoidCallback onSkip;
-
-  const _TopBar({required this.showSkip, required this.onSkip});
+  const _Brand({required this.showSkip, required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 56,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-        child: Row(
-          children: [
-            const Spacer(),
-            AnimatedOpacity(
-              opacity: showSkip ? 1 : 0,
-              duration: Motion.fast,
-              child: TextButton(
-                onPressed: showSkip ? onSkip : null,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white.withValues(alpha: 0.7),
-                ),
-                child: const Text('Skip'),
-              ),
+      height: 44,
+      child: Row(
+        children: [
+          Image.asset('assets/images/app_mark.png', width: 34, height: 34),
+          const SizedBox(width: Gap.sm),
+          Text(
+            '1-2-1 Connect',
+            style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const Spacer(),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: showSkip ? 1 : 0,
+            child: TextButton(
+              onPressed: showSkip ? onSkip : null,
+              style: TextButton.styleFrom(foregroundColor: context.scheme.onSurfaceVariant),
+              child: const Text('Skip'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// The animated page indicator: the active dot stretches into a crimson pill.
+/// Ink progress dots; the active one stretches as you swipe.
 class _Dots extends StatelessWidget {
-  final double page;
   final int count;
-
-  const _Dots({required this.page, required this.count});
+  final double page;
+  const _Dots({required this.count, required this.page});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        for (var i = 0; i < count; i++) ...[
-          if (i > 0) const SizedBox(width: Gap.sm),
-          _dot((1 - (page - i).abs()).clamp(0.0, 1.0)),
-        ],
+        for (var i = 0; i < count; i++)
+          Builder(builder: (context) {
+            final t = (1 - (page - i).abs()).clamp(0.0, 1.0);
+            return Container(
+              margin: const EdgeInsets.only(right: 6),
+              width: 8 + 16 * t,
+              height: 8,
+              decoration: BoxDecoration(
+                color: Color.lerp(context.scheme.outlineVariant, context.scheme.onSurface, t),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            );
+          }),
       ],
-    );
-  }
-
-  Widget _dot(double active) {
-    return Container(
-      width: 8 + 20 * active,
-      height: 8,
-      decoration: BoxDecoration(
-        color: Color.lerp(
-          Colors.white.withValues(alpha: 0.28),
-          AppColors.crimson,
-          active,
-        ),
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-    );
-  }
-}
-
-/// The base plum gradient — shared with the splash and the login hero.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(gradient: AppGradients.hero),
-    );
-  }
-}
-
-/// A crimson radial that tracks the swipe, so the light source moves with you.
-class _Bloom extends StatelessWidget {
-  final double page;
-  final int count;
-
-  const _Bloom({required this.page, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    // Slide the bloom's centre from left to right across the pages.
-    final x = count <= 1 ? 0.0 : (page / (count - 1)) * 2 - 1;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(x, -0.7),
-          radius: 1.1,
-          colors: [
-            AppColors.crimson.withValues(alpha: 0.34),
-            AppColors.crimson.withValues(alpha: 0.0),
-          ],
-        ),
-      ),
     );
   }
 }
