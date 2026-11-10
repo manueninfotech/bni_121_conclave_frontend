@@ -116,6 +116,10 @@ class Conclave {
   final int personsPerTable;
   final int roundCount;
 
+  /// The round in progress (0 before round 1). From the server's live clock
+  /// when present, else the stored value.
+  final int currentRound;
+
   // User's specific info for this conclave (if registered)
   final bool isRegistered;
   final ConclaveRole? userRole;
@@ -149,6 +153,7 @@ class Conclave {
     this.chiefGuests = const [],
     this.personsPerTable = 7,
     this.roundCount = 6,
+    this.currentRound = 0,
     this.paymentDetails,
     this.isRegistered = false,
     this.userRole,
@@ -260,6 +265,14 @@ class Conclave {
     return DateTime(base.year, base.month, base.day, h, min);
   }
 
+  /// The server's live round (its clock moves on in automatic mode without a
+  /// stored update), falling back to the stored `currentRound`.
+  static int _liveRound(Map<String, dynamic> data) {
+    final clock = data['clock'];
+    final v = (clock is Map ? clock['round'] : null) ?? data['currentRound'];
+    return v is num ? v.toInt() : 0;
+  }
+
   factory Conclave.fromFirestore(Map<String, dynamic> data, String id) {
     final date = _toDate(data['date']) ?? DateTime.now();
     final endDate = _toDate(data['endDate']);
@@ -282,6 +295,7 @@ class Conclave {
       regEndDate: _toDate(data['regEndDate']),
       personsPerTable: data['personsPerTable'] ?? 7,
       roundCount: data['roundCount'] ?? 6,
+      currentRound: _liveRound(data),
       paymentDetails: data['paymentDetails'] is Map
           ? PaymentDetails.fromMap(
               Map<String, dynamic>.from(data['paymentDetails'] as Map))
@@ -322,6 +336,7 @@ class Conclave {
       mySpecificAsk: mySpecificAsk,
       personsPerTable: personsPerTable,
       roundCount: roundCount,
+      currentRound: currentRound,
       paymentDetails: paymentDetails,
       isRegistered: isRegistered ?? this.isRegistered,
       userRole: userRole ?? this.userRole,

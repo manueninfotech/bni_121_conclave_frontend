@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -11,6 +8,8 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/shimmer.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'list/conclave_cards.dart';
+import 'list/conclave_segments.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
 class ConclavesListScreen extends ConsumerStatefulWidget {
@@ -69,42 +68,44 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
           .toList(),
   };
 
+  /// Open on Ongoing when something is live, else Upcoming — once, on first
+  /// data, so we never yank the member off a tab they picked.
+  bool _pickedInitialTab = false;
+
+  void _pickInitialTab(List<Conclave> all) {
+    if (_pickedInitialTab || all.isEmpty) return;
+    _pickedInitialTab = true;
+    final anyLive = all.any((c) => _ongoing.contains(c.effectiveStatus));
+    if (!anyLive) _tabController.index = 1;
+  }
+
   @override
   Widget build(BuildContext context) {
     final conclaves = ref.watch(conclavesStreamProvider);
     final all = conclaves.asData?.value ?? const <Conclave>[];
-    final live = all
-        .where((c) => c.effectiveStatus == ConclaveStatus.running)
-        .length;
-    final upcoming = all
-        .where(
-          (c) =>
-              !_ongoing.contains(c.effectiveStatus) &&
-              !_past.contains(c.effectiveStatus),
-        )
-        .length;
+    _pickInitialTab(all);
+    final counts = [for (var t = 0; t < 3; t++) _filter(all, t).length];
 
     return Scaffold(
-      // No app bar: a tinted header leads the screen (fills the bare top), with
-      // the tab strip directly beneath it (#17 / #13).
+      // No app bar: the tinted header leads, with the segment switcher in it.
       body: Column(
         children: [
-          _ConclavesHeader(live: live, upcoming: upcoming),
-          Material(
-            color: context.scheme.surface,
-            child: TabBar(
+          _ConclavesHeader(
+            live: counts[0],
+            upcoming: counts[1],
+            segments: ConclaveSegments(
               controller: _tabController,
-              tabs: const [
-                Tab(text: 'Ongoing'),
-                Tab(text: 'Upcoming'),
-                Tab(text: 'Past'),
+              segments: [
+                (label: 'Ongoing', count: counts[0]),
+                (label: 'Upcoming', count: counts[1]),
+                (label: 'Past', count: counts[2]),
               ],
             ),
           ),
           Expanded(
             child: conclaves.when(
-              // A skeleton, not a spinner: it says what is coming and how much of
-              // it, and the layout doesn't jump when the data lands.
+              // A skeleton, not a spinner: it says what is coming and how much
+              // of it, and the layout doesn't jump when the data lands.
               loading: () => const ConclaveListSkeleton(),
               error: (e, _) => ErrorView(
                 message: 'Could not load conclaves.',
@@ -115,14 +116,7 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
                 controller: _tabController,
                 children: List.generate(
                   3,
-                  (tab) => _ConclaveList(
-                    conclaves: _filter(all, tab),
-                    tab: tab,
-                    onRefresh: () async {
-                      ref.invalidate(conclavesStreamProvider);
-                      await ref.read(conclavesStreamProvider.future);
-                    },
-                  ),
+                  (tab) => _ConclaveList(conclaves: _filter(all, tab), tab: tab),
                 ),
               ),
             ),
@@ -133,12 +127,16 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
   }
 }
 
-/// Tinted header for the Conclaves tab: the title plus a live/upcoming count,
-/// flowing straight into the tab strip.
+/// Tinted header: title, a live/upcoming summary, and the segment switcher.
 class _ConclavesHeader extends StatelessWidget {
   final int live;
   final int upcoming;
-  const _ConclavesHeader({required this.live, required this.upcoming});
+  final Widget segments;
+  const _ConclavesHeader({
+    required this.live,
+    required this.upcoming,
+    required this.segments,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -165,22 +163,26 @@ class _ConclavesHeader extends StatelessWidget {
           ],
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Conclaves',
-            style: context.text.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
+      child: ContentWidth(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Conclaves',
+              style: context.text.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          Text(
-            parts.isEmpty ? 'Your networking events' : parts.join('  ·  '),
-            style: context.text.bodySmall?.copyWith(
-              color: context.scheme.onSurfaceVariant,
+            Text(
+              parts.isEmpty ? 'Your networking events' : parts.join('  ·  '),
+              style: context.text.bodySmall?.copyWith(
+                color: context.scheme.onSurfaceVariant,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: Gap.md),
+            segments,
+          ],
+        ),
       ),
     );
   }
@@ -189,220 +191,55 @@ class _ConclavesHeader extends StatelessWidget {
 class _ConclaveList extends StatelessWidget {
   final List<Conclave> conclaves;
   final int tab;
-  final Future<void> Function() onRefresh;
 
-  const _ConclaveList({
-    required this.conclaves,
-    required this.tab,
-    required this.onRefresh,
-  });
+  const _ConclaveList({required this.conclaves, required this.tab});
 
   @override
   Widget build(BuildContext context) {
     if (conclaves.isEmpty) {
-      // Always scrollable, so pull-to-refresh still works on an empty list.
-      return AppRefresh(
-        onRefresh: onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
-            EmptyView(
-              art: switch (tab) {
-                0 => const TablesIllustration(size: 150),
-                _ => const EmptyCalendarIllustration(size: 120),
-              },
-              icon: CoolIcons.calendarEvent,
-              title: switch (tab) {
-                0 => 'Nothing running right now',
-                2 => 'No past conclaves',
-                _ => 'No upcoming conclaves',
-              },
-              message: switch (tab) {
-                0 => 'When a conclave starts, it will appear here.',
-                2 => 'Conclaves you have attended will be listed here.',
-                _ => 'New conclaves show up here once the admin opens them.',
-              },
-            ),
-          ],
-        ),
-      );
-    }
-
-    return AppRefresh(
-      onRefresh: onRefresh,
-      child: ContentWidth(
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          // A tab root: content scrolls BEHIND the floating nav bar, so the
-          // bottom is grown to keep the last card clear of it.
-          padding: context.tabScrollInsets,
-          itemCount: conclaves.length,
-          separatorBuilder: (_, _) => const SizedBox(height: Gap.md),
-          itemBuilder: (context, i) => FadeSlideIn(
-            index: i,
-            child: _ConclaveCard(conclave: conclaves[i]),
+      return ListView(
+        physics: const ClampingScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
+          EmptyView(
+            art: switch (tab) {
+              0 => const TablesIllustration(size: 130),
+              _ => const EmptyCalendarIllustration(size: 110),
+            },
+            icon: CoolIcons.calendarEvent,
+            title: switch (tab) {
+              0 => 'Nothing live right now',
+              2 => 'No past conclaves yet',
+              _ => 'No upcoming conclaves',
+            },
+            message: switch (tab) {
+              0 => 'When a conclave starts, it appears here.',
+              2 => 'Conclaves you attend will be listed here, with your summary.',
+              _ => 'New conclaves appear here once registration opens.',
+            },
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ConclaveCard extends StatelessWidget {
-  final Conclave conclave;
-
-  const _ConclaveCard({required this.conclave});
-
-  (String, StatusTone, IconData) get _status {
-    // A registered member's own status comes first — "am I in?" is what they
-    // scan for, not the conclave's registration window (which no longer concerns
-    // them). Live / completed / cancelled still win, because those drive the next
-    // action (join, view summary) and the action button already says so.
-    if (conclave.isRegistered &&
-        conclave.effectiveStatus != ConclaveStatus.running &&
-        conclave.effectiveStatus != ConclaveStatus.completed &&
-        conclave.effectiveStatus != ConclaveStatus.cancelled) {
-      return ('Registered', StatusTone.success, CoolIcons.circleCheckFill);
-    }
-    return switch (conclave.effectiveStatus) {
-      ConclaveStatus.running => (
-        'Live',
-        StatusTone.success,
-        CoolIcons.broadcast,
-      ),
-      ConclaveStatus.completed => (
-        'Completed',
-        StatusTone.neutral,
-        CoolIcons.check,
-      ),
-      ConclaveStatus.cancelled => (
-        'Cancelled',
-        StatusTone.danger,
-        CoolIcons.close,
-      ),
-      ConclaveStatus.registrationOpen => (
-        'Registration open',
-        StatusTone.info,
-        CoolIcons.userCheckCorner,
-      ),
-      _ => ('Upcoming', StatusTone.warning, CoolIcons.clock),
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, tone, icon) = _status;
-    final isLive = conclave.effectiveStatus == ConclaveStatus.running;
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/conclaves/${conclave.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Wrap, not Row: at a large font size the title and badge cannot
-              // both fit on one line, and a Row would overflow.
-              Wrap(
-                spacing: Gap.sm,
-                runSpacing: Gap.sm,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.sizeOf(context).width * 0.55,
-                    ),
-                    child: Text(
-                      conclave.name,
-                      style: context.text.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  StatusBadge(label: label, tone: tone, icon: icon),
-                ],
-              ),
-              const SizedBox(height: Gap.md),
-
-              InfoRow(
-                icon: CoolIcons.mapPin,
-                label: 'Venue',
-                value: conclave.venueLocation,
-              ),
-              InfoRow(
-                icon: CoolIcons.calendar,
-                label: 'Date',
-                value: DateFormat('EEE, MMM d, yyyy').format(conclave.date),
-              ),
-              if (conclave.startTime != null)
-                InfoRow(
-                  icon: CoolIcons.clock,
-                  label: 'Starts',
-                  value: DateFormat('h:mm a').format(conclave.startTime!),
-                ),
-
-              const SizedBox(height: Gap.lg),
-              _CardAction(conclave: conclave, isLive: isLive),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CardAction extends StatelessWidget {
-  final Conclave conclave;
-  final bool isLive;
-
-  const _CardAction({required this.conclave, required this.isLive});
-
-  @override
-  Widget build(BuildContext context) {
-    if (conclave.isRegistered) {
-      return SizedBox(
-        width: double.infinity,
-        child: isLive
-            ? FilledButton.icon(
-                onPressed: () =>
-                    context.push('/conclaves/${conclave.id}/active'),
-                icon: const Icon(CoolIcons.playFill),
-                label: const Text('Join active round'),
-              )
-            : OutlinedButton.icon(
-                onPressed: () => context.push('/conclaves/${conclave.id}'),
-                icon: const Icon(CoolIcons.eye),
-                label: const Text('View details'),
-              ),
+        ],
       );
     }
 
-    if (conclave.canRegister) {
-      return SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: () => context.push('/conclaves/${conclave.id}/register'),
-          icon: const Icon(CoolIcons.userCheckCorner),
-          label: const Text('Register'),
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: null,
-        child: Text(switch (conclave.effectiveStatus) {
-          ConclaveStatus.completed => 'Ended',
-          ConclaveStatus.cancelled => 'Cancelled',
-          ConclaveStatus.registrationNotOpen => 'Registration not open yet',
-          _ => 'Registration closed',
-        }),
+    return ContentWidth(
+      child: ListView.separated(
+        physics: const ClampingScrollPhysics(),
+        // A tab root: content scrolls BEHIND the floating nav bar, so the
+        // bottom is grown to keep the last card clear of it.
+        padding: context.tabScrollInsets,
+        itemCount: conclaves.length,
+        separatorBuilder: (_, _) =>
+            SizedBox(height: tab == 2 ? Gap.sm : Gap.md),
+        itemBuilder: (context, i) {
+          final c = conclaves[i];
+          final card = switch (tab) {
+            0 => LiveConclaveCard(conclave: c),
+            2 => PastConclaveRow(conclave: c),
+            _ => UpcomingConclaveCard(conclave: c),
+          };
+          return FadeSlideIn(index: i, child: card);
+        },
       ),
     );
   }
