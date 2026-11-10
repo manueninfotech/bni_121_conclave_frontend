@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/people_met_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
@@ -45,16 +46,12 @@ class PeopleMetScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final people = ref.watch(peopleMetProvider(conclaveId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('People you met'),
-        actions: [
-          IconButton(
-            icon: const Icon(CoolIcons.qrCode),
-            tooltip: 'Share my card',
-            onPressed: () => context.push('/profile/card'),
-          ),
-        ],
+    return AppPage(
+      title: 'People you met',
+      trailing: IconButton(
+        icon: const Icon(CoolIcons.qrCode),
+        tooltip: 'Share my card',
+        onPressed: () => context.push('/profile/card'),
       ),
       body: people.when(
         loading: () => const LoadingView(),
@@ -70,22 +67,51 @@ class PeopleMetScreen extends ConsumerWidget {
               title: 'No connections yet',
               message:
                   'Once the schedule runs, everyone you sit with turns up '
-                  'here — ready to save.',
+                  'here, ready to save.',
             );
           }
           return ContentWidth(
-            child: ListView.separated(
-              padding: context.pageInsets,
-              itemCount: list.length,
-              separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
-              itemBuilder: (context, i) => _MetCard(
-                person: list[i],
-                index: i,
-                onSave: () => _save(context, list[i]),
-                onOpen: list[i].uid.isEmpty
-                    ? null
-                    : () => context.push('/members/${list[i].uid}'),
+            max: 520,
+            child: ListView(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                context.pagePadding,
+                Gap.lg,
+                context.pagePadding,
+                Gap.xl,
               ),
+              children: [
+                PageHeading(
+                  title:
+                      '${list.length} ${list.length == 1 ? 'person' : 'people'}',
+                  subtitle:
+                      'Everyone you shared a table with. Save them before you forget a face.',
+                ),
+                FadeSlideIn(
+                  index: 0,
+                  child: SectionCard(
+                    gap: 0,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      for (var i = 0; i < list.length; i++) ...[
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            indent: Gap.lg + 44 + Gap.md,
+                            color: context.colors.hairline,
+                          ),
+                        _MetRow(
+                          person: list[i],
+                          onSave: () => _save(context, list[i]),
+                          onOpen: list[i].uid.isEmpty
+                              ? null
+                              : () => context.push('/members/${list[i].uid}'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -94,15 +120,13 @@ class PeopleMetScreen extends ConsumerWidget {
   }
 }
 
-class _MetCard extends StatelessWidget {
+class _MetRow extends StatelessWidget {
   final MetPerson person;
-  final int index;
   final VoidCallback onSave;
   final VoidCallback? onOpen;
 
-  const _MetCard({
+  const _MetRow({
     required this.person,
-    required this.index,
     required this.onSave,
     required this.onOpen,
   });
@@ -115,55 +139,78 @@ class _MetCard extends StatelessWidget {
       if (person.businessName.isNotEmpty) person.businessName,
     ].join('  ·  ');
 
-    return FadeSlideIn(
-      index: index,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onOpen,
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.md),
-            child: Row(
-              children: [
-                UserAvatar(name: person.name, photoUrl: null, radius: 24),
-                const SizedBox(width: Gap.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: onOpen,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.lg, 12, Gap.md, 12),
+        child: Row(
+          children: [
+            UserAvatar(name: person.name, photoUrl: null, radius: 22),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    person.name.isEmpty ? 'A member' : person.name,
+                    style: context.text.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (sub.isNotEmpty)
+                    Text(
+                      sub,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  if (rounds.isNotEmpty)
+                    Text(
+                      'Met in $rounds',
+                      style: context.text.labelSmall?.copyWith(
+                        color: context.scheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: Gap.sm),
+            // Same "Save" pill as the conclave summary.
+            Material(
+              color: kActionRed.withValues(alpha: 0.08),
+              shape: const StadiumBorder(),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: onSave,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      const Icon(
+                        CoolIcons.userPlusCornerFill,
+                        size: 15,
+                        color: kActionRed,
+                      ),
+                      const SizedBox(width: 5),
                       Text(
-                        person.name.isEmpty ? 'A member' : person.name,
-                        style: context.text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
+                        'Save',
+                        style: context.text.labelMedium?.copyWith(
+                          color: kActionRed,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      if (sub.isNotEmpty)
-                        Text(
-                          sub,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.text.bodySmall?.copyWith(
-                            color: context.scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      if (rounds.isNotEmpty)
-                        Text(
-                          'Met in $rounds',
-                          style: context.text.labelSmall?.copyWith(
-                            color: context.scheme.onSurfaceVariant,
-                          ),
-                        ),
                     ],
                   ),
                 ),
-                IconButton.filledTonal(
-                  icon: const Icon(CoolIcons.userPlusCornerFill),
-                  tooltip: 'Save to contacts',
-                  onPressed: onSave,
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

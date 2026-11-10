@@ -11,6 +11,7 @@ import '../../../core/theme/tokens.dart';
 import '../../active_conclave/data/notification_service.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
@@ -155,8 +156,22 @@ class _ConclaveRegisterScreenState
     final conclaves = ref.watch(conclavesStreamProvider);
     final profile = ref.watch(myProfileProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Confirm registration')),
+    final conclave = conclaves.asData?.value
+        .where((c) => c.id == widget.conclaveId)
+        .firstOrNull;
+    final paid = conclave?.paymentDetails?.hasFee ?? false;
+
+    return AppPage(
+      title: 'Register',
+      action: conclave == null
+          ? null
+          : AppPrimaryButton(
+              label: paid
+                  ? 'Pay ₹${conclave.paymentDetails!.registrationFee} and register'
+                  : 'Confirm registration',
+              busy: _isSubmitting,
+              onPressed: () => _confirm(conclave),
+            ),
       body: conclaves.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -164,14 +179,10 @@ class _ConclaveRegisterScreenState
           detail: e.toString(),
           onRetry: () => ref.invalidate(conclavesStreamProvider),
         ),
-        data: (all) {
+        data: (_) {
           // Never fall back to `conclaves.first` — registering someone for a
           // DIFFERENT conclave than the one they tapped would be unforgivable,
           // and unfixable, since registration can't be withdrawn.
-          final conclave = all
-              .where((c) => c.id == widget.conclaveId)
-              .firstOrNull;
-
           if (conclave == null) {
             return EmptyView(
               icon: CoolIcons.searchClose,
@@ -185,119 +196,66 @@ class _ConclaveRegisterScreenState
           }
 
           return ContentWidth(
+            max: 520,
             child: ListView(
-              padding: context.pageInsets,
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                context.pagePadding,
+                Gap.lg,
+                context.pagePadding,
+                Gap.xl,
+              ),
               children: [
-                Text(
-                  conclave.name,
-                  style: context.text.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                PageHeading(
+                  title: conclave.name,
+                  subtitle: 'Check the details, then confirm your seat.',
                 ),
-                const SizedBox(height: Gap.lg),
-
-                _Card(
+                const SectionLabel('Conclave'),
+                SectionCard(
                   children: [
-                    InfoRow(
-                      icon: CoolIcons.mapPin,
-                      label: 'Venue',
-                      value: conclave.venueLocation,
-                    ),
-                    InfoRow(
+                    DetailRow(
                       icon: CoolIcons.calendar,
                       label: 'Date',
                       value: DateFormat(
-                        'EEEE, MMMM d, yyyy',
+                        'EEEE, d MMMM yyyy',
                       ).format(conclave.date),
                     ),
                     if (conclave.startTime != null)
-                      InfoRow(
+                      DetailRow(
                         icon: CoolIcons.clock,
                         label: 'Starts',
                         value: DateFormat('h:mm a').format(conclave.startTime!),
                       ),
-                    if (conclave.paymentDetails?.hasFee ?? false)
-                      InfoRow(
+                    DetailRow(
+                      icon: CoolIcons.mapPin,
+                      label: 'Venue',
+                      value: conclave.venueLocation,
+                    ),
+                    if (paid)
+                      DetailRow(
                         icon: CoolIcons.banknote,
-                        label: 'Fee',
+                        label: 'Registration fee',
                         value: '₹${conclave.paymentDetails!.registrationFee}',
                       ),
                   ],
                 ),
-
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.xl),
                 profile.when(
-                  loading: () => const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(Gap.xl),
-                      child: Center(child: AppSpinner(size: 32)),
-                    ),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(Gap.xl),
+                    child: Center(child: AppSpinner(size: 28)),
                   ),
                   error: (_, _) => const SizedBox.shrink(),
                   data: (p) => p == null
                       ? const SizedBox.shrink()
                       : _ProfileCheck(profile: p),
                 ),
-
-                const SizedBox(height: Gap.md),
-                _Commitment(),
-
                 const SizedBox(height: Gap.xl),
-                SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _isSubmitting ? null : () => _confirm(conclave),
-                    child: _isSubmitting
-                        ? const AppSpinner(size: 20, color: Colors.white)
-                        : Text(
-                            (conclave.paymentDetails?.hasFee ?? false)
-                                ? 'Continue to payment'
-                                : 'Confirm registration',
-                          ),
-                  ),
-                ),
-                const SizedBox(height: Gap.sm),
-                TextButton(
-                  onPressed: _isSubmitting ? null : () => context.pop(),
-                  child: const Text('Not now'),
-                ),
+                const _Commitment(),
               ],
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final String? title;
-  final List<Widget> children;
-
-  const _Card({this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title != null) ...[
-              Text(
-                title!.toUpperCase(),
-                style: context.text.labelSmall?.copyWith(
-                  color: context.scheme.onSurfaceVariant,
-                  letterSpacing: 0.8,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: Gap.sm),
-            ],
-            ...children,
-          ],
-        ),
       ),
     );
   }
@@ -314,34 +272,43 @@ class _ProfileCheck extends StatelessWidget {
   Widget build(BuildContext context) {
     final missing = profile.businessCategory.isEmpty;
 
-    return _Card(
-      title: 'You will be seated as',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InfoRow(
-          icon: CoolIcons.user,
-          label: 'Name',
-          value: profile.name.isEmpty ? 'Not set' : profile.name,
-        ),
-        InfoRow(
-          icon: CoolIcons.building2,
-          label: 'Business',
-          value: profile.businessName.isEmpty
-              ? 'Not set'
-              : profile.businessName,
-        ),
-        InfoRow(
-          icon: CoolIcons.shapes,
-          label: 'Business category',
-          value: missing ? 'Not set — required' : profile.businessCategory,
-        ),
-        const SizedBox(height: Gap.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => context.push('/profile/edit'),
-            icon: const Icon(CoolIcons.pencil, size: 18),
-            label: Text(missing ? 'Set your category' : 'Wrong? Edit profile'),
+        SectionLabel(
+          'You will be seated as',
+          trailing: GestureDetector(
+            onTap: () => context.push('/profile/edit'),
+            child: Text(
+              missing ? 'Set category' : 'Edit',
+              style: context.text.labelLarge?.copyWith(
+                color: kActionRed,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
+        ),
+        SectionCard(
+          children: [
+            DetailRow(
+              icon: CoolIcons.user,
+              label: 'Name',
+              value: profile.name.isEmpty ? 'Not set' : profile.name,
+            ),
+            DetailRow(
+              icon: CoolIcons.building2,
+              label: 'Business',
+              value: profile.businessName.isEmpty
+                  ? 'Not set'
+                  : profile.businessName,
+            ),
+            DetailRow(
+              icon: CoolIcons.shapes,
+              label: 'Business category',
+              value: missing ? 'Not set, required' : profile.businessCategory,
+              valueColor: missing ? context.colors.danger : null,
+            ),
+          ],
         ),
       ],
     );
@@ -350,20 +317,21 @@ class _ProfileCheck extends StatelessWidget {
 
 /// The part people skim past and then complain about. Stated plainly, once.
 class _Commitment extends StatelessWidget {
+  const _Commitment();
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-
     return Container(
       padding: const EdgeInsets.all(Gap.lg),
       decoration: BoxDecoration(
-        color: c.warningContainer,
-        borderRadius: BorderRadius.circular(Radii.md),
+        color: c.warningContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(CoolIcons.circleInfo, size: 20, color: c.onWarningContainer),
+          IconChip(icon: CoolIcons.lock, color: c.onWarningContainer),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Column(
@@ -373,16 +341,17 @@ class _Commitment extends StatelessWidget {
                   'Registration is final',
                   style: context.text.titleSmall?.copyWith(
                     color: c.onWarningContainer,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: Gap.xs),
                 Text(
-                  'You cannot withdraw once registered — the schedule seats and '
-                  'pairs you, so an empty seat affects other people\'s tables. '
+                  'You cannot withdraw once registered. The schedule seats and '
+                  "pairs you, so an empty seat affects other people's tables. "
                   'You also cannot register for another conclave at the same time.',
                   style: context.text.bodySmall?.copyWith(
                     color: c.onWarningContainer,
+                    height: 1.45,
                   ),
                 ),
               ],

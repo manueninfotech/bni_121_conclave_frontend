@@ -16,8 +16,7 @@ import '../data/auth_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
 import 'package:conclave_1_2_1/core/widgets/aero_shards.dart';
-import 'package:conclave_1_2_1/features/active_conclave/presentation/round/deck_footer.dart'
-    show roundPanel;
+import 'package:conclave_1_2_1/core/widgets/page_kit.dart';
 import 'package:conclave_1_2_1/features/active_conclave/presentation/round/round_timer.dart'
     show kDeckBottom;
 
@@ -516,7 +515,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             title: 'Create your account',
             subtitle: 'We\'ll use this to sign you in.',
           ),
-          _Card(
+          SectionCard(
             children: [
               MethodToggle(
                 value: _method,
@@ -627,7 +626,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             title: 'Verify your phone',
             subtitle: 'We sent a 6-digit code to $_e164.',
           ),
-          _Card(
+          SectionCard(
             children: [
               TextFormField(
                 controller: _otp,
@@ -680,8 +679,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           // _credentials(). Asked exactly once, on the one step that survives
           // the mid-registration auth-state rebuild.
           if (_isPhoneFlow) ...[
-            const _Section('Sign-in'),
-            _Card(
+            const SectionLabel('Sign-in'),
+            SectionCard(
               children: [
                 TextFormField(
                   controller: _password,
@@ -709,8 +708,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: Gap.xl),
           ],
 
-          const _Section('Contact'),
-          _Card(
+          const SectionLabel('Contact'),
+          SectionCard(
             children: [
               // The leftover contact. Asked here rather than at the credentials step
               // so signing up stays two fields — this is the "tell us about
@@ -747,8 +746,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
           const SizedBox(height: Gap.xl),
 
-          const _Section('You and your business'),
-          _Card(
+          const SectionLabel('You and your business'),
+          SectionCard(
             children: [
               TextFormField(
                 controller: _name,
@@ -799,8 +798,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           ),
           const SizedBox(height: Gap.xl),
 
-          const _Section('BNI'),
-          _Card(
+          const SectionLabel('BNI'),
+          SectionCard(
             children: [
               TextFormField(
                 controller: _chapter,
@@ -866,31 +865,6 @@ class _Heading extends StatelessWidget {
   }
 }
 
-/// A group of fields on one white card.
-class _Card extends StatelessWidget {
-  final List<Widget> children;
-  const _Card({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    final spaced = <Widget>[];
-    for (final c in children) {
-      // The card spaces its own rows.
-      if (c is SizedBox && c.width == null) continue;
-      if (spaced.isNotEmpty) spaced.add(const SizedBox(height: Gap.md));
-      spaced.add(c);
-    }
-    return Container(
-      padding: const EdgeInsets.all(Gap.lg),
-      decoration: roundPanel(context, radius: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: spaced,
-      ),
-    );
-  }
-}
-
 /// The road ahead, so the first step explains the whole flow.
 class _WhatsNext extends StatelessWidget {
   final bool phone;
@@ -912,7 +886,7 @@ class _WhatsNext extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _Section('What happens next'),
+        const SectionLabel('What happens next'),
         for (var i = 0; i < steps.length; i++)
           Padding(
             padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.xs, 0, Gap.sm),
@@ -963,25 +937,6 @@ class _WhatsNext extends StatelessWidget {
       ],
     );
   }
-}
-
-/// A small caps label above a card.
-class _Section extends StatelessWidget {
-  final String text;
-  const _Section(this.text);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: Gap.xs, bottom: Gap.sm),
-    child: Text(
-      text.toUpperCase(),
-      style: context.text.labelMedium?.copyWith(
-        color: context.scheme.onSurfaceVariant,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.2,
-      ),
-    ),
-  );
 }
 
 /// Back · title · step pill.

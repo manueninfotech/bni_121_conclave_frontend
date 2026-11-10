@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
+import '../../../core/widgets/pill_switch.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/my_referrals_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
@@ -29,28 +31,49 @@ class MyReferralsScreen extends ConsumerWidget {
       useRootNavigator: true,
       context: context,
       showDragHandle: true,
+      backgroundColor: context.scheme.surface,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(CoolIcons.handshake),
-              title: const Text('Accepted'),
-              subtitle: const Text("You've picked up the lead"),
-              onTap: () => Navigator.pop(ctx, ReferralOutcome.accepted),
-            ),
-            ListTile(
-              leading: Icon(CoolIcons.wavyCheckFill, color: ctx.colors.success),
-              title: const Text('Closed — won business'),
-              subtitle: const Text('Record the value (TYFCB)'),
-              onTap: () => Navigator.pop(ctx, ReferralOutcome.closed),
-            ),
-            ListTile(
-              leading: const Icon(CoolIcons.circleClose),
-              title: const Text("Didn't work out"),
-              onTap: () => Navigator.pop(ctx, ReferralOutcome.notClosed),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: Gap.xs, bottom: Gap.md),
+                child: Text(
+                  'What happened?',
+                  style: ctx.text.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              SectionCard(
+                gap: 0,
+                padding: EdgeInsets.zero,
+                children: [
+                  CardRow(
+                    icon: CoolIcons.handshake,
+                    title: 'Accepted',
+                    subtitle: "You've picked up the lead",
+                    onTap: () => Navigator.pop(ctx, ReferralOutcome.accepted),
+                  ),
+                  CardRow(
+                    icon: CoolIcons.wavyCheckFill,
+                    tint: ctx.colors.success,
+                    title: 'Closed, won business',
+                    subtitle: 'Record the value (TYFCB)',
+                    onTap: () => Navigator.pop(ctx, ReferralOutcome.closed),
+                  ),
+                  CardRow(
+                    icon: CoolIcons.circleClose,
+                    title: "Didn't work out",
+                    onTap: () => Navigator.pop(ctx, ReferralOutcome.notClosed),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -152,44 +175,97 @@ class MyReferralsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final referrals = ref.watch(myReferralsProvider);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('My referrals'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Given'),
-              Tab(text: 'Received'),
-            ],
-          ),
+    return AppPage(
+      title: 'My referrals',
+      body: referrals.when(
+        loading: () => const LoadingView(),
+        error: (e, _) => ErrorView(
+          message: 'Could not load your referrals.',
+          detail: e.toString(),
+          onRetry: () => ref.invalidate(myReferralsProvider),
         ),
-        body: referrals.when(
-          loading: () => const LoadingView(),
-          error: (e, _) => ErrorView(
-            message: 'Could not load your referrals.',
-            detail: e.toString(),
-            onRetry: () => ref.invalidate(myReferralsProvider),
-          ),
-          data: (data) => TabBarView(
-            children: [
-              _ReferralList(
-                entries: data.given,
-                direction: _Direction.given,
-                onRefresh: () async => ref.invalidate(myReferralsProvider),
-                rupees: _rupees,
-              ),
-              _ReferralList(
-                entries: data.received,
-                direction: _Direction.received,
-                onRefresh: () async => ref.invalidate(myReferralsProvider),
-                rupees: _rupees,
-                onUpdate: (e) => _update(context, ref, e),
-              ),
-            ],
-          ),
+        data: (data) => _ReferralsBody(
+          given: data.given,
+          received: data.received,
+          rupees: _rupees,
+          onRefresh: () async => ref.invalidate(myReferralsProvider),
+          onUpdate: (e) => _update(context, ref, e),
         ),
       ),
+    );
+  }
+}
+
+/// Given / Received pill switch over the two lists.
+class _ReferralsBody extends StatefulWidget {
+  final List<ReferralEntry> given;
+  final List<ReferralEntry> received;
+  final String Function(int) rupees;
+  final Future<void> Function() onRefresh;
+  final void Function(ReferralEntry) onUpdate;
+
+  const _ReferralsBody({
+    required this.given,
+    required this.received,
+    required this.rupees,
+    required this.onRefresh,
+    required this.onUpdate,
+  });
+
+  @override
+  State<_ReferralsBody> createState() => _ReferralsBodyState();
+}
+
+class _ReferralsBodyState extends State<_ReferralsBody> {
+  var _dir = _Direction.given;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.pagePadding,
+            Gap.md,
+            context.pagePadding,
+            0,
+          ),
+          child: ContentWidth(
+            max: 520,
+            child: PillSwitch<_Direction>(
+              value: _dir,
+              onChanged: (d) => setState(() => _dir = d),
+              options: [
+                PillOption(
+                  _Direction.given,
+                  'Given  ${widget.given.length}',
+                  CoolIcons.arrowUpRight,
+                ),
+                PillOption(
+                  _Direction.received,
+                  'Received  ${widget.received.length}',
+                  CoolIcons.arrowDownLeft,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: Motion.fast,
+            child: _ReferralList(
+              key: ValueKey(_dir),
+              entries: _dir == _Direction.given
+                  ? widget.given
+                  : widget.received,
+              direction: _dir,
+              onRefresh: widget.onRefresh,
+              rupees: widget.rupees,
+              onUpdate: _dir == _Direction.received ? widget.onUpdate : null,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -204,6 +280,7 @@ class _ReferralList extends StatelessWidget {
   final void Function(ReferralEntry)? onUpdate;
 
   const _ReferralList({
+    super.key,
     required this.entries,
     required this.direction,
     required this.onRefresh,
@@ -243,11 +320,17 @@ class _ReferralList extends StatelessWidget {
     return AppRefresh(
       onRefresh: onRefresh,
       child: ContentWidth(
+        max: 520,
         child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: context.pageInsets,
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            context.pagePadding,
+            Gap.lg,
+            context.pagePadding,
+            Gap.xl,
+          ),
           itemCount: entries.length + 1,
-          separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
+          separatorBuilder: (_, _) => const SizedBox(height: Gap.md),
           itemBuilder: (context, i) {
             if (i == 0) {
               return _SummaryStrip(
@@ -288,43 +371,50 @@ class _SummaryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = direction == _Direction.given
-        ? 'Business you generated'
-        : 'Business you closed';
+        ? 'Business generated'
+        : 'Business closed';
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.sm),
-      child: Row(
-        children: [
-          Expanded(child: _stat(context, '$count', 'Referrals')),
-          const SizedBox(width: Gap.md),
-          Expanded(child: _stat(context, rupees(closedTotal), label)),
-        ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: Gap.lg),
+        decoration: pagePanel(context),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Expanded(
+                child: _stat(
+                  context,
+                  '$count',
+                  count == 1 ? 'Referral' : 'Referrals',
+                ),
+              ),
+              VerticalDivider(width: 1, color: context.colors.hairline),
+              Expanded(child: _stat(context, rupees(closedTotal), label)),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _stat(BuildContext context, String value, String label) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: context.text.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: context.scheme.primary,
-              ),
-            ),
-            Text(
-              label,
-              style: context.text.labelSmall?.copyWith(
-                color: context.scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+    return Column(
+      children: [
+        Text(
+          value,
+          style: context.text.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+          ),
         ),
-      ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: context.text.labelMedium?.copyWith(
+            color: context.scheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -359,7 +449,8 @@ class _ReferralCard extends StatelessWidget {
 
     return FadeSlideIn(
       index: index,
-      child: Card(
+      child: Container(
+        decoration: pagePanel(context),
         child: Padding(
           padding: const EdgeInsets.all(Gap.lg),
           child: Column(
@@ -368,7 +459,7 @@ class _ReferralCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  UserAvatar(name: name, photoUrl: null, radius: 24),
+                  UserAvatar(name: name, photoUrl: null, radius: 22),
                   const SizedBox(width: Gap.md),
                   Expanded(
                     child: Column(
@@ -385,8 +476,8 @@ class _ReferralCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           name,
-                          style: context.text.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                          style: context.text.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         if (entry.otherBusinessName.isNotEmpty)
@@ -428,13 +519,33 @@ class _ReferralCard extends StatelessWidget {
                 const SizedBox(height: Gap.sm),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: onUpdate,
-                    icon: const Icon(CoolIcons.pencil, size: 18),
-                    label: Text(
-                      entry.outcome == ReferralOutcome.open
-                          ? 'Update status'
-                          : 'Change status',
+                  child: Material(
+                    color: entry.outcome == ReferralOutcome.open
+                        ? kActionRed
+                        : context.scheme.surfaceContainerHighest.withValues(
+                            alpha: 0.8,
+                          ),
+                    shape: const StadiumBorder(),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: onUpdate,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          entry.outcome == ReferralOutcome.open
+                              ? 'Update status'
+                              : 'Change status',
+                          style: context.text.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: entry.outcome == ReferralOutcome.open
+                                ? Colors.white
+                                : context.scheme.onSurface,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -509,12 +620,12 @@ class _NoteBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(Gap.sm),
+      padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
-        color: context.scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(Radii.sm),
+        color: context.scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: context.text.bodySmall),
+      child: Text(text, style: context.text.bodySmall?.copyWith(height: 1.4)),
     );
   }
 }

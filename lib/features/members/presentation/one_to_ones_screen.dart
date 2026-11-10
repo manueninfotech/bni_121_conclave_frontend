@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/one_to_ones_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
@@ -43,8 +44,8 @@ class OneToOnesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myOneToOnesProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('My 1-2-1s')),
+    return AppPage(
+      title: 'My 1-2-1s',
       body: async.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -62,24 +63,72 @@ class OneToOnesScreen extends ConsumerWidget {
                   'to meet outside the conclave.',
             );
           }
+          // Grouped by what each one needs from you.
+          final groups = <(String, List<OneToOne>)>[
+            (
+              'Needs your reply',
+              [
+                for (final m in list)
+                  if (!m.sent && m.status == OneToOneStatus.pending) m,
+              ],
+            ),
+            (
+              'Confirmed',
+              [
+                for (final m in list)
+                  if (m.status == OneToOneStatus.accepted) m,
+              ],
+            ),
+            (
+              'Waiting on them',
+              [
+                for (final m in list)
+                  if (m.sent && m.status == OneToOneStatus.pending) m,
+              ],
+            ),
+            (
+              'Past',
+              [
+                for (final m in list)
+                  if (m.status == OneToOneStatus.declined ||
+                      m.status == OneToOneStatus.cancelled)
+                    m,
+              ],
+            ),
+          ];
+          var index = 0;
           return AppRefresh(
             onRefresh: () async => ref.invalidate(myOneToOnesProvider),
             child: ContentWidth(
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: context.pageInsets,
-                itemCount: list.length,
-                separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
-                itemBuilder: (context, i) => _OneToOneCard(
-                  m: list[i],
-                  index: i,
-                  onAccept: () =>
-                      _set(context, ref, list[i], OneToOneStatus.accepted),
-                  onDecline: () =>
-                      _set(context, ref, list[i], OneToOneStatus.declined),
-                  onCancel: () =>
-                      _set(context, ref, list[i], OneToOneStatus.cancelled),
+              max: 520,
+              child: ListView(
+                physics: const ClampingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  context.pagePadding,
+                  Gap.lg,
+                  context.pagePadding,
+                  Gap.xl,
                 ),
+                children: [
+                  for (final (label, items) in groups)
+                    if (items.isNotEmpty) ...[
+                      SectionLabel('$label  ${items.length}'),
+                      for (final m in items) ...[
+                        _OneToOneCard(
+                          m: m,
+                          index: index++,
+                          onAccept: () =>
+                              _set(context, ref, m, OneToOneStatus.accepted),
+                          onDecline: () =>
+                              _set(context, ref, m, OneToOneStatus.declined),
+                          onCancel: () =>
+                              _set(context, ref, m, OneToOneStatus.cancelled),
+                        ),
+                        const SizedBox(height: Gap.md),
+                      ],
+                      const SizedBox(height: Gap.md),
+                    ],
+                ],
               ),
             ),
           );
@@ -110,43 +159,46 @@ class _OneToOneCard extends StatelessWidget {
     final lead = m.sent ? 'You requested' : 'Requested you';
     final when = m.proposedAt == null
         ? ''
-        : DateFormat('EEE, MMM d · h:mm a').format(m.proposedAt!);
+        : DateFormat('EEE, d MMM · h:mm a').format(m.proposedAt!);
 
     final canRespond = !m.sent && m.status == OneToOneStatus.pending;
-    final canCancel =
-        m.status == OneToOneStatus.pending ||
-        m.status == OneToOneStatus.accepted;
+    final cancelLabel = switch ((m.sent, m.status)) {
+      (true, OneToOneStatus.pending) => 'Cancel request',
+      (_, OneToOneStatus.accepted) => 'Cancel 1-2-1',
+      _ => null,
+    };
+    final past =
+        m.status == OneToOneStatus.declined ||
+        m.status == OneToOneStatus.cancelled;
 
     return FadeSlideIn(
       index: index,
-      child: Card(
-        child: Padding(
+      child: Opacity(
+        opacity: past ? 0.7 : 1,
+        child: Container(
           padding: const EdgeInsets.all(Gap.lg),
+          decoration: pagePanel(context),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  UserAvatar(name: name, photoUrl: m.otherPhotoUrl, radius: 24),
+                  UserAvatar(name: name, photoUrl: m.otherPhotoUrl, radius: 22),
                   const SizedBox(width: Gap.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          lead,
-                          style: context.text.labelSmall?.copyWith(
-                            color: context.scheme.onSurfaceVariant,
-                            letterSpacing: 0.4,
-                            fontWeight: FontWeight.w700,
+                          name,
+                          style: context.text.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          name,
-                          style: context.text.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                          lead,
+                          style: context.text.bodySmall?.copyWith(
+                            color: context.scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -155,50 +207,63 @@ class _OneToOneCard extends StatelessWidget {
                   _StatusChip(status: m.status),
                 ],
               ),
-              const SizedBox(height: Gap.md),
-              if (when.isNotEmpty)
-                _line(context, CoolIcons.calendarEventFill, when),
-              if (m.location.isNotEmpty)
-                _line(context, CoolIcons.mapPin, m.location),
-              if (m.note.isNotEmpty) _line(context, CoolIcons.chat, m.note),
-
+              if (when.isNotEmpty ||
+                  m.location.isNotEmpty ||
+                  m.note.isNotEmpty) ...[
+                const SizedBox(height: Gap.md),
+                Container(
+                  padding: const EdgeInsets.all(Gap.md),
+                  decoration: BoxDecoration(
+                    color: context.scheme.surfaceContainerHighest.withValues(
+                      alpha: 0.45,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (when.isNotEmpty)
+                        _line(
+                          context,
+                          CoolIcons.calendarEventFill,
+                          when,
+                          bold: true,
+                        ),
+                      if (m.location.isNotEmpty)
+                        _line(context, CoolIcons.mapPin, m.location),
+                      if (m.note.isNotEmpty)
+                        _line(context, CoolIcons.chat, m.note),
+                    ],
+                  ),
+                ),
+              ],
               if (canRespond) ...[
-                const SizedBox(height: Gap.sm),
+                const SizedBox(height: Gap.md),
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: onDecline,
-                        child: const Text('Decline'),
-                      ),
+                      child: _SmallButton(label: 'Decline', onTap: onDecline),
                     ),
-                    const SizedBox(width: Gap.md),
+                    const SizedBox(width: Gap.sm),
                     Expanded(
-                      child: FilledButton(
-                        onPressed: onAccept,
-                        child: const Text('Accept'),
+                      child: _SmallButton(
+                        label: 'Accept',
+                        onTap: onAccept,
+                        primary: true,
                       ),
                     ),
                   ],
                 ),
-              ] else if (canCancel && m.sent) ...[
-                const SizedBox(height: Gap.xs),
+              ] else if (cancelLabel != null) ...[
+                const SizedBox(height: Gap.sm),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: onCancel,
-                    child: const Text('Cancel request'),
-                  ),
-                ),
-              ] else if (canCancel &&
-                  !m.sent &&
-                  m.status == OneToOneStatus.accepted) ...[
-                const SizedBox(height: Gap.xs),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: onCancel,
-                    child: const Text('Cancel'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: context.scheme.onSurfaceVariant,
+                    ),
+                    child: Text(cancelLabel),
                   ),
                 ),
               ],
@@ -209,16 +274,64 @@ class _OneToOneCard extends StatelessWidget {
     );
   }
 
-  Widget _line(BuildContext context, IconData icon, String text) {
+  Widget _line(
+    BuildContext context,
+    IconData icon,
+    String text, {
+    bool bold = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.xs),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 16, color: context.scheme.onSurfaceVariant),
           const SizedBox(width: Gap.sm),
-          Expanded(child: Text(text, style: context.text.bodyMedium)),
+          Expanded(
+            child: Text(
+              text,
+              style: context.text.bodyMedium?.copyWith(
+                fontWeight: bold ? FontWeight.w700 : null,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SmallButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool primary;
+  const _SmallButton({
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: FilledButton(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: primary
+              ? kActionRed
+              : context.scheme.surfaceContainerHighest.withValues(alpha: 0.8),
+          foregroundColor: primary ? Colors.white : context.scheme.onSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: 'PlusJakartaSans',
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+          ),
+        ),
+        child: Text(label),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/members_repository.dart';
@@ -26,8 +27,35 @@ class MemberDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final members = ref.watch(membersProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Member')),
+    final all = members.asData?.value;
+    final myUid = ref.watch(authStateProvider).asData?.value?.uid;
+    final oneToOnes = ref.watch(myOneToOnesProvider).asData?.value ?? const [];
+    final m = all?.where((x) => x.uid == memberId).firstOrNull;
+    final pending =
+        m != null &&
+        oneToOnes.any(
+          (x) =>
+              x.sent &&
+              x.otherUserId == m.uid &&
+              x.status == OneToOneStatus.pending,
+        );
+
+    return AppPage(
+      title: 'Member',
+      // The one thing to do here: ask for a 1-2-1.
+      action: (m == null || m.uid == myUid)
+          ? null
+          : AppPrimaryButton(
+              label: pending ? 'Request pending' : 'Request a 1-2-1',
+              icon: pending ? CoolIcons.hourglass : CoolIcons.coffee,
+              onPressed: pending
+                  ? null
+                  : () => showProposeOneToOne(
+                      context,
+                      toUserId: m.uid,
+                      toName: m.name.isEmpty ? 'this member' : m.name,
+                    ),
+            ),
       body: members.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -35,11 +63,8 @@ class MemberDetailScreen extends ConsumerWidget {
           detail: e.toString(),
           onRetry: () => ref.invalidate(membersProvider),
         ),
-        data: (all) {
-          final myUid = ref.watch(authStateProvider).asData?.value?.uid;
-          final oneToOnes =
-              ref.watch(myOneToOnesProvider).asData?.value ?? const [];
-          final member = all.where((m) => m.uid == memberId).firstOrNull;
+        data: (_) {
+          final member = m;
           if (member == null) {
             return EmptyView(
               icon: CoolIcons.userCloseCorner,
@@ -52,17 +77,7 @@ class MemberDetailScreen extends ConsumerWidget {
               ),
             );
           }
-          final requestPending = oneToOnes.any(
-            (m) =>
-                m.sent &&
-                m.otherUserId == member.uid &&
-                m.status == OneToOneStatus.pending,
-          );
-          return _Detail(
-            member: member,
-            isSelf: member.uid == myUid,
-            requestPending: requestPending,
-          );
+          return _Detail(member: member);
         },
       ),
     );
@@ -71,127 +86,116 @@ class MemberDetailScreen extends ConsumerWidget {
 
 class _Detail extends StatelessWidget {
   final Member member;
-  final bool isSelf;
-  final bool requestPending;
-  const _Detail({
-    required this.member,
-    required this.isSelf,
-    required this.requestPending,
-  });
+  const _Detail({required this.member});
 
   @override
   Widget build(BuildContext context) {
+    final facts = <Widget>[
+      if (member.businessName.isNotEmpty)
+        DetailRow(
+          icon: CoolIcons.building2,
+          label: 'Business',
+          value: member.businessName,
+        ),
+      if (member.location.isNotEmpty)
+        DetailRow(
+          icon: CoolIcons.mapPin,
+          label: 'Location',
+          value: _titleCase(member.location),
+        ),
+      if (member.membership.isNotEmpty)
+        DetailRow(
+          icon: member.isBni ? CoolIcons.wavyCheck : CoolIcons.user,
+          label: 'Membership',
+          value: member.membership,
+        ),
+      if (member.chapter != null && member.chapter!.isNotEmpty)
+        DetailRow(
+          icon: CoolIcons.usersGroup,
+          label: 'Chapter',
+          value: member.chapter!,
+        ),
+      if (member.region != null && member.region!.isNotEmpty)
+        DetailRow(icon: CoolIcons.map, label: 'Region', value: member.region!),
+    ];
+
     return ContentWidth(
+      max: 520,
       child: ListView(
-        padding: context.pageInsets,
+        physics: const ClampingScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          context.pagePadding,
+          Gap.lg,
+          context.pagePadding,
+          Gap.xl,
+        ),
         children: [
-          const SizedBox(height: Gap.md),
-          Center(
-            child: UserAvatar(
-              name: member.name,
-              photoUrl: member.photoUrl,
-              radius: 52,
-            ),
-          ),
-          const SizedBox(height: Gap.lg),
-          Text(
-            member.name,
-            textAlign: TextAlign.center,
-            style: context.text.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (member.businessCategory.isNotEmpty) ...[
-            const SizedBox(height: Gap.sm),
-            Center(
-              child: StatusBadge(
-                label: member.businessCategory,
-                tone: StatusTone.info,
-                icon: CoolIcons.shapes,
-              ),
-            ),
-          ],
-          const SizedBox(height: Gap.xl),
-
-          if (!isSelf) ...[
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: requestPending
-                    ? null
-                    : () => showProposeOneToOne(
-                        context,
-                        toUserId: member.uid,
-                        toName: member.name.isEmpty
-                            ? 'this member'
-                            : member.name,
+          // Who they are, on one card.
+          Container(
+            padding: const EdgeInsets.all(Gap.xl),
+            decoration: pagePanel(context, radius: 28),
+            child: Column(
+              children: [
+                UserAvatar(
+                  name: member.name,
+                  photoUrl: member.photoUrl,
+                  radius: 44,
+                ),
+                const SizedBox(height: Gap.md),
+                Text(
+                  member.name,
+                  textAlign: TextAlign.center,
+                  style: context.text.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                if (member.businessCategory.isNotEmpty) ...[
+                  const SizedBox(height: Gap.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kActionRed.withValues(alpha: 0.07),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      member.businessCategory,
+                      style: context.text.labelLarge?.copyWith(
+                        color: kActionRed,
+                        fontWeight: FontWeight.w800,
                       ),
-                icon: Icon(
-                  requestPending ? CoolIcons.hourglass : CoolIcons.coffee,
-                ),
-                label: Text(
-                  requestPending ? 'Request pending' : 'Request a 1-2-1',
-                ),
-              ),
-            ),
-            const SizedBox(height: Gap.md),
-          ],
-
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(Gap.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (member.membership.isNotEmpty)
-                    InfoRow(
-                      icon: member.isBni ? CoolIcons.wavyCheck : CoolIcons.user,
-                      label: 'Membership',
-                      value: member.membership,
                     ),
-                  if (member.businessName.isNotEmpty)
-                    InfoRow(
-                      icon: CoolIcons.building2,
-                      label: 'Business',
-                      value: member.businessName,
-                    ),
-                  if (member.location.isNotEmpty)
-                    InfoRow(
-                      icon: CoolIcons.mapPin,
-                      label: 'Location',
-                      value: _titleCase(member.location),
-                    ),
-                  if (member.chapter != null && member.chapter!.isNotEmpty)
-                    InfoRow(
-                      icon: CoolIcons.usersGroup,
-                      label: 'Chapter',
-                      value: member.chapter!,
-                    ),
-                  if (member.region != null && member.region!.isNotEmpty)
-                    InfoRow(
-                      icon: CoolIcons.map,
-                      label: 'Region',
-                      value: member.region!,
-                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
-
-          if (member.lookingFor.isNotEmpty) ...[
-            const SizedBox(height: Gap.md),
-            _MatchCard(
-              icon: CoolIcons.search,
-              title: 'Looking for',
-              body: member.lookingFor,
-            ),
+          if (facts.isNotEmpty) ...[
+            const SizedBox(height: Gap.xl),
+            const SectionLabel('Details'),
+            SectionCard(children: facts),
           ],
-          if (member.canOffer.isNotEmpty) ...[
-            const SizedBox(height: Gap.md),
-            _MatchCard(
-              icon: CoolIcons.handCoins,
-              title: 'Can offer',
-              body: member.canOffer,
+          if (member.lookingFor.isNotEmpty || member.canOffer.isNotEmpty) ...[
+            const SizedBox(height: Gap.xl),
+            const SectionLabel('Networking'),
+            SectionCard(
+              children: [
+                if (member.lookingFor.isNotEmpty)
+                  _MatchRow(
+                    icon: CoolIcons.search,
+                    title: 'Looking for',
+                    body: member.lookingFor,
+                  ),
+                if (member.canOffer.isNotEmpty)
+                  _MatchRow(
+                    icon: CoolIcons.handCoins,
+                    title: 'Can offer',
+                    body: member.canOffer,
+                  ),
+              ],
             ),
           ],
         ],
@@ -205,13 +209,13 @@ class _Detail extends StatelessWidget {
       .join(' ');
 }
 
-/// A "looking for" / "can offer" panel — the matchmaking signal on a profile.
-class _MatchCard extends StatelessWidget {
+/// A "looking for" / "can offer" row: the matchmaking signal on a profile.
+class _MatchRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String body;
 
-  const _MatchCard({
+  const _MatchRow({
     required this.icon,
     required this.title,
     required this.body,
@@ -219,34 +223,27 @@ class _MatchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(Gap.lg),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 20, color: context.scheme.primary),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title.toUpperCase(),
-                    style: context.text.labelSmall?.copyWith(
-                      color: context.scheme.onSurfaceVariant,
-                      letterSpacing: 0.8,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: Gap.xs),
-                  Text(body, style: context.text.bodyMedium),
-                ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IconChip(icon: icon),
+        const SizedBox(width: Gap.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: context.text.labelMedium?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(body, style: context.text.bodyMedium?.copyWith(height: 1.4)),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

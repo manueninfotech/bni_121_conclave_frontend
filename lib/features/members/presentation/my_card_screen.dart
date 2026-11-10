@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../profile/data/profile_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
@@ -39,8 +40,8 @@ class MyCardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(myProfileProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('My card')),
+    return AppPage(
+      title: 'My card',
       body: profile.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -57,61 +58,140 @@ class MyCardScreen extends ConsumerWidget {
           }
           return Center(
             child: SingleChildScrollView(
-              padding: context.pageInsets,
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                context.pagePadding,
+                Gap.lg,
+                context.pagePadding,
+                Gap.xl,
+              ),
               child: ContentWidth(
-                max: 380,
+                max: 400,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    UserAvatar(name: p.name, photoUrl: p.photoUrl, radius: 40),
-                    const SizedBox(height: Gap.md),
-                    Text(
-                      p.name.isEmpty ? 'Unnamed' : p.name,
-                      textAlign: TextAlign.center,
-                      style: context.text.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (p.businessName.isNotEmpty)
-                      Text(
-                        p.businessName,
-                        textAlign: TextAlign.center,
-                        style: context.text.bodyMedium?.copyWith(
-                          color: context.scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    const SizedBox(height: Gap.xl),
+                    // The card itself: who you are, then the code.
                     Container(
-                      padding: const EdgeInsets.all(Gap.lg),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(Radii.lg),
-                        border: Border.all(color: context.colors.hairline),
+                      padding: const EdgeInsets.fromLTRB(
+                        Gap.xl,
+                        Gap.xl,
+                        Gap.xl,
+                        Gap.lg,
                       ),
-                      child: QrImageView(
-                        data: _vcard(p),
-                        version: QrVersions.auto,
-                        size: 240,
-                        backgroundColor: Colors.white,
-                        // Fixed dark modules — the QR must stay black-on-white to
-                        // scan reliably regardless of theme.
-                        eyeStyle: const QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: Colors.black,
-                        ),
-                        dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.square,
-                          color: Colors.black,
-                        ),
+                      decoration: pagePanel(context, radius: 28),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              UserAvatar(
+                                name: p.name,
+                                photoUrl: p.photoUrl,
+                                radius: 28,
+                              ),
+                              const SizedBox(width: Gap.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.name.isEmpty ? 'Unnamed' : p.name,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: context.text.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                    if (p.businessName.isNotEmpty)
+                                      Text(
+                                        p.businessName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: context.text.bodyMedium
+                                            ?.copyWith(
+                                              color: context
+                                                  .scheme
+                                                  .onSurfaceVariant,
+                                            ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (p.businessCategory.isNotEmpty) ...[
+                            const SizedBox(height: Gap.md),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: kActionRed.withValues(alpha: 0.07),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  p.businessCategory,
+                                  style: context.text.labelMedium?.copyWith(
+                                    color: kActionRed,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: Gap.lg),
+                          Divider(height: 1, color: context.colors.hairline),
+                          const SizedBox(height: Gap.lg),
+                          LayoutBuilder(
+                            builder: (context, c) => QrImageView(
+                              data: _vcard(p),
+                              version: QrVersions.auto,
+                              size: c.maxWidth.clamp(180, 260),
+                              backgroundColor: Colors.white,
+                              // Fixed dark modules: the QR must stay black-on-white
+                              // to scan reliably regardless of theme.
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: Colors.black,
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: Gap.md),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                CoolIcons.camera,
+                                size: 16,
+                                color: context.scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: Gap.xs),
+                              Flexible(
+                                child: Text(
+                                  'Scan with any camera to save my contact',
+                                  textAlign: TextAlign.center,
+                                  style: context.text.bodySmall?.copyWith(
+                                    color: context.scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: Gap.lg),
-                    Text(
-                      'Point a camera at this to save my contact.',
-                      textAlign: TextAlign.center,
-                      style: context.text.bodyMedium?.copyWith(
-                        color: context.scheme.onSurfaceVariant,
-                      ),
+                    const PageNote(
+                      'Only your own details are in this code: name, phone, email, '
+                      'business and category.',
+                      icon: CoolIcons.shieldCheck,
                     ),
                   ],
                 ),

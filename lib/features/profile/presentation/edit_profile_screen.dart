@@ -13,6 +13,7 @@ import '../../../core/widgets/phone_field.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
+import '../../../core/widgets/page_kit.dart';
 import '../data/profile_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 
@@ -63,30 +64,49 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       useRootNavigator: true,
       context: context,
       showDragHandle: true,
+      backgroundColor: context.scheme.surface,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(CoolIcons.camera),
-              title: const Text('Take a photo'),
-              onTap: () => Navigator.pop(ctx, _PhotoAction.camera),
-            ),
-            ListTile(
-              leading: const Icon(CoolIcons.images),
-              title: const Text('Choose from gallery'),
-              onTap: () => Navigator.pop(ctx, _PhotoAction.gallery),
-            ),
-            if (hasPhoto)
-              ListTile(
-                leading: Icon(CoolIcons.trash, color: ctx.scheme.error),
-                title: Text(
-                  'Remove photo',
-                  style: TextStyle(color: ctx.scheme.error),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: Gap.xs, bottom: Gap.md),
+                child: Text(
+                  'Profile photo',
+                  style: ctx.text.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                onTap: () => Navigator.pop(ctx, _PhotoAction.remove),
               ),
-          ],
+              SectionCard(
+                gap: 0,
+                padding: EdgeInsets.zero,
+                children: [
+                  CardRow(
+                    icon: CoolIcons.camera,
+                    title: 'Take a photo',
+                    onTap: () => Navigator.pop(ctx, _PhotoAction.camera),
+                  ),
+                  CardRow(
+                    icon: CoolIcons.images,
+                    title: 'Choose from gallery',
+                    onTap: () => Navigator.pop(ctx, _PhotoAction.gallery),
+                  ),
+                  if (hasPhoto)
+                    CardRow(
+                      icon: CoolIcons.trash,
+                      title: 'Remove photo',
+                      tint: ctx.colors.danger,
+                      trailing: const SizedBox.shrink(),
+                      onTap: () => Navigator.pop(ctx, _PhotoAction.remove),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -218,8 +238,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     final profile = ref.watch(myProfileProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Edit profile')),
+    return AppPage(
+      title: 'Edit profile',
+      action: profile.asData?.value == null
+          ? null
+          : AppPrimaryButton(
+              label: 'Save changes',
+              busy: _saving,
+              onPressed: _save,
+            ),
       body: profile.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
@@ -237,184 +264,205 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           _seed(p);
 
           return ContentWidth(
+            max: 520,
             child: Form(
               key: _formKey,
               child: ListView(
-                padding: context.pageInsets,
+                physics: const ClampingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  context.pagePadding,
+                  Gap.lg,
+                  context.pagePadding,
+                  Gap.xl,
+                ),
                 children: [
-                  Center(
-                    child: _PhotoEditor(
-                      name: p.name,
-                      photoUrl: p.photoUrl,
-                      busy: _photoBusy,
-                      onEdit: () => _editPhoto(p.photoUrl != null),
+                  // Photo + who you are, on one card.
+                  Container(
+                    padding: const EdgeInsets.all(Gap.lg),
+                    decoration: pagePanel(context),
+                    child: Row(
+                      children: [
+                        _PhotoEditor(
+                          name: p.name,
+                          photoUrl: p.photoUrl,
+                          busy: _photoBusy,
+                          onEdit: () => _editPhoto(p.photoUrl != null),
+                        ),
+                        const SizedBox(width: Gap.lg),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                p.name.isEmpty ? 'Your profile' : p.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.text.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              const SizedBox(height: Gap.xs),
+                              GestureDetector(
+                                onTap: _photoBusy
+                                    ? null
+                                    : () => _editPhoto(p.photoUrl != null),
+                                child: Text(
+                                  p.photoUrl == null
+                                      ? 'Add a photo'
+                                      : 'Change photo',
+                                  style: context.text.bodyMedium?.copyWith(
+                                    color: kActionRed,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: Gap.xl),
-                  TextFormField(
-                    controller: _name,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Full name',
-                      prefixIcon: Icon(CoolIcons.user),
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Enter your name'
-                        : null,
-                  ),
-                  const SizedBox(height: Gap.lg),
 
-                  PhoneField(
-                    controller: _phone,
-                    country: _country,
-                    onCountryChanged: (c) => setState(() => _country = c),
+                  const SectionLabel('Contact'),
+                  SectionCard(
+                    children: [
+                      TextFormField(
+                        controller: _name,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Full name',
+                          prefixIcon: Icon(CoolIcons.user),
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Enter your name'
+                            : null,
+                      ),
+                      PhoneField(
+                        controller: _phone,
+                        country: _country,
+                        onCountryChanged: (c) => setState(() => _country = c),
+                      ),
+                      TextFormField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email address',
+                          prefixIcon: Icon(CoolIcons.mention),
+                        ),
+                        validator: (v) {
+                          final s = v?.trim() ?? '';
+                          if (s.isEmpty) return 'Enter your email address';
+                          if (!RegExp(
+                            r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                          ).hasMatch(s)) {
+                            return 'That does not look like an email address';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: Gap.lg),
-
-                  TextFormField(
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email address',
-                      prefixIcon: Icon(CoolIcons.mention),
-                    ),
-                    validator: (v) {
-                      final s = v?.trim() ?? '';
-                      if (s.isEmpty) return 'Enter your email address';
-                      if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
-                        return 'That does not look like an email address';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  TextFormField(
-                    controller: _businessName,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Business name',
-                      prefixIcon: Icon(CoolIcons.building2),
-                    ),
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  // The important one. Everything the engine does hangs off it.
-                  CategoryPickerField(
-                    value: _category,
-                    onChanged: (v) => setState(() => _category = v),
-                    categories: ref.watch(categoriesProvider),
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  TextFormField(
-                    controller: _location,
-                    decoration: const InputDecoration(
-                      labelText: 'Location',
-                      prefixIcon: Icon(CoolIcons.mapPin),
-                      helperText: 'e.g. Guntur',
-                    ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Enter your location'
-                        : null,
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  TextFormField(
-                    controller: _chapter,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Chapter (optional)',
-                      prefixIcon: Icon(CoolIcons.usersGroup),
-                    ),
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  TextFormField(
-                    controller: _region,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Region (optional)',
-                      hintText: 'e.g. Guntur Region',
-                      prefixIcon: Icon(CoolIcons.map),
-                    ),
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  MembershipToggle(
-                    value: _membership,
-                    onChanged: (m) => setState(() => _membership = m),
-                  ),
-                  const SizedBox(height: Gap.lg),
-
-                  TextFormField(
-                    controller: _lookingFor,
-                    textCapitalization: TextCapitalization.sentences,
-                    minLines: 1,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: "What you're looking for (optional)",
-                      hintText: 'e.g. Introductions to restaurant owners',
-                      prefixIcon: Icon(CoolIcons.search),
-                      helperText: 'Other members can find you by this',
-                      helperMaxLines: 2,
-                    ),
-                  ),
-                  const SizedBox(height: Gap.lg),
-                  TextFormField(
-                    controller: _canOffer,
-                    textCapitalization: TextCapitalization.sentences,
-                    minLines: 1,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'What you can offer (optional)',
-                      hintText: 'e.g. Commercial interior fit-outs',
-                      prefixIcon: Icon(CoolIcons.handCoins),
-                    ),
-                  ),
-
                   const SizedBox(height: Gap.xl),
+
+                  const SectionLabel('Business'),
+                  SectionCard(
+                    children: [
+                      TextFormField(
+                        controller: _businessName,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Business name',
+                          prefixIcon: Icon(CoolIcons.building2),
+                        ),
+                      ),
+                      // The important one. Everything the engine does hangs off it.
+                      CategoryPickerField(
+                        value: _category,
+                        onChanged: (v) => setState(() => _category = v),
+                        categories: ref.watch(categoriesProvider),
+                      ),
+                      TextFormField(
+                        controller: _location,
+                        decoration: const InputDecoration(
+                          labelText: 'Location',
+                          prefixIcon: Icon(CoolIcons.mapPin),
+                          helperText: 'e.g. Guntur',
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Enter your location'
+                            : null,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.xl),
+
+                  const SectionLabel('BNI'),
+                  SectionCard(
+                    children: [
+                      TextFormField(
+                        controller: _chapter,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Chapter (optional)',
+                          prefixIcon: Icon(CoolIcons.usersGroup),
+                        ),
+                      ),
+                      TextFormField(
+                        controller: _region,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Region (optional)',
+                          hintText: 'e.g. Guntur Region',
+                          prefixIcon: Icon(CoolIcons.map),
+                        ),
+                      ),
+                      MembershipToggle(
+                        value: _membership,
+                        onChanged: (m) => setState(() => _membership = m),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.xl),
+
+                  const SectionLabel('Networking'),
+                  SectionCard(
+                    children: [
+                      TextFormField(
+                        controller: _lookingFor,
+                        textCapitalization: TextCapitalization.sentences,
+                        minLines: 1,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: "What you're looking for (optional)",
+                          hintText: 'e.g. Introductions to restaurant owners',
+                          prefixIcon: Icon(CoolIcons.search),
+                          helperText: 'Other members can find you by this',
+                          helperMaxLines: 2,
+                        ),
+                      ),
+                      TextFormField(
+                        controller: _canOffer,
+                        textCapitalization: TextCapitalization.sentences,
+                        minLines: 1,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'What you can offer (optional)',
+                          hintText: 'e.g. Commercial interior fit-outs',
+                          prefixIcon: Icon(CoolIcons.handCoins),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.lg),
 
                   // Changing category cannot corrupt a running event: the roster is
                   // frozen into the conclave when its schedule is generated. Say so,
                   // so nobody is afraid to correct a mistake mid-season.
-                  Card(
-                    color: context.colors.infoContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(Gap.lg),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            CoolIcons.circleInfo,
-                            size: 20,
-                            color: context.colors.onInfoContainer,
-                          ),
-                          const SizedBox(width: Gap.md),
-                          Expanded(
-                            child: Text(
-                              'Changes apply to conclaves scheduled from now on. '
-                              'A conclave already under way keeps the details it '
-                              'started with.',
-                              style: context.text.bodySmall?.copyWith(
-                                color: context.colors.onInfoContainer,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: Gap.xl),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const AppSpinner(size: 20, color: Colors.white)
-                          : const Text('Save changes'),
-                    ),
+                  const PageNote(
+                    'Changes apply to conclaves scheduled from now on. A conclave '
+                    'already under way keeps the details it started with.',
                   ),
                 ],
               ),
@@ -454,11 +502,11 @@ class _PhotoEditor extends StatelessWidget {
         onTap: busy ? null : onEdit,
         child: Stack(
           children: [
-            UserAvatar(name: name, photoUrl: photoUrl, radius: 52),
+            UserAvatar(name: name, photoUrl: photoUrl, radius: 40),
             if (busy)
               Positioned.fill(
                 child: CircleAvatar(
-                  radius: 52,
+                  radius: 40,
                   backgroundColor: Colors.black.withValues(alpha: 0.4),
                   child: const AppSpinner(size: 26, color: Colors.white),
                 ),
@@ -470,14 +518,14 @@ class _PhotoEditor extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: scheme.primary,
+                  color: kActionRed,
                   shape: BoxShape.circle,
                   border: Border.all(color: scheme.surface, width: 2),
                 ),
                 child: Icon(
                   CoolIcons.cameraFill,
                   size: 16,
-                  color: scheme.onPrimary,
+                  color: Colors.white,
                 ),
               ),
             ),

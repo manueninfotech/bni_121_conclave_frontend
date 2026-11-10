@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import 'core/widgets/keyboard_dismiss.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -115,7 +117,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (!seenOnboarding) {
             return path == '/onboarding' ? null : '/onboarding';
           }
-          const authScreens = {'/login', '/register', '/onboarding', '/forgot-password'};
+          const authScreens = {
+            '/login',
+            '/register',
+            '/onboarding',
+            '/forgot-password',
+          };
           return authScreens.contains(path) ? null : '/login';
 
         case _NavState.profileLoading:
@@ -148,28 +155,25 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const SplashScreen(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => slidePage(state, const RegisterScreen()),
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => ForgotPasswordScreen(
-          initialMethod: state.uri.queryParameters['method'] == 'email'
-              ? LoginMethod.email
-              : LoginMethod.phone,
+        pageBuilder: (context, state) => slidePage(
+          state,
+          ForgotPasswordScreen(
+            initialMethod: state.uri.queryParameters['method'] == 'email'
+                ? LoginMethod.email
+                : LoginMethod.phone,
+          ),
         ),
       ),
       // The signed-in app: a bottom-nav shell with three tab roots. Each tab
@@ -198,36 +202,49 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: ':id',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => ConclaveDetailScreen(
-                      conclaveId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => slidePage(
+                      state,
+                      ConclaveDetailScreen(
+                        conclaveId: state.pathParameters['id']!,
+                      ),
                     ),
                   ),
                   GoRoute(
                     path: ':id/register',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => ConclaveRegisterScreen(
-                      conclaveId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => slidePage(
+                      state,
+                      ConclaveRegisterScreen(
+                        conclaveId: state.pathParameters['id']!,
+                      ),
                     ),
                   ),
                   GoRoute(
                     path: ':id/active',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => ActiveRoundScreen(
-                      conclaveId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => slidePage(
+                      state,
+                      ActiveRoundScreen(
+                        conclaveId: state.pathParameters['id']!,
+                      ),
                     ),
                   ),
                   GoRoute(
                     path: ':id/summary',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => ConclaveSummaryScreen(
-                      conclaveId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => slidePage(
+                      state,
+                      ConclaveSummaryScreen(
+                        conclaveId: state.pathParameters['id']!,
+                      ),
                     ),
                   ),
                   GoRoute(
                     path: ':id/met',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => PeopleMetScreen(
-                      conclaveId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => slidePage(
+                      state,
+                      PeopleMetScreen(conclaveId: state.pathParameters['id']!),
                     ),
                   ),
                 ],
@@ -244,8 +261,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: ':id',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => MemberDetailScreen(
-                      memberId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => slidePage(
+                      state,
+                      MemberDetailScreen(memberId: state.pathParameters['id']!),
                     ),
                   ),
                 ],
@@ -262,22 +280,26 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'edit',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => const EditProfileScreen(),
+                    pageBuilder: (context, state) =>
+                        slidePage(state, const EditProfileScreen()),
                   ),
                   GoRoute(
                     path: 'referrals',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => const MyReferralsScreen(),
+                    pageBuilder: (context, state) =>
+                        slidePage(state, const MyReferralsScreen()),
                   ),
                   GoRoute(
                     path: 'card',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => const MyCardScreen(),
+                    pageBuilder: (context, state) =>
+                        slidePage(state, const MyCardScreen()),
                   ),
                   GoRoute(
                     path: 'one-to-ones',
                     parentNavigatorKey: rootNavigatorKey,
-                    builder: (context, state) => const OneToOnesScreen(),
+                    pageBuilder: (context, state) =>
+                        slidePage(state, const OneToOnesScreen()),
                   ),
                 ],
               ),
@@ -289,7 +311,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const NotificationsScreen(),
+        pageBuilder: (context, state) =>
+            slidePage(state, const NotificationsScreen()),
       ),
     ],
   );
@@ -356,28 +379,33 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
       // let FCM present it natively (setForegroundNotificationPresentationOptions
       // in main()); mirroring there too would show the banner twice.
       if (defaultTargetPlatform == TargetPlatform.iOS) return;
-      final title = message.notification?.title ?? message.data['title'] as String?;
-      final body = message.notification?.body ?? message.data['body'] as String?;
+      final title =
+          message.notification?.title ?? message.data['title'] as String?;
+      final body =
+          message.notification?.body ?? message.data['body'] as String?;
       if (title == null || body == null) return;
       LocalNotifications.showMessage(
         title: title,
         body: body,
         channel: switch (type) {
           'round_started' => LocalNotifications.channelRoundAlerts,
-          'referral' || 'referral_received' => LocalNotifications.channelReferrals,
+          'referral' ||
+          'referral_received' => LocalNotifications.channelReferrals,
           _ => LocalNotifications.channelGeneral,
         },
       );
     });
 
     // Deep-link: a notification tapped while the app was backgrounded…
-    _openedSub =
-        FirebaseMessaging.onMessageOpenedApp.listen((m) => openFromNotification(m.data));
+    _openedSub = FirebaseMessaging.onMessageOpenedApp.listen(
+      (m) => openFromNotification(m.data),
+    );
     // …or tapped from a terminated state (delivered once on launch).
     FirebaseMessaging.instance.getInitialMessage().then((m) {
       if (m != null) {
-        WidgetsBinding.instance
-            .addPostFrameCallback((_) => openFromNotification(m.data));
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => openFromNotification(m.data),
+        );
       }
     });
   }
@@ -486,21 +514,32 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
         // a table roster) stop fitting on a phone at all. Users who need more
         // than that are better served by the system magnifier than by a broken
         // screen.
-        final scaler = MediaQuery.textScalerOf(context).clamp(
-          minScaleFactor: 0.85,
-          maxScaleFactor: 1.6,
-        );
+        final scaler = MediaQuery.textScalerOf(
+          context,
+        ).clamp(minScaleFactor: 0.85, maxScaleFactor: 1.6);
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: scaler),
-          // Tapping any blank spot closes the keyboard, on every screen.
-          // Buttons and fields still win their own taps (they sit deeper).
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-            child: child!,
-          ),
+          // Tapping outside the focused field closes the keyboard.
+          child: KeyboardDismissOnTap(child: child!),
         );
       },
     );
   }
 }
+
+/// A pushed page with the platform's real transition: on iOS the native slide
+/// AND the edge swipe-back gesture. go_router 18 only recognises the new
+/// material_ui MaterialApp, so for our flutter/material app it falls back to
+/// pages with no transition (and no swipe-back). Building Flutter's own
+/// MaterialPage here restores both. Splash, onboarding, login and the tab
+/// roots keep the instant hand-off they had.
+Page<void> slidePage(GoRouterState state, Widget child) => MaterialPage<void>(
+  key: state.pageKey,
+  name: state.name ?? state.path,
+  arguments: <String, String>{
+    ...state.pathParameters,
+    ...state.uri.queryParameters,
+  },
+  restorationId: state.pageKey.value,
+  child: child,
+);
