@@ -114,105 +114,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return raw;
   }
 
-  Future<void> _forgotPassword() async {
-    // A phone account has no mailbox to send to. Say so here, rather than
-    // letting them type an address and silently doing nothing.
-    if (_method == LoginMethod.phone) {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          icon: Icon(CoolIcons.key, color: ctx.scheme.primary),
-          title: const Text('Reset by phone'),
-          content: const Text(
-            'Your account is registered to a phone number, so there is no email '
-            'address we can send a reset link to. Ask your conclave admin to '
-            'reset it for you.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Got it'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    final controller = TextEditingController(text: _identifier.text.trim());
-    final email = await showModalBottomSheet<String>(
-      useRootNavigator: true,
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: Gap.xl,
-          right: Gap.xl,
-          top: Gap.sm,
-          bottom: MediaQuery.viewInsetsOf(ctx).bottom + Gap.xl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Reset your password',
-              style: ctx.text.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(
-              "We'll email you a link to set a new one.",
-              style: ctx.text.bodyMedium?.copyWith(
-                color: ctx.scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: Gap.lg),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email address',
-                prefixIcon: Icon(CoolIcons.mention),
-              ),
-              onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-            ),
-            const SizedBox(height: Gap.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-                child: const Text('Send link'),
-              ),
-            ),
-          ],
-        ),
-      ),
+  /// Self-serve reset: SMS code for phone accounts, a link for email ones.
+  void _forgotPassword() {
+    context.push(
+      '/forgot-password?method=${_method == LoginMethod.phone ? 'phone' : 'email'}',
     );
-
-    if (email == null || email.isEmpty) return;
-
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authRepositoryProvider).sendPasswordReset(email);
-      if (mounted) {
-        // Never confirms whether an address is registered — that would let
-        // anyone enumerate members.
-        _toast('If that address has an account, a reset link is on its way.');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = _humanise(e));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _toast(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override

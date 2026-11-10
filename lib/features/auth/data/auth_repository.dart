@@ -236,6 +236,51 @@ class AuthRepository {
     }
   }
 
+  /// Forgot password, for a phone account: the SMS code proves the member owns
+  /// the number, which signs them in to that account; then the new password is
+  /// set on it. They end up signed in — no email, no admin.
+  ///
+  /// If no account uses the number, Firebase would have created an empty one on
+  /// sign-in; that is deleted again and the member is told plainly.
+  Future<void> resetPasswordWithPhone({
+    required String verificationId,
+    required String smsCode,
+    required String newPassword,
+  }) async {
+    final UserCredential cred;
+    try {
+      cred = await _auth.signInWithCredential(
+        PhoneAuthProvider.credential(verificationId: verificationId, smsCode: smsCode),
+      );
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.code == 'invalid-verification-code'
+          ? 'That code is not right. Check the SMS and try again.'
+          : (e.message ?? 'Could not verify the code.'));
+    }
+    final user = cred.user;
+    if (user == null) throw Exception('Could not verify the code.');
+
+    final hasPassword = user.providerData.any((p) => p.providerId == 'password');
+    if (!hasPassword) {
+      // A brand-new, empty sign-in: there was no account for this number.
+      try {
+        await user.delete();
+      } catch (_) {}
+      await _session.signOut();
+      throw Exception('No account uses this number. Create one instead.');
+    }
+
+    try {
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      await _session.signOut();
+      throw Exception(e.code == 'weak-password'
+          ? 'Choose a stronger password (at least 6 characters).'
+          : (e.message ?? 'Could not set the new password.'));
+    }
+    await _session.recordLogin();
+  }
+
   /// Sends a password reset link.
   ///
   /// Only works for accounts registered with a REAL email address. Phone

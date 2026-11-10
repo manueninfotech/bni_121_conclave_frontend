@@ -19,6 +19,8 @@ import 'features/active_conclave/data/live_lock.dart';
 import 'core/services/presence_service.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
+import 'features/auth/presentation/forgot_password_screen.dart';
+import 'core/widgets/phone_field.dart' show LoginMethod;
 import 'features/auth/presentation/register_screen.dart';
 import 'features/auth/data/auth_repository.dart';
 import 'features/onboarding/data/onboarding_service.dart';
@@ -113,7 +115,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (!seenOnboarding) {
             return path == '/onboarding' ? null : '/onboarding';
           }
-          const authScreens = {'/login', '/register', '/onboarding'};
+          const authScreens = {'/login', '/register', '/onboarding', '/forgot-password'};
           return authScreens.contains(path) ? null : '/login';
 
         case _NavState.profileLoading:
@@ -127,6 +129,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Authenticated but no profile doc — an interrupted registration.
           // Send them back to finish it (the register screen resumes at the
           // profile step). Never move them off /register while they do.
+          // A forgot-password check signs in briefly to find "no account" and
+          // signs straight out again — don't bounce it to /register meanwhile.
+          if (path == '/forgot-password') return null;
           return path == '/register' ? null : '/register';
 
         case _NavState.ready:
@@ -158,6 +163,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => ForgotPasswordScreen(
+          initialMethod: state.uri.queryParameters['method'] == 'email'
+              ? LoginMethod.email
+              : LoginMethod.phone,
+        ),
       ),
       // The signed-in app: a bottom-nav shell with three tab roots. Each tab
       // keeps its own stack; detail pages below use parentNavigatorKey so they
