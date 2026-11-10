@@ -15,6 +15,11 @@ import '../../../core/widgets/responsive.dart';
 import '../data/auth_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
 import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
+import 'package:conclave_1_2_1/core/widgets/aero_shards.dart';
+import 'package:conclave_1_2_1/features/active_conclave/presentation/round/deck_footer.dart'
+    show roundPanel;
+import 'package:conclave_1_2_1/features/active_conclave/presentation/round/round_timer.dart'
+    show kDeckBottom;
 
 /// Registration.
 ///
@@ -26,7 +31,11 @@ import 'package:conclave_1_2_1/core/widgets/app_dialog.dart';
 /// a thin progress bar, and the step slides in the direction you travelled so
 /// going back feels like going back.
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.previewStep});
+
+  /// Design-review tests only: open on this step without touching Firebase.
+  @visibleForTesting
+  final int? previewStep;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -87,6 +96,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.previewStep != null) {
+      _step = widget.previewStep!;
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _resuming = true;
@@ -337,87 +350,156 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         if (didPop || _isLoading) return;
         _back();
       },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(CoolIcons.arrowLeft),
-            tooltip: 'Back',
-            onPressed: _isLoading ? null : _back,
-          ),
-          title: Text(
-            _resuming
-                ? 'Finish your account'
-                : 'Step ${_displayStep + 1} of $_totalSteps',
-          ),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark.copyWith(
+          statusBarColor: Colors.transparent,
         ),
-        body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: AppGradients.bloom(AppColors.crimson),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                // No step bar when resuming — there is only one step left.
-                if (!_resuming)
-                  _Progress(step: _displayStep, total: _totalSteps),
-                Expanded(
-                  child: ContentWidth(
-                    max: 440,
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                        context.pagePadding,
-                        Gap.xl,
-                        context.pagePadding,
-                        context.pagePadding,
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // The sign-in screen's living background, faint behind the header.
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                height: MediaQuery.sizeOf(context).height * 0.32,
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (r) => const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black, Colors.transparent],
+                    stops: [0.4, 1],
+                  ).createShader(r),
+                  child: const AeroShards(count: 70, interactive: false),
+                ),
+              ),
+              SafeArea(
+                child: Column(
+                  children: [
+                    _TopBar(
+                      title: _resuming
+                          ? 'Finish your account'
+                          : 'Create account',
+                      step: _resuming
+                          ? null
+                          : '${_displayStep + 1} of $_totalSteps',
+                      onBack: _isLoading ? null : _back,
+                    ),
+                    if (!_resuming)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          context.pagePadding,
+                          Gap.xs,
+                          context.pagePadding,
+                          0,
+                        ),
+                        child: ContentWidth(
+                          max: 440,
+                          child: _Progress(
+                            step: _displayStep,
+                            total: _totalSteps,
+                          ),
+                        ),
                       ),
-                      child: AnimatedSwitcher(
-                        duration: Motion.normal,
-                        switchInCurve: Motion.curve,
-                        // Slide in from the direction of travel: forward comes from
-                        // the right, back from the left. Motion that contradicts the
-                        // navigation makes an app feel unmoored.
-                        transitionBuilder: (child, animation) =>
-                            SlideTransition(
-                              position: Tween(
-                                begin: Offset(_goingForward ? 0.06 : -0.06, 0),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              ),
+                    Expanded(
+                      child: ContentWidth(
+                        max: 440,
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          padding: EdgeInsets.fromLTRB(
+                            context.pagePadding,
+                            Gap.xl,
+                            context.pagePadding,
+                            Gap.xl,
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: Motion.normal,
+                            switchInCurve: Motion.curve,
+                            // Slide in from the direction of travel.
+                            transitionBuilder: (child, animation) =>
+                                SlideTransition(
+                                  position: Tween(
+                                    begin: Offset(
+                                      _goingForward ? 0.06 : -0.06,
+                                      0,
+                                    ),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                                ),
+                            child: KeyedSubtree(
+                              key: ValueKey(_step),
+                              child: switch (_step) {
+                                0 => _credentials(),
+                                1 => _otpStep(),
+                                _ => _profile(),
+                              },
                             ),
-                        child: KeyedSubtree(
-                          key: ValueKey(_step),
-                          child: switch (_step) {
-                            0 => _credentials(),
-                            1 => _otpStep(),
-                            _ => _profile(),
-                          },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    context.pagePadding,
-                    Gap.sm,
-                    context.pagePadding,
-                    Gap.lg,
-                  ),
-                  child: ContentWidth(
-                    max: 440,
-                    child: PrimaryButton(
-                      label: _step == 2 ? 'Create account' : 'Continue',
-                      icon: _step == 2 ? CoolIcons.check : CoolIcons.arrowRight,
-                      loading: _isLoading,
-                      onPressed: _isLoading ? null : _next,
+                    // The one action, pinned at the bottom (as on the conclave page).
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.scheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 16,
+                            offset: const Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      padding: EdgeInsets.fromLTRB(
+                        context.pagePadding,
+                        Gap.md,
+                        context.pagePadding,
+                        Gap.md,
+                      ),
+                      child: ContentWidth(
+                        max: 440,
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton(
+                            onPressed: _isLoading ? null : _next,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: kDeckBottom,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: const TextStyle(
+                                fontFamily: 'PlusJakartaSans',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _step == 2 ? 'Create account' : 'Continue',
+                                  ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -434,69 +516,102 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             title: 'Create your account',
             subtitle: 'We\'ll use this to sign you in.',
           ),
-          MethodToggle(
-            value: _method,
-            onChanged: (m) => setState(() {
-              _method = m;
-              _identifier.clear();
-            }),
-          ),
-          const SizedBox(height: Gap.md),
-
-          if (_isPhoneFlow)
-            PhoneField(
-              controller: _identifier,
-              country: _country,
-              onCountryChanged: (c) => setState(() => _country = c),
-            )
-          else
-            TextFormField(
-              controller: _identifier,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
-              decoration: const InputDecoration(
-                labelText: 'Email address',
-                hintText: 'you@example.com',
-                prefixIcon: Icon(CoolIcons.mention),
+          _Card(
+            children: [
+              MethodToggle(
+                value: _method,
+                onChanged: (m) => setState(() {
+                  _method = m;
+                  _identifier.clear();
+                }),
               ),
-              validator: (v) {
-                final s = v?.trim() ?? '';
-                if (s.isEmpty) return 'Enter your email address';
-                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
-                  return 'That does not look like an email address';
-                }
-                return null;
-              },
-            ),
-          // Phone accounts set their password on the profile step, not here.
-          // A phone user is signed in by the OTP partway through, and that
-          // auth-state change rebuilds this screen — so a password typed here
-          // would be lost and have to be re-entered. Email has no OTP, so it
-          // stays.
-          if (!_isPhoneFlow) ...[
-            const SizedBox(height: Gap.md),
-            TextFormField(
-              controller: _password,
-              obscureText: _obscure,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.newPassword],
-              decoration: InputDecoration(
-                labelText: 'Create a password',
-                prefixIcon: const Icon(CoolIcons.lock),
-                helperText:
-                    "New password — you'll use it to sign in. At least 6 characters.",
-                helperMaxLines: 2,
-                suffixIcon: IconButton(
-                  icon: Icon(_obscure ? CoolIcons.eye : CoolIcons.eyeOff),
-                  tooltip: _obscure ? 'Show password' : 'Hide password',
-                  onPressed: () => setState(() => _obscure = !_obscure),
+              const SizedBox(height: Gap.md),
+
+              if (_isPhoneFlow)
+                PhoneField(
+                  controller: _identifier,
+                  country: _country,
+                  onCountryChanged: (c) => setState(() => _country = c),
+                )
+              else
+                TextFormField(
+                  controller: _identifier,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: const InputDecoration(
+                    labelText: 'Email address',
+                    hintText: 'you@example.com',
+                    prefixIcon: Icon(CoolIcons.mention),
+                  ),
+                  validator: (v) {
+                    final s = v?.trim() ?? '';
+                    if (s.isEmpty) return 'Enter your email address';
+                    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
+                      return 'That does not look like an email address';
+                    }
+                    return null;
+                  },
+                ),
+              // Phone accounts set their password on the profile step, not here.
+              // A phone user is signed in by the OTP partway through, and that
+              // auth-state change rebuilds this screen — so a password typed here
+              // would be lost and have to be re-entered. Email has no OTP, so it
+              // stays.
+              if (!_isPhoneFlow) ...[
+                const SizedBox(height: Gap.md),
+                TextFormField(
+                  controller: _password,
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: InputDecoration(
+                    labelText: 'Create a password',
+                    prefixIcon: const Icon(CoolIcons.lock),
+                    helperText:
+                        "New password — you'll use it to sign in. At least 6 characters.",
+                    helperMaxLines: 2,
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscure ? CoolIcons.eye : CoolIcons.eyeOff),
+                      tooltip: _obscure ? 'Show password' : 'Hide password',
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                  validator: (v) => (v == null || v.length < 6)
+                      ? 'At least 6 characters'
+                      : null,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: Gap.xl),
+          _WhatsNext(phone: _isPhoneFlow),
+          const SizedBox(height: Gap.lg),
+          Center(
+            child: TextButton(
+              onPressed: _isLoading
+                  ? null
+                  : () =>
+                        context.canPop() ? context.pop() : context.go('/login'),
+              style: TextButton.styleFrom(
+                foregroundColor: context.scheme.onSurfaceVariant,
+              ),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const TextSpan(text: 'Already have an account? '),
+                    TextSpan(
+                      text: 'Sign in',
+                      style: TextStyle(
+                        color: context.scheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              validator: (v) =>
-                  (v == null || v.length < 6) ? 'At least 6 characters' : null,
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -512,32 +627,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             title: 'Verify your phone',
             subtitle: 'We sent a 6-digit code to $_e164.',
           ),
-          TextFormField(
-            controller: _otp,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            textAlign: TextAlign.center,
-            style: context.text.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 8,
-            ),
-            decoration: const InputDecoration(
-              hintText: '······',
-              counterText: '',
-            ),
-            maxLength: 6,
-            validator: (v) => (v == null || v.trim().length < 6)
-                ? 'Enter the 6-digit code'
-                : null,
-          ),
-          const SizedBox(height: Gap.md),
-          Text(
-            "Didn't get it? Go back and check the number.",
-            textAlign: TextAlign.center,
-            style: context.text.bodySmall?.copyWith(
-              color: context.scheme.onSurfaceVariant,
-            ),
+          _Card(
+            children: [
+              TextFormField(
+                controller: _otp,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                textAlign: TextAlign.center,
+                style: context.text.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 8,
+                ),
+                decoration: const InputDecoration(
+                  hintText: '······',
+                  counterText: '',
+                ),
+                maxLength: 6,
+                validator: (v) => (v == null || v.trim().length < 6)
+                    ? 'Enter the 6-digit code'
+                    : null,
+              ),
+              const SizedBox(height: Gap.md),
+              Text(
+                "Didn't get it? Go back and check the number.",
+                textAlign: TextAlign.center,
+                style: context.text.bodySmall?.copyWith(
+                  color: context.scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -561,132 +680,154 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           // _credentials(). Asked exactly once, on the one step that survives
           // the mid-registration auth-state rebuild.
           if (_isPhoneFlow) ...[
-            TextFormField(
-              controller: _password,
-              obscureText: _obscure,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.newPassword],
-              decoration: InputDecoration(
-                labelText: 'Create a password',
-                prefixIcon: const Icon(CoolIcons.lock),
-                helperText:
-                    "New password — you'll use it to sign in. At least 6 characters.",
-                helperMaxLines: 2,
-                suffixIcon: IconButton(
-                  icon: Icon(_obscure ? CoolIcons.eye : CoolIcons.eyeOff),
-                  tooltip: _obscure ? 'Show password' : 'Hide password',
-                  onPressed: () => setState(() => _obscure = !_obscure),
+            const _Section('Sign-in'),
+            _Card(
+              children: [
+                TextFormField(
+                  controller: _password,
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: InputDecoration(
+                    labelText: 'Create a password',
+                    prefixIcon: const Icon(CoolIcons.lock),
+                    helperText:
+                        "New password — you'll use it to sign in. At least 6 characters.",
+                    helperMaxLines: 2,
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscure ? CoolIcons.eye : CoolIcons.eyeOff),
+                      tooltip: _obscure ? 'Show password' : 'Hide password',
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                  validator: (v) => (v == null || v.length < 6)
+                      ? 'At least 6 characters'
+                      : null,
                 ),
-              ),
-              validator: (v) =>
-                  (v == null || v.length < 6) ? 'At least 6 characters' : null,
+              ],
             ),
-            const SizedBox(height: Gap.md),
+            const SizedBox(height: Gap.xl),
           ],
 
-          // The leftover contact. Asked here rather than at the credentials step
-          // so signing up stays two fields — this is the "tell us about
-          // yourself" part, and it belongs with the rest of the profile.
-          if (_isPhoneFlow)
-            TextFormField(
-              controller: _altEmail,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
-              decoration: const InputDecoration(
-                labelText: 'Email address',
-                prefixIcon: Icon(CoolIcons.mention),
-                helperText: 'So the admin can reach you about the conclave',
-                helperMaxLines: 2,
+          const _Section('Contact'),
+          _Card(
+            children: [
+              // The leftover contact. Asked here rather than at the credentials step
+              // so signing up stays two fields — this is the "tell us about
+              // yourself" part, and it belongs with the rest of the profile.
+              if (_isPhoneFlow)
+                TextFormField(
+                  controller: _altEmail,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: const InputDecoration(
+                    labelText: 'Email address',
+                    prefixIcon: Icon(CoolIcons.mention),
+                    helperText: 'So the admin can reach you about the conclave',
+                    helperMaxLines: 2,
+                  ),
+                  validator: (v) {
+                    final s = v?.trim() ?? '';
+                    if (s.isEmpty) return 'Enter your email address';
+                    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
+                      return 'That does not look like an email address';
+                    }
+                    return null;
+                  },
+                )
+              else
+                PhoneField(
+                  controller: _altPhone,
+                  country: _altCountry,
+                  onCountryChanged: (c) => setState(() => _altCountry = c),
+                  label: 'Phone number',
+                ),
+            ],
+          ),
+          const SizedBox(height: Gap.xl),
+
+          const _Section('You and your business'),
+          _Card(
+            children: [
+              TextFormField(
+                controller: _name,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Full name',
+                  prefixIcon: Icon(CoolIcons.user),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
               ),
-              validator: (v) {
-                final s = v?.trim() ?? '';
-                if (s.isEmpty) return 'Enter your email address';
-                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s)) {
-                  return 'That does not look like an email address';
-                }
-                return null;
-              },
-            )
-          else
-            PhoneField(
-              controller: _altPhone,
-              country: _altCountry,
-              onCountryChanged: (c) => setState(() => _altCountry = c),
-              label: 'Phone number',
-            ),
-          const SizedBox(height: Gap.md),
+              const SizedBox(height: Gap.md),
+              TextFormField(
+                controller: _businessName,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Business name',
+                  prefixIcon: Icon(CoolIcons.building2),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Enter your business name'
+                    : null,
+              ),
+              const SizedBox(height: Gap.md),
 
-          TextFormField(
-            controller: _name,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Full name',
-              prefixIcon: Icon(CoolIcons.user),
-            ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+              // The field the whole matching engine seats people by, so it says so
+              // rather than sitting anonymously among the others.
+              CategoryPickerField(
+                value: _category,
+                onChanged: (v) => setState(() => _category = v),
+                categories: ref.watch(categoriesProvider),
+              ),
+              const SizedBox(height: Gap.md),
+              TextFormField(
+                controller: _location,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Location',
+                  hintText: 'e.g. Guntur',
+                  prefixIcon: Icon(CoolIcons.mapPin),
+                ),
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Enter your city' : null,
+              ),
+            ],
           ),
-          const SizedBox(height: Gap.md),
-          TextFormField(
-            controller: _businessName,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Business name',
-              prefixIcon: Icon(CoolIcons.building2),
-            ),
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? 'Enter your business name'
-                : null,
-          ),
-          const SizedBox(height: Gap.md),
+          const SizedBox(height: Gap.xl),
 
-          // The field the whole matching engine seats people by, so it says so
-          // rather than sitting anonymously among the others.
-          CategoryPickerField(
-            value: _category,
-            onChanged: (v) => setState(() => _category = v),
-            categories: ref.watch(categoriesProvider),
-          ),
-          const SizedBox(height: Gap.md),
-          TextFormField(
-            controller: _location,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              hintText: 'e.g. Guntur',
-              prefixIcon: Icon(CoolIcons.mapPin),
-            ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Enter your city' : null,
-          ),
-          const SizedBox(height: Gap.md),
-          TextFormField(
-            controller: _chapter,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Chapter (optional)',
-              prefixIcon: Icon(CoolIcons.usersGroup),
-            ),
-          ),
-          const SizedBox(height: Gap.md),
-          TextFormField(
-            controller: _region,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: 'Region (optional)',
-              hintText: 'e.g. Guntur Region',
-              prefixIcon: Icon(CoolIcons.map),
-            ),
-          ),
-          const SizedBox(height: Gap.lg),
+          const _Section('BNI'),
+          _Card(
+            children: [
+              TextFormField(
+                controller: _chapter,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Chapter (optional)',
+                  prefixIcon: Icon(CoolIcons.usersGroup),
+                ),
+              ),
+              const SizedBox(height: Gap.md),
+              TextFormField(
+                controller: _region,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: 'Region (optional)',
+                  hintText: 'e.g. Guntur Region',
+                  prefixIcon: Icon(CoolIcons.map),
+                ),
+              ),
+              const SizedBox(height: Gap.lg),
 
-          MembershipToggle(
-            value: _membership,
-            onChanged: (m) => setState(() => _membership = m),
+              MembershipToggle(
+                value: _membership,
+                onChanged: (m) => setState(() => _membership = m),
+              ),
+            ],
           ),
         ],
       ),
@@ -707,14 +848,15 @@ class _Heading extends StatelessWidget {
       children: [
         Text(
           title,
-          style: context.text.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
+          style: context.text.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
           ),
         ),
         const SizedBox(height: Gap.xs),
         Text(
           subtitle,
-          style: context.text.bodyMedium?.copyWith(
+          style: context.text.bodyLarge?.copyWith(
             color: context.scheme.onSurfaceVariant,
           ),
         ),
@@ -724,8 +866,195 @@ class _Heading extends StatelessWidget {
   }
 }
 
-/// A thin progress bar rather than a row of numbered circles: it says how far
-/// along you are without pretending the steps are navigable.
+/// A group of fields on one white card.
+class _Card extends StatelessWidget {
+  final List<Widget> children;
+  const _Card({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final spaced = <Widget>[];
+    for (final c in children) {
+      // The card spaces its own rows.
+      if (c is SizedBox && c.width == null) continue;
+      if (spaced.isNotEmpty) spaced.add(const SizedBox(height: Gap.md));
+      spaced.add(c);
+    }
+    return Container(
+      padding: const EdgeInsets.all(Gap.lg),
+      decoration: roundPanel(context, radius: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: spaced,
+      ),
+    );
+  }
+}
+
+/// The road ahead, so the first step explains the whole flow.
+class _WhatsNext extends StatelessWidget {
+  final bool phone;
+  const _WhatsNext({required this.phone});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = [
+      if (phone) ('Verify your number', 'We text you a 6-digit code.'),
+      (
+        'Tell us about your business',
+        'Your category keeps tables free of competitors.',
+      ),
+      (
+        'Join a conclave',
+        'Register, then see your table and partners on the day.',
+      ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _Section('What happens next'),
+        for (var i = 0; i < steps.length; i++)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.xs, 0, Gap.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: context.scheme.surfaceContainerHighest.withValues(
+                      alpha: 0.8,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${i + 1}',
+                    style: context.text.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        steps[i].$1,
+                        style: context.text.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        steps[i].$2,
+                        style: context.text.bodyMedium?.copyWith(
+                          color: context.scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A small caps label above a card.
+class _Section extends StatelessWidget {
+  final String text;
+  const _Section(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: Gap.xs, bottom: Gap.sm),
+    child: Text(
+      text.toUpperCase(),
+      style: context.text.labelMedium?.copyWith(
+        color: context.scheme.onSurfaceVariant,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.2,
+      ),
+    ),
+  );
+}
+
+/// Back · title · step pill.
+class _TopBar extends StatelessWidget {
+  final String title;
+  final String? step;
+  final VoidCallback? onBack;
+  const _TopBar({
+    required this.title,
+    required this.step,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        context.pagePadding - Gap.sm,
+        Gap.xs,
+        context.pagePadding,
+        0,
+      ),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(CoolIcons.arrowLeft),
+              tooltip: 'Back',
+              onPressed: onBack,
+            ),
+            Expanded(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: context.text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 64,
+              child: step == null
+                  ? null
+                  : Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: context.scheme.surfaceContainerHighest
+                              .withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          step!,
+                          style: context.text.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Segmented progress: one short ink bar per step, filled as you go.
 class _Progress extends StatelessWidget {
   final int step;
   final int total;
@@ -734,15 +1063,25 @@ class _Progress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: (step + 1) / total),
-      duration: Motion.slow,
-      curve: Motion.curve,
-      builder: (context, v, _) => LinearProgressIndicator(
-        value: v,
-        minHeight: 3,
-        backgroundColor: context.colors.hairline,
-      ),
+    return Row(
+      children: [
+        for (var i = 0; i < total; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Expanded(
+            child: AnimatedContainer(
+              duration: Motion.normal,
+              curve: Motion.curve,
+              height: 4,
+              decoration: BoxDecoration(
+                color: i <= step
+                    ? context.scheme.onSurface
+                    : context.scheme.outlineVariant.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'json_cache.dart';
@@ -49,7 +50,10 @@ Stream<T> cachedStream<T>({
         }
       }
       await load();
-      timer = Timer.periodic(refresh, (_) => load());
+      timer = Timer.periodic(refresh, (_) {
+        // Every endpoint needs a signed-in user; don't poll after sign-out.
+        if (FirebaseAuth.instance.currentUser != null) load();
+      });
     },
     onCancel: () => timer?.cancel(),
   );

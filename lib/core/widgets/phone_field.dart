@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../domain/phone.dart';
 import '../theme/tokens.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
+import 'pill_switch.dart';
 
 /// A phone input with a country picker.
 ///
@@ -250,87 +251,12 @@ class MethodToggle extends StatelessWidget {
   const MethodToggle({super.key, required this.value, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
-    // The app's pill switcher (as on Conclaves): a soft track with a white
-    // thumb under the chosen option.
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: context.scheme.surfaceContainerHighest.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        children: [
-          for (final m in LoginMethod.values)
-            Expanded(
-              child: _Segment(
-                label: m == LoginMethod.phone ? 'Phone' : 'Email',
-                icon: m == LoginMethod.phone ? CoolIcons.phone : CoolIcons.mention,
-                selected: value == m,
-                onTap: () => onChanged(m),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Segment extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _Segment({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = selected ? context.scheme.onSurface : context.scheme.onSurfaceVariant;
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: Motion.fast,
-          curve: Curves.easeOut,
-          height: 40,
-          decoration: BoxDecoration(
-            color: selected ? context.scheme.surfaceContainerLowest : Colors.transparent,
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: fg),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: context.text.labelLarge?.copyWith(
-                  color: fg,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => PillSwitch<LoginMethod>(
+    value: value,
+    onChanged: onChanged,
+    options: const [
+      PillOption(LoginMethod.phone, 'Phone', CoolIcons.phone),
+      PillOption(LoginMethod.email, 'Email', CoolIcons.mention),
+    ],
+  );
 }

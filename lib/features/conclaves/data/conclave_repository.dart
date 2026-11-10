@@ -14,7 +14,9 @@ final conclavesStreamProvider = StreamProvider<List<Conclave>>((ref) {
   // conclave with THIS user's registration ("Registered", role, table), so a
   // logout→login on the same device (no restart) must not leave the previous
   // account's flags on the list.
-  ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
+  final uid = ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
+  // Signed out: nothing to fetch, and no 30 s retry loop against a 401.
+  if (uid == null) return Stream.value(const <Conclave>[]);
   return ref.watch(conclaveRepositoryProvider).getConclaves();
 });
 
