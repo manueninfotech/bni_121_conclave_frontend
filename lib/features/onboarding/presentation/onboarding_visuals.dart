@@ -15,9 +15,9 @@ BoxDecoration _plate([double r = 20]) => BoxDecoration(
       borderRadius: BorderRadius.circular(r),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.18),
+          color: Colors.black.withValues(alpha: 0.10),
           blurRadius: 24,
-          offset: const Offset(0, 10),
+          offset: const Offset(0, 8),
         ),
       ],
     );
@@ -58,10 +58,22 @@ class WelcomeVisual extends StatelessWidget {
   const WelcomeVisual({super.key});
 
   @override
-  Widget build(BuildContext context) => Image.asset(
-        'assets/images/app_mark_white.png',
-        width: 170,
-        semanticLabel: '1-2-1 Connect',
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(44),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFC8102E).withValues(alpha: 0.35),
+              blurRadius: 40,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Image.asset(
+          'assets/images/app_mark.png',
+          width: 168,
+          semanticLabel: '1-2-1 Connect',
+        ),
       );
 }
 
@@ -215,8 +227,11 @@ class ReferralVisual extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.22),
+            color: _red,
             borderRadius: BorderRadius.circular(999),
+            boxShadow: [
+              BoxShadow(color: _red.withValues(alpha: 0.3), blurRadius: 14, offset: const Offset(0, 6)),
+            ],
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             const Icon(CoolIcons.handshakeFill, size: 16, color: Colors.white),

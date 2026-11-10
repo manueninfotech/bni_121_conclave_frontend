@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/responsive.dart';
-import '../../active_conclave/presentation/round/card_backdrop.dart';
+import '../../../core/widgets/aero_shards.dart';
 import '../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
 import '../data/onboarding_service.dart';
 import 'onboarding_visuals.dart';
@@ -26,10 +26,9 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _Page {
   final Widget visual;
-  final CardMood mood;
   final String title;
   final String body;
-  const _Page(this.visual, this.mood, this.title, this.body);
+  const _Page(this.visual, this.title, this.body);
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
@@ -39,31 +38,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   static const _pages = <_Page>[
     _Page(
       WelcomeVisual(),
-      CardMood.bio,
       'Welcome to\n1-2-1 Connect',
       'Structured one-to-one networking for BNI conclaves, from your first table to your last referral.',
     ),
     _Page(
       SeatVisual(),
-      CardMood.move,
       'Your seat, every round',
       'See your table and who you are meeting. When the round ends, the app tells you where to go next.',
     ),
     _Page(
       ScanVisual(),
-      CardMood.bio,
       'Attendance, signal or not',
       'Captains scan you in with your QR code. It works without network and syncs when you are back online.',
     ),
     _Page(
       ReferralVisual(),
-      CardMood.referral,
       'Pass business in one tap',
       'Give a referral to anyone at your table during the referral slot, with a note if you like.',
     ),
     _Page(
       SummaryVisual(),
-      CardMood.bio,
       'See what you built',
       'After the conclave, your summary shows every referral and everyone you met, ready to save.',
     ),
@@ -118,7 +112,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           }
         },
         child: Scaffold(
-          body: SafeArea(
+          body: Stack(children: [
+            // A living background: glass shards drifting on flowing ribbons.
+            const Positioned.fill(child: AeroShards()),
+            SafeArea(
             child: ContentWidth(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: context.pagePadding),
@@ -128,39 +125,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     const SizedBox(height: Gap.sm),
                     _Brand(showSkip: !_onLast, onSkip: _finish),
                     const SizedBox(height: Gap.lg),
-                    // The stage: one continuous silk surface the visuals slide
-                    // across; its mood blends as you swipe.
+                    // The visuals float over the living shard field.
                     Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(32),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CardBackdrop(mood: page.mood, seed: 1.7),
-                            PageView.builder(
-                              controller: _controller,
-                              itemCount: _pages.length,
-                              itemBuilder: (context, i) {
-                                final d = (_page - i).clamp(-1.0, 1.0);
-                                return Opacity(
-                                  opacity: (1 - d.abs()).clamp(0.0, 1.0),
-                                  child: Transform.translate(
-                                    offset: Offset(-d * 60, 0),
-                                    child: Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(Gap.lg),
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: _pages[i].visual,
-                                        ),
-                                      ),
-                                    ),
+                      child: PageView.builder(
+                        controller: _controller,
+                        itemCount: _pages.length,
+                        itemBuilder: (context, i) {
+                          final d = (_page - i).clamp(-1.0, 1.0);
+                          return Opacity(
+                            opacity: (1 - d.abs()).clamp(0.0, 1.0),
+                            child: Transform.translate(
+                              offset: Offset(-d * 60, 0),
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(Gap.lg),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: _pages[i].visual,
                                   ),
-                                );
-                              },
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: Gap.xl),
@@ -229,6 +216,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
+          ]),
         ),
       ),
     );
