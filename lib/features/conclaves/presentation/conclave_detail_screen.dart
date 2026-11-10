@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/conclave_calendar.dart';
 import '../../../core/theme/cool_icons.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -91,55 +93,54 @@ class _Detail extends StatelessWidget {
       context.scheme.surface,
     );
     final action = _actionFor(context, c);
+    final upcoming = c.effectiveStatus != ConclaveStatus.running &&
+        c.effectiveStatus != ConclaveStatus.completed &&
+        c.effectiveStatus != ConclaveStatus.cancelled;
 
     return Column(
       children: [
+        _TopBar(tint: tint),
         Expanded(
-          child: CustomScrollView(
+          child: ListView(
             physics: const ClampingScrollPhysics(),
-            slivers: [
-              // Small pinned bar: just the way back. The name lives in the
-              // header below, so nothing collapses or jumps on scroll.
-              SliverAppBar(
-                pinned: true,
-                backgroundColor: tint,
-                surfaceTintColor: Colors.transparent,
-                scrolledUnderElevation: 0,
-                leading: IconButton(
-                  icon: const Icon(CoolIcons.arrowLeft),
-                  tooltip: 'Back',
-                  onPressed: () => _back(context),
-                ),
-              ),
-              SliverToBoxAdapter(child: _Header(conclave: c, tint: tint)),
-              SliverToBoxAdapter(
-                child: ContentWidth(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      context.pagePadding,
-                      Gap.lg,
-                      context.pagePadding,
-                      Gap.xl + (action == null ? context.bottomInset : 0),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (c.isRegistered) ...[
-                          const _Label('Your place'),
-                          FadeSlideIn(index: 0, child: _YourPlace(conclave: c)),
-                          const SizedBox(height: Gap.md),
-                          FadeSlideIn(index: 1, child: SpecificAskCard(conclave: c)),
-                          const SizedBox(height: Gap.xl),
-                        ],
-                        const _Label('How it works'),
-                        FadeSlideIn(index: 2, child: _HowItWorks(conclave: c)),
-                        if (c.chiefGuests.isNotEmpty) ...[
-                          const SizedBox(height: Gap.xl),
-                          const _Label('Chief guests'),
-                          FadeSlideIn(index: 3, child: _Guests(names: c.chiefGuests)),
-                        ],
+            padding: EdgeInsets.zero,
+            children: [
+              _Header(conclave: c, tint: tint),
+              ContentWidth(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    context.pagePadding,
+                    Gap.md,
+                    context.pagePadding,
+                    Gap.xl + (action == null ? context.bottomInset : 0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FadeSlideIn(index: 0, child: _WhenWhere(conclave: c, upcoming: upcoming)),
+                      const SizedBox(height: Gap.md),
+                      FadeSlideIn(index: 1, child: _Glance(conclave: c, upcoming: upcoming)),
+                      if (c.isRegistered) ...[
+                        const SizedBox(height: Gap.xl),
+                        const _Label('Your place'),
+                        FadeSlideIn(index: 2, child: _YourPlace(conclave: c)),
+                        const SizedBox(height: Gap.md),
+                        FadeSlideIn(index: 3, child: SpecificAskCard(conclave: c)),
                       ],
-                    ),
+                      const SizedBox(height: Gap.xl),
+                      const _Label('How it works'),
+                      FadeSlideIn(index: 4, child: _HowItWorks(conclave: c)),
+                      if (c.description.isNotEmpty || c.coordinator.isNotEmpty) ...[
+                        const SizedBox(height: Gap.xl),
+                        const _Label('About'),
+                        FadeSlideIn(index: 5, child: _About(conclave: c)),
+                      ],
+                      if (c.chiefGuests.isNotEmpty) ...[
+                        const SizedBox(height: Gap.xl),
+                        const _Label('Chief guests'),
+                        FadeSlideIn(index: 6, child: _Guests(names: c.chiefGuests)),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -185,7 +186,48 @@ class _Detail extends StatelessWidget {
   }
 }
 
-/// Tinted header: date tile, name, one status chip, when + where.
+/// Fixed top bar: a round back button aligned with the page's content edge.
+class _TopBar extends StatelessWidget {
+  final Color tint;
+  const _TopBar({required this.tint});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: tint,
+      padding: EdgeInsets.fromLTRB(
+        context.pagePadding,
+        MediaQuery.paddingOf(context).top + Gap.xs,
+        context.pagePadding,
+        Gap.sm,
+      ),
+      child: ContentWidth(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: context.scheme.surfaceContainerLowest,
+            shape: CircleBorder(side: BorderSide(color: context.colors.hairline)),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => _back(context),
+              child: Semantics(
+                button: true,
+                label: 'Back',
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(CoolIcons.arrowLeft, size: 20),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tinted header: date tile beside the name and one status line.
 class _Header extends StatelessWidget {
   final Conclave conclave;
   final Color tint;
@@ -223,13 +265,6 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = conclave;
     final (label, color, icon) = _status(context);
-    final muted = context.scheme.onSurfaceVariant;
-    final time = c.startTime == null
-        ? null
-        : c.endTime == null
-            ? DateFormat('h:mm a').format(c.startTime!)
-            : '${DateFormat('h:mm a').format(c.startTime!)} – ${DateFormat('h:mm a').format(c.endTime!)}';
-
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -238,10 +273,9 @@ class _Header extends StatelessWidget {
           colors: [tint, context.scheme.surface],
         ),
       ),
-      padding: EdgeInsets.fromLTRB(context.pagePadding, 0, context.pagePadding, Gap.sm),
+      padding: EdgeInsets.fromLTRB(context.pagePadding, Gap.sm, context.pagePadding, Gap.md),
       child: ContentWidth(
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             DateTile(date: c.date, muted: c.effectiveStatus == ConclaveStatus.completed),
             const SizedBox(width: Gap.md),
@@ -256,7 +290,7 @@ class _Header extends StatelessWidget {
                       height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: Gap.sm),
+                  const SizedBox(height: 6),
                   Row(children: [
                     Icon(icon, size: 16, color: color),
                     const SizedBox(width: 6),
@@ -270,16 +304,6 @@ class _Header extends StatelessWidget {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: Gap.md),
-                  _Meta(
-                    icon: CoolIcons.calendar,
-                    text: [
-                      DateFormat('EEEE, d MMMM yyyy').format(c.date),
-                      ?time,
-                    ].join('  ·  '),
-                    color: muted,
-                  ),
-                  _Meta(icon: CoolIcons.mapPin, text: c.venueLocation, color: muted),
                 ],
               ),
             ),
@@ -290,30 +314,180 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _Meta extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color color;
-  const _Meta({required this.icon, required this.text, required this.color});
+/// When and where, in one card, with the two things you'd do with them.
+class _WhenWhere extends StatelessWidget {
+  final Conclave conclave;
+  final bool upcoming;
+  const _WhenWhere({required this.conclave, required this.upcoming});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
+    final c = conclave;
+    final time = c.startTime == null
+        ? null
+        : c.endTime == null
+            ? DateFormat('h:mm a').format(c.startTime!)
+            : '${DateFormat('h:mm a').format(c.startTime!)} – ${DateFormat('h:mm a').format(c.endTime!)}';
+    final rows = <Widget>[
+      _Row(icon: CoolIcons.calendar, label: 'Date', value: DateFormat('EEE, d MMM yyyy').format(c.date)),
+      if (time != null) _Row(icon: CoolIcons.clock, label: 'Time', value: time),
+      _Row(
+        icon: CoolIcons.mapPin,
+        label: 'Venue',
+        value: c.venueLocation,
+        action: ('Directions', () => launchUrl(
+              Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(c.venueLocation)}'),
+              mode: LaunchMode.externalApplication,
+            )),
+      ),
+      if (upcoming)
+        _Row(
+          icon: CoolIcons.calendarPlusCorner,
+          label: 'Calendar',
+          value: 'Add a reminder',
+          action: ('Add', () => ConclaveCalendar.addToCalendar(c)),
+        ),
+    ];
+    return _Card(children: rows);
+  }
+}
+
+/// The numbers that make a conclave real: who came, what came of it.
+class _Glance extends StatelessWidget {
+  final Conclave conclave;
+  final bool upcoming;
+  const _Glance({required this.conclave, required this.upcoming});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
+    final spots = c.memberLimit > 0
+        ? '${c.registrationCount} of ${c.memberLimit}'
+        : '${c.registrationCount}';
+    return IntrinsicHeight(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 15, color: color),
-          ),
-          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              text,
-              style: context.text.bodyMedium?.copyWith(color: context.scheme.onSurface),
+            child: _Tile(
+              icon: CoolIcons.users,
+              value: upcoming ? spots : '${c.registrationCount}',
+              caption: upcoming ? 'spots taken' : 'members',
             ),
           ),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: upcoming
+                ? _Tile(
+                    icon: CoolIcons.usersGroup,
+                    value: '${(c.registrationCount / c.personsPerTable.clamp(1, 8)).ceil()}',
+                    caption: 'tables so far',
+                  )
+                : _Tile(
+                    icon: CoolIcons.handshake,
+                    value: '${c.referralCount}',
+                    caption: 'referrals passed',
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _About extends StatelessWidget {
+  final Conclave conclave;
+  const _About({required this.conclave});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = conclave;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Gap.lg),
+      decoration: roundPanel(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (c.description.isNotEmpty)
+            Text(c.description, style: context.text.bodyMedium?.copyWith(height: 1.45)),
+          if (c.description.isNotEmpty && c.coordinator.isNotEmpty)
+            const SizedBox(height: Gap.md),
+          if (c.coordinator.isNotEmpty)
+            Row(children: [
+              Icon(CoolIcons.user, size: 16, color: context.scheme.onSurfaceVariant),
+              const SizedBox(width: Gap.sm),
+              Text('Organised by ',
+                  style: context.text.bodySmall?.copyWith(color: context.scheme.onSurfaceVariant)),
+              Flexible(
+                child: Text(c.coordinator,
+                    style: context.text.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+              ),
+            ]),
+        ],
+      ),
+    );
+  }
+}
+
+/// A white card of label/value rows with hairline dividers.
+class _Card extends StatelessWidget {
+  final List<Widget> children;
+  const _Card({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      decoration: roundPanel(context),
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(height: 1, indent: Gap.lg, endIndent: Gap.lg, color: context.colors.hairline),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final (String, VoidCallback)? action;
+  const _Row({required this.icon, required this.label, required this.value, this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = context.scheme.onSurfaceVariant;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(Gap.lg, Gap.md, action == null ? Gap.lg : Gap.sm, Gap.md),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: muted),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: context.text.labelSmall?.copyWith(color: muted)),
+                Text(value, style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          if (action != null)
+            TextButton(
+              onPressed: action!.$2,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brandRed,
+                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Text(action!.$1),
+            ),
         ],
       ),
     );

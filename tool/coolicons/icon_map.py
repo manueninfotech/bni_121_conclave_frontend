@@ -43,6 +43,8 @@ MAP = {
     "error_outline": ("line", "circle-warning"),
     "error_outline_rounded": ("line", "circle-warning"),
     "event_available_outlined": ("line", "calendar-check"),
+    # Not a Material icon in use; added for "Add to calendar".
+    "calendar_add": ("line", "calendar-plus-corner"),
     "event_busy_outlined": ("line", "calendar-close"),
     "event_outlined": ("line", "calendar-event"),
     "event_rounded": ("fill", "calendar-event"),

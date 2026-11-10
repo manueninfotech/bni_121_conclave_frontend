@@ -92,6 +92,15 @@ class Conclave {
 
   /// BNI region the conclave belongs to (e.g. "Guntur Region"); may be empty.
   final String region;
+
+  /// Free text from the admin, and who is organising it (both may be empty).
+  final String description;
+  final String coordinator;
+
+  /// How many have registered, how many may, and referrals passed so far.
+  final int registrationCount;
+  final int memberLimit;
+  final int referralCount;
   final DateTime date;
 
   /// Last day of a multi-day event. Null for a single-day conclave (use [date]).
@@ -146,6 +155,11 @@ class Conclave {
     required this.name,
     required this.venueLocation,
     this.region = '',
+    this.description = '',
+    this.coordinator = '',
+    this.registrationCount = 0,
+    this.memberLimit = 0,
+    this.referralCount = 0,
     required this.date,
     this.endDate,
     required this.status,
@@ -285,6 +299,11 @@ class Conclave {
       name: data['name'] ?? 'Unnamed Conclave',
       venueLocation: data['venueLocation'] ?? 'Unknown Venue',
       region: (data['region'] as String?)?.trim() ?? '',
+      description: (data['description'] as String?)?.trim() ?? '',
+      coordinator: (data['coordinator'] as String?)?.trim() ?? '',
+      registrationCount: (data['registrationCount'] as num?)?.toInt() ?? 0,
+      memberLimit: (data['memberLimit'] as num?)?.toInt() ?? 0,
+      referralCount: (data['referralCount'] as num?)?.toInt() ?? 0,
       date: date,
       endDate: endDate,
       startTime:
@@ -327,6 +346,11 @@ class Conclave {
       name: name,
       venueLocation: venueLocation,
       region: region,
+      description: description,
+      coordinator: coordinator,
+      registrationCount: registrationCount,
+      memberLimit: memberLimit,
+      referralCount: referralCount,
       date: date,
       endDate: endDate,
       startTime: startTime,
