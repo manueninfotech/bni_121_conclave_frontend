@@ -254,21 +254,45 @@ class _Hero extends StatelessWidget {
           ContentWidth(
             child: Padding(
               padding: EdgeInsets.fromLTRB(
+                // Icon buttons carry their own inset; trim it so their glyphs
+                // line up with the page edge on both sides.
                 context.pagePadding - Gap.sm,
                 top + Gap.xs,
-                context.pagePadding,
+                context.pagePadding - Gap.sm,
                 Gap.xl + overlap,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    tooltip: 'Back',
-                    onPressed: () => _back(context),
-                    icon: Icon(CoolIcons.arrowLeft, color: ink),
-                  ),
+                  // A balanced bar: back · title · Directions.
+                  Row(children: [
+                    IconButton(
+                      tooltip: 'Back',
+                      onPressed: () => _back(context),
+                      icon: Icon(CoolIcons.arrowLeft, color: ink),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Conclave',
+                        textAlign: TextAlign.center,
+                        style: context.text.titleMedium?.copyWith(
+                          color: ink,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Directions',
+                      onPressed: () => launchUrl(
+                        Uri.parse(
+                            'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(c.venueLocation)}'),
+                        mode: LaunchMode.externalApplication,
+                      ),
+                      icon: Icon(CoolIcons.mapPin, color: ink),
+                    ),
+                  ]),
                   Padding(
-                    padding: const EdgeInsets.only(left: Gap.sm),
+                    padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
