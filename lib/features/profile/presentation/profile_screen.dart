@@ -156,7 +156,7 @@ class ProfileScreen extends ConsumerWidget {
             onRefresh: () async => ref.invalidate(myProfileProvider),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.only(bottom: context.bottomInset + Gap.xl),
+              padding: EdgeInsets.only(bottom: context.floatingNavClearance + Gap.lg),
               children: [
                 _ProfileHeader(
                   profile: p,

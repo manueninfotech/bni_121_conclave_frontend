@@ -46,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(bottom: context.bottomInset + Gap.xl),
+          padding: EdgeInsets.only(bottom: context.floatingNavClearance + Gap.lg),
           children: [
             _HomeHeader(
               greeting: _greeting(),
