@@ -9,69 +9,81 @@ export const app = {
 }
 
 export const navLinks = [
-  { id: 'day', label: 'The day' },
+  { id: 'round', label: 'A round' },
+  { id: 'journey', label: 'The day' },
   { id: 'features', label: 'Features' },
   { id: 'faq', label: 'FAQ' },
 ]
 
-// The hero strip. Facts about how a round runs, not usage claims.
-export const stats = [
-  { value: 60, suffix: 's', label: 'Bio for each person' },
-  { value: 30, suffix: 's', label: 'Referral slot each' },
-  { value: 8, prefix: '3-', label: 'People per table, kept even' },
-  { value: 1, label: 'Tap to pass a referral' },
+// The table in the hero: six seats around the phone. Fictional people.
+export const seats = [
+  { initial: 'P', name: 'Priya', trade: 'Chartered Accountant' },
+  { initial: 'K', name: 'Kiran', trade: 'Real Estate' },
+  { initial: 'L', name: 'Lakshmi', trade: 'Catering' },
+  { initial: 'R', name: 'Rahul', trade: 'Insurance' },
+  { initial: 'S', name: 'Sneha', trade: 'Digital Marketing' },
+  { initial: 'A', name: 'Arjun', trade: 'Architecture' },
 ]
 
-export const band = ['Live round timer', 'One-tap referrals', 'QR attendance', 'Works offline', 'Balanced tables', 'Conclave summary', 'Save every contact']
+export const facts = [
+  { value: '60s', label: 'bio for each person' },
+  { value: '30s', label: 'referral slot each' },
+  { value: '3-8', label: 'people a table, kept even' },
+  { value: 'Offline', label: 'at the venue, synced later' },
+]
 
-// The day, as full-screen scenes. Colours are flat and full-strength.
-export const scenes = [
+// One round of six people: six 60s bios, then six 30s referrals (9 minutes).
+export const round = {
+  people: ['Priya', 'Kiran', 'Lakshmi', 'Rahul', 'Sneha', 'Arjun'],
+  bio: 60,
+  referral: 30,
+  phases: [
+    {
+      key: 'bio',
+      title: 'Bios, one at a time',
+      text: 'Everyone gets sixty seconds. The card shows who is speaking, their business and their ask, with a timer every phone at the table shares.',
+      shot: 'round',
+    },
+    {
+      key: 'referral',
+      title: 'The referral slot opens',
+      text: 'Thirty seconds each to pass business. The "Give a referral" button appears only now, so the room stays on the person speaking.',
+      shot: 'referral',
+    },
+    {
+      key: 'move',
+      title: 'Time to move',
+      text: 'When the round ends, the app tells you your next table and who you will meet there. No lists, no shouting across the hall.',
+      shot: 'home',
+    },
+  ],
+}
+
+export const journey = [
   {
-    id: 'register',
-    step: 'Before',
+    tag: 'Before',
     title: 'Find your conclave. Take your seat.',
-    text: 'Browse upcoming conclaves by region and date, register in seconds, and add your Specific Ask so every table knows what you are looking for.',
-    points: ['Register and pay in the app', 'Your business category keeps competitors apart', 'Add the day to your calendar'],
+    text: 'Browse by region and date, register in seconds, and add your Specific Ask so every table knows what you are looking for.',
     shot: 'conclaves',
-    bg: ['#b00e29', '#d8061b'],
-    accent: '#ffd36b',
   },
   {
-    id: 'round',
-    step: 'Every round',
-    title: 'Know who is speaking, every second.',
-    text: 'Your table, the people at it and the speaking order, with a live timer every phone at the table shares, even with no signal.',
-    points: ['Read each person’s ask before they speak', 'The deck follows the speaker on its own', 'When the round ends, the app tells you where to go'],
-    shot: 'round',
-    bg: ['#5c0716', '#7a0a1e'],
-    accent: '#ff8f9c',
+    tag: 'On the day',
+    title: 'Check in with a scan.',
+    text: 'Your table captain scans your QR code each round, or you tap "I’m here". It all works without signal.',
+    shot: 'card',
   },
   {
-    id: 'refer',
-    step: 'Referral slot',
-    title: 'Pass business in one tap.',
-    text: 'When the referral slot opens, give a referral to anyone at your table and add a note so the lead is clear.',
-    points: ['Opens only in the referral slot, so the room stays focused', 'Track every referral you give and receive', 'Record closed business when a lead pays off'],
-    shot: 'referral',
-    bg: ['#1f1a1c', '#2e2427'],
-    accent: '#ff5a6e',
-  },
-  {
-    id: 'after',
-    step: 'After',
+    tag: 'After',
     title: 'See what you built.',
-    text: 'Your summary shows every round you attended, the referrals you gave and received, and everyone you sat with.',
-    points: ['Save the people you met to your contacts', 'Share your own card with a QR code', 'Everything syncs once you are back online'],
+    text: 'Every round you attended, the referrals you gave and received, and everyone you sat with, ready to save to your contacts.',
     shot: 'summary',
-    bg: ['#d8061b', '#e8344a'],
-    accent: '#fff3c4',
   },
 ]
 
 export const features = [
-  { icon: 'wifi-off', title: 'Works without signal', text: 'Attendance and referrals are kept on your phone at the venue and sync when you reconnect.' },
-  { icon: 'scale', title: 'Balanced tables', text: 'Tables stay between three and eight people, sizes never differ by more than one, and no two people share a category.' },
-  { icon: 'scan', title: 'Captains and walk-ins', text: 'Table captains scan members in, stand-ins can step up, and late arrivals join from the next round.' },
+  { icon: 'scale', title: 'Balanced tables', text: 'Three to eight a table, sizes within one of each other, and never two people from the same category.' },
+  { icon: 'wifi-off', title: 'Works without signal', text: 'Attendance and referrals are kept on your phone and sync when you reconnect.' },
+  { icon: 'scan', title: 'Captains and walk-ins', text: 'Captains scan members in, stand-ins can step up, and late arrivals join from the next round.' },
   { icon: 'shield', title: 'Private by default', text: 'Other members never see your phone number or email in the directory.' },
   { icon: 'bell', title: 'Timely alerts', text: 'Know when a round starts, when to move, and when a referral comes your way.' },
   { icon: 'coffee', title: '1-2-1 meetings', text: 'Request a one-to-one with any member and keep every meeting in one place.' },

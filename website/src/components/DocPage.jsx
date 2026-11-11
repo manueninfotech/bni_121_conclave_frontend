@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react'
+import { reducedMotion } from '../lib/motion.js'
+import { startShards } from '../lib/shards.js'
 import privacy from '../content/privacy.html?raw'
 import terms from '../content/terms.html?raw'
 import support from '../content/support.html?raw'
@@ -17,20 +20,22 @@ function parse(src) {
 }
 
 export default function DocPage({ page }) {
+  const canvas = useRef(null)
+  useEffect(() => startShards(canvas.current, { count: 80, still: reducedMotion() }), [])
   const { meta, body } = parse(pages[page] ?? pages.support)
   const base = import.meta.env.BASE_URL
   const title = page === 'support' ? 'How can we help?' : meta.title
   return (
     <>
       <section className="doc-hero">
-        <div className="aurora aurora--soft" aria-hidden="true"><i /><i /><i /></div>
+        <canvas ref={canvas} className="doc-hero__shards" aria-hidden="true" />
         <div className="doc-hero__inner">
-          <p className="eyebrow eyebrow--light" data-reveal><i />1-2-1 Connect</p>
-          <h1 className="h1" data-split>{title}</h1>
-          <p className="doc-hero__sub" data-reveal>
+          <p className="kicker" data-rise data-now><span className="kicker__dot" />1-2-1 Connect</p>
+          <h1 className="h1" data-words data-now>{title}</h1>
+          <p className="doc-hero__sub" data-rise data-now>
             {meta.updated ? `Last updated ${meta.updated}` : 'Answers to common questions, and how to reach us.'}
           </p>
-          <nav className="doc-tabs" aria-label="Pages" data-reveal>
+          <nav className="doc-tabs" aria-label="Pages" data-rise data-now>
             {labels.map(([id, label]) => (
               <a key={id} href={`${base}${id}/`} aria-current={id === page ? 'page' : undefined}>{label}</a>
             ))}
@@ -38,7 +43,7 @@ export default function DocPage({ page }) {
         </div>
       </section>
       <section className="doc-body">
-        <article className={`doc ${page === 'support' ? 'doc--support' : ''}`} data-reveal dangerouslySetInnerHTML={{ __html: body }} />
+        <article className={`doc ${page === 'support' ? 'doc--support' : ''}`} data-rise data-now dangerouslySetInnerHTML={{ __html: body }} />
       </section>
     </>
   )

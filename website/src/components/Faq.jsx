@@ -6,19 +6,18 @@ export default function Faq() {
   return (
     <section id="faq" className="qa">
       <header className="qa__head">
-        <p className="eyebrow" data-reveal><i />Questions</p>
-        <h2 className="h1" data-split>Good to <span className="grad">know.</span></h2>
-        <p className="qa__lede" data-reveal>
-          More answers on the <a href={`${asset('support/')}`}>support page</a>, or write to{' '}
-          <a href={`mailto:${app.email}`}>{app.email}</a>.
+        <p className="kicker"><span className="kicker__dot" />Questions</p>
+        <h2 className="h2" data-words>Good to <em>know.</em></h2>
+        <p className="qa__lede" data-rise>
+          More on the <a href={asset('support/')}>support page</a>, or write to <a href={`mailto:${app.email}`}>{app.email}</a>.
         </p>
       </header>
-      <div className="qa__list" data-reveal-group>
+      <div className="qa__list" data-stagger>
         {faq.map((f) => (
           <details key={f.q}>
             <summary>
               {f.q}
-              <span className="qa__plus" aria-hidden="true"><Plus size={20} /></span>
+              <span className="qa__plus" aria-hidden="true"><Plus size={18} /></span>
             </summary>
             <p>{f.a}</p>
           </details>
