@@ -87,6 +87,14 @@ Inspect review submissions + version states
 
 Cancel any in-progress review submission (e.g. after a rejection)
 
+### ios build_states
+
+```sh
+[bundle exec] fastlane ios build_states
+```
+
+Show the latest builds' processing state (why a binary went invalid)
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

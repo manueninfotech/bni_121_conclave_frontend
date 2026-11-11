@@ -63,7 +63,17 @@ fb.setupCharacterMap(cmap)
 fb.setupGlyf(outlines)
 fb.setupHorizontalMetrics({g: (UPM, 0) for g in order})
 fb.setupHorizontalHeader(ascent=UPM, descent=0)
-fb.setupNameTable({"familyName": "Coolicons", "styleName": "Regular"})
+# A complete name table: App Store Connect rejects a font missing the full,
+# PostScript, version or unique-ID names (ITMS-90853 "'name' table usability").
+fb.setupNameTable({
+    "copyright": "Icons: Coolicons by Kryston Schwarze (MIT License)",
+    "familyName": "Coolicons",
+    "styleName": "Regular",
+    "uniqueFontIdentifier": "Coolicons-Regular;1.000;1-2-1 Connect",
+    "fullName": "Coolicons Regular",
+    "version": "Version 1.000",
+    "psName": "Coolicons-Regular",
+})
 fb.setupOS2(sTypoAscender=UPM, sTypoDescender=0, sTypoLineGap=0, usWinAscent=UPM, usWinDescent=0)
 fb.setupPost()
 os.makedirs("assets/fonts", exist_ok=True)

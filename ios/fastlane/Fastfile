@@ -98,7 +98,9 @@ platform :ios do
       skip_screenshots: true,
       skip_metadata: true,
       submit_for_review: true,
-      automatic_release: true,            # release automatically once approved
+      # Manual release by default: approved builds wait for a person to release them.
+      # Pass automatic:true to release as soon as Apple approves.
+      automatic_release: options[:automatic] == true,
       submission_information: {
         export_compliance_uses_encryption: false,
         add_id_info_uses_idfa: false,
@@ -214,5 +216,22 @@ platform :ios do
     else
       UI.success("No in-progress review submission")
     end
+  end
+end
+
+platform :ios do
+  desc "Show the latest builds' processing state (why a binary went invalid)"
+  lane :build_states do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: "79TJL426G2", issuer_id: "cb07fb7a-b51b-41a8-9466-d07c578a4790",
+      filepath: File.expand_path("~/.conclave-secrets/ASC_API_AuthKey_79TJL426G2.p8"),
+    )
+    app = Spaceship::ConnectAPI::App.find("com.manuen.bniconclave")
+    Spaceship::ConnectAPI::Build.all(app_id: app.id, sort: "-uploadedDate", limit: 4).first(4).each do |b|
+      UI.important("build #{b.version}: processing=#{b.processing_state} expired=#{b.expired} uploaded=#{b.uploaded_date}")
+    end
+    v = app.get_app_store_versions.first
+    UI.important("version #{v.version_string}: #{v.app_store_state} release_type=#{v.release_type}")
   end
 end

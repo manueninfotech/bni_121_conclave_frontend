@@ -1,7 +1,8 @@
-What's new in 1.3.3:
-• A fresh new look across Home, Profile, Conclaves and Members.
-• See your table ("Go to Table N for Round 1") as soon as the schedule is locked — before the round even starts.
-• More reliable live rounds: your current round and next table update the moment you reopen the app.
-• Clearer round screens — "Move to Table N" and your place in the speaking order.
-• More dependable conclave and 1-2-1 reminders.
-• Lots of fixes and polish.
+What's new in 1.5.0
+
+- New name and look: 1-2-1 Connect, with a fresh icon and a redesigned app
+- Add your Conclave Specific Ask so your table knows what you need
+- Forgot password: reset it yourself by phone or email
+- Swipe back from the left edge on iPhone
+- Redesigned sign-in, sign-up, profile, referrals and 1-2-1s
+- Fixes and polish
