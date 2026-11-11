@@ -1,0 +1,366 @@
+<title>1-2-1 Connect Brand Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one reading column of guideline sections; brand tiles sit on fixed brand colours. */
+:root {
+  --bg: #faf7f6;
+  --surface: #ffffff;
+  --fg: #17110f;
+  --muted: #6b615d;
+  --hair: #eae3e0;
+  --accent: #b00e29;
+  --chip: #f4eeec;
+  /* Brand colours are content: identical in both themes. */
+  --red: #d8061b;
+  --deep: #b00e29;
+  --coral: #f04e66;
+  --ink: #17110f;
+  --paper: #faf7f6;
+  --graphite: #3a3f4a;
+  --gold: #f4b740;
+  --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131011; --surface: #1d1819; --fg: #f6f2f1; --muted: #a79d99; --hair: #302a2b; --accent: #ff6b7e; --chip: #262022;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131011; --surface: #1d1819; --fg: #f6f2f1; --muted: #a79d99; --hair: #302a2b; --accent: #ff6b7e; --chip: #262022;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--font);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 1040px; margin: 0 auto; padding-block: 40px 80px; display: grid; gap: 64px; }
+h1, h2, h3 { margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h1 { font-size: clamp(36px, 6vw, 60px); font-weight: 800; line-height: 1.02; }
+h2 { font-size: clamp(26px, 3.4vw, 34px); font-weight: 800; line-height: 1.1; }
+h3 { font-size: 17px; font-weight: 800; }
+p { margin: 0; max-width: 65ch; }
+.muted { color: var(--muted); }
+.label { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 20px; }
+.head { display: grid; gap: 8px; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--hair); border-radius: 20px; padding: 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+ul.rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; }
+
+/* Hero */
+.hero { display: grid; gap: 22px; padding: 36px; border-radius: 28px; background: var(--red); color: #fff; }
+.hero img { width: min(420px, 100%); }
+.hero p { color: rgba(255,255,255,.88); font-size: 18px; }
+.hero .tag { font-size: clamp(26px, 4vw, 40px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.08; color: #fff; }
+
+/* Logo tiles */
+.tile { border-radius: 18px; display: grid; place-items: center; padding: 28px 22px; min-height: 150px; }
+.tile img { width: min(320px, 100%); }
+.tile.small img { width: min(150px, 60%); }
+.on-paper { background: var(--paper); border: 1px solid var(--hair); }
+.on-red { background: var(--red); }
+.on-ink { background: var(--ink); }
+.caption { display: grid; gap: 2px; }
+.caption strong { font-size: 15px; }
+.caption span { font-size: 14px; color: var(--muted); }
+.clear { position: relative; background: var(--paper); border: 1px solid var(--hair); border-radius: 18px; padding: 44px; display: grid; place-items: center; }
+.clear .box { outline: 2px dashed var(--coral); outline-offset: 0; padding: 26px; }
+.clear img { width: min(300px, 100%); display: block; }
+
+/* Colour */
+.swatches { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.swatch { background: var(--surface); border: 1px solid var(--hair); border-radius: 18px; overflow: hidden; display: grid; }
+.swatch .chipc { height: 92px; }
+.swatch .info { padding: 14px 16px 16px; display: grid; gap: 6px; }
+.swatch .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.copy { font: 600 13px var(--font); border: 1px solid var(--hair); background: var(--chip); color: var(--fg); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+.copy:hover { border-color: var(--muted); }
+.copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ratio { display: flex; height: 28px; border-radius: 10px; overflow: hidden; border: 1px solid var(--hair); }
+
+/* Type */
+.specimen { display: grid; gap: 10px; }
+.specimen .big { font-size: clamp(40px, 7vw, 72px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.scale { display: grid; gap: 10px; }
+.scale div { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; border-top: 1px solid var(--hair); padding-top: 10px; }
+.scale small { width: 150px; color: var(--muted); font-size: 13px; }
+
+/* Copy blocks */
+.quote { background: var(--surface); border: 1px solid var(--hair); border-radius: 18px; padding: 18px 20px; display: grid; gap: 10px; }
+.quote .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.do-dont { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.yes h3 { color: #12734b; }
+.no h3 { color: var(--accent); }
+:root[data-theme="dark"] .yes h3 { color: #4ade9b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .yes h3 { color: #4ade9b; } }
+
+/* Imagery */
+.shots { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; }
+.shots img { width: 180px; flex: none; border-radius: 26px; border: 6px solid #17131a; }
+.social { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); align-items: start; }
+.social figure { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.social img { width: 100%; border-radius: 12px; border: 1px solid var(--hair); }
+.social figcaption { font-size: 13px; color: var(--muted); }
+.wide { grid-column: 1 / -1; }
+
+/* Kit contents */
+.tree { background: var(--surface); border: 1px solid var(--hair); border-radius: 18px; padding: 18px 20px; overflow-x: auto; }
+.tree pre { margin: 0; font-size: 14px; line-height: 1.7; }
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--hair); padding-top: 18px; }
+</style>
+
+<main>
+  <header class="hero">
+    <img src="img/lockup-white.webp" alt="1-2-1 Connect logo">
+    <div class="tag">Every table. Every round. Every referral.</div>
+    <p>The brand guide for 1-2-1 Connect, the networking app for BNI 1-2-1 conclaves by Manuen Infotech. Use it with the brand kit files when you make posts, decks, flyers and banners.</p>
+  </header>
+
+  <section id="name">
+    <div class="head">
+      <span class="label">Name</span>
+      <h2>Write it 1-2-1 Connect</h2>
+    </div>
+    <div class="do-dont">
+      <div class="card yes">
+        <h3>Use</h3>
+        <ul class="rules">
+          <li><strong>1-2-1 Connect</strong>: digits with hyphens, a space, capital C</li>
+          <li>"1-2-1" on its own means the meeting, a one-to-one</li>
+          <li>"by Manuen Infotech" when you name the maker</li>
+        </ul>
+      </div>
+      <div class="card no">
+        <h3>Avoid</h3>
+        <ul class="rules">
+          <li>121 Connect, 1-2-1connect, 1:1 Connect, One-to-One Connect</li>
+          <li>The old name, BNI 1-2-1 Conclave, and its logo</li>
+          <li>Calling it an official BNI product</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="logo">
+    <div class="head">
+      <span class="label">Logo</span>
+      <h2>Three versions, one for each background</h2>
+      <p class="muted">The symbol is two people meeting across a table. Use the horizontal logo by default and the stacked one in square spaces. Use the vector SVG files for print and anything that gets resized.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="tile on-paper"><img src="img/lockup-colour.webp" alt="Colour logo on paper"></div>
+        <div class="caption"><strong>Colour</strong><span>Red symbol, ink name. White and light backgrounds.</span></div>
+      </div>
+      <div class="card">
+        <div class="tile on-red"><img src="img/lockup-white.webp" alt="White logo on red"></div>
+        <div class="caption"><strong>White</strong><span>Red, dark and photo backgrounds.</span></div>
+      </div>
+      <div class="card">
+        <div class="tile on-paper"><img src="img/lockup-ink.webp" alt="Ink logo on paper"></div>
+        <div class="caption"><strong>Ink</strong><span>One-colour print, stamps, embossing.</span></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="tile on-paper small"><img src="img/stacked-colour.webp" alt="Stacked logo"></div>
+        <div class="caption"><strong>Stacked</strong><span>Square spaces: profile pictures, stickers, merchandise.</span></div>
+      </div>
+      <div class="card">
+        <div class="tile on-red small"><img src="img/mark-white.webp" alt="Symbol alone"></div>
+        <div class="caption"><strong>Symbol alone</strong><span>Only where the name already appears nearby, or as an app-like icon.</span></div>
+      </div>
+      <div class="card">
+        <div class="tile on-paper small"><img src="img/icon.webp" alt="App icon"></div>
+        <div class="caption"><strong>App icon</strong><span>For "download the app" moments. Keep it a rounded square; never redraw it.</span></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="clear">
+        <div class="box"><img src="img/lockup-colour.webp" alt="Logo with clear space marked"></div>
+      </div>
+      <div class="card">
+        <h3>Clear space and size</h3>
+        <ul class="rules">
+          <li>Keep empty space around the logo at least the height of one head in the symbol (the dashed line).</li>
+          <li>Smallest horizontal logo: 120 px wide on screen, 30 mm in print.</li>
+          <li>Smallest symbol alone: 24 px, 8 mm in print.</li>
+        </ul>
+        <h3>Don't</h3>
+        <ul class="rules">
+          <li>Recolour it beyond the three versions, or add gradients, outlines or shadows.</li>
+          <li>Stretch, rotate, or rearrange the symbol and name.</li>
+          <li>Retype the name in another font, or put the colour version on red or busy photos.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="colour">
+    <div class="head">
+      <span class="label">Colour</span>
+      <h2>Red leads, warm neutrals support</h2>
+      <p class="muted">Use red with intent: the logo, a hero background, or the one action you want people to take. Most layouts are paper and ink with red as the accent, about 60% neutral, 30% red and 10% the rest.</p>
+    </div>
+    <div class="ratio" aria-label="Rough proportions: 60% paper and ink, 30% red, 10% other colours">
+      <span style="flex:6;background:var(--paper)"></span><span style="flex:3;background:var(--red)"></span><span style="flex:0.6;background:var(--graphite)"></span><span style="flex:0.4;background:var(--gold)"></span>
+    </div>
+    <div class="swatches" id="swatches"></div>
+  </section>
+
+  <section id="type">
+    <div class="head">
+      <span class="label">Type</span>
+      <h2>Plus Jakarta Sans, everywhere</h2>
+      <p class="muted">The same face as the app and the website. It's free under the Open Font License (in the kit, and on Google Fonts). Headlines are ExtraBold with slightly tight spacing; body text is Medium or Regular.</p>
+    </div>
+    <div class="card specimen">
+      <div class="big">Every round.</div>
+      <div class="scale">
+        <div><small>Headline · 800 · −2%</small><span style="font-size:32px;font-weight:800;letter-spacing:-0.02em">Pass business in one tap</span></div>
+        <div><small>Subhead · 700</small><span style="font-size:22px;font-weight:700">Your table for every round</span></div>
+        <div><small>Body · 500</small><span style="font-size:17px;font-weight:500">A live timer every phone at the table shares, even without signal.</span></div>
+        <div><small>Wordmark</small><span style="font-size:22px"><span style="font-weight:600">1-2-1</span> <span style="font-weight:800">Connect</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="voice">
+    <div class="head">
+      <span class="label">Voice</span>
+      <h2>Plain, specific, about the room</h2>
+      <p class="muted">Say what the app does at a conclave, in short sentences. Numbers as digits. No emojis in brand copy, captions or the app.</p>
+    </div>
+    <div class="do-dont">
+      <div class="card yes"><h3>Like this</h3><p>"Your table for every round, and where to go next."</p><p>"Pass business in one tap, right at the table."</p></div>
+      <div class="card no"><h3>Not like this</h3><p>"Revolutionising the future of networking!"</p><p>"Seamless, AI-powered synergy for your network."</p></div>
+    </div>
+    <div class="grid" id="copyblocks"></div>
+  </section>
+
+  <section id="imagery">
+    <div class="head">
+      <span class="label">Imagery</span>
+      <h2>Show the real app</h2>
+      <p class="muted">Use the app screens from the kit: they're the real app with demo data and fictional people. Never put real members' names, numbers or photos in marketing without their permission.</p>
+    </div>
+    <div class="shots">
+      <img src="img/screen-02_round.webp" alt="Live round screen">
+      <img src="img/screen-03_referral.webp" alt="Referral slot screen">
+      <img src="img/screen-01_home.webp" alt="Home screen">
+      <img src="img/screen-06_summary.webp" alt="Conclave summary screen">
+    </div>
+    <div class="social">
+      <figure class="wide"><img src="img/link-preview-1200x630.webp" alt="Link preview image"><figcaption>Link preview · 1200 × 630 (website, WhatsApp, LinkedIn shares)</figcaption></figure>
+      <figure><img src="img/instagram-post-launch-1080.webp" alt="Launch post"><figcaption>Launch post · 1080 × 1080</figcaption></figure>
+      <figure><img src="img/instagram-post-round-1080.webp" alt="Live round post"><figcaption>Feature post, light · 1080 × 1080</figcaption></figure>
+      <figure><img src="img/instagram-post-referral-1080.webp" alt="Referral post"><figcaption>Feature post, dark · 1080 × 1080</figcaption></figure>
+      <figure><img src="img/story-1080x1920.webp" alt="Story"><figcaption>Story · 1080 × 1920 (Instagram, WhatsApp status)</figcaption></figure>
+      <figure class="wide"><img src="img/linkedin-banner-1584x396.webp" alt="LinkedIn banner"><figcaption>LinkedIn banner · 1584 × 396</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="links">
+    <div class="head">
+      <span class="label">Links</span>
+      <h2>Where to send people</h2>
+      <p class="muted">For download buttons, use Apple's and Google's official badges unchanged (developer.apple.com/app-store/marketing/guidelines and play.google.com/intl/en_us/badges).</p>
+    </div>
+    <div class="grid" id="linkblocks"></div>
+  </section>
+
+  <section id="kit">
+    <div class="head">
+      <span class="label">The kit</span>
+      <h2>What's in the files</h2>
+      <p class="muted">Shared alongside this page as <span class="mono">1-2-1-Connect-Brand-Kit.zip</span>. Ask the product team if you don't have it.</p>
+    </div>
+    <div class="tree"><pre>1-2-1 Connect Brand Kit/
+  01-logo/      SVG (vector) and PNG: symbol, name, horizontal and stacked logos
+  02-app-icon/  store icon at 1024, 512 and 180, plus a rounded preview
+  03-colour/    palette sheet and colours.txt (HEX, RGB, CMYK)
+  04-type/      Plus Jakarta Sans and its licence
+  05-screens/   real app screens, App Store and Google Play screenshots
+  06-social/    link preview, Instagram posts and story, LinkedIn banner
+  07-copy/      copy.md: name, taglines, descriptions, boilerplate, links</pre></div>
+  </section>
+
+  <footer>1-2-1 Connect by Manuen Infotech · Guntur, Andhra Pradesh · connect@manuen.com. BNI and its marks belong to BNI Global.</footer>
+</main>
+
+<script>
+const COLOURS = [
+  ["Connect Red", "#D8061B", "216 6 27", "0 97 88 15", "Primary. Logo, app icon, hero backgrounds, the one key action."],
+  ["Deep Red", "#B00E29", "176 14 41", "0 92 77 31", "Buttons, pressed states, the dark end of red gradients."],
+  ["Coral", "#F04E66", "240 78 102", "0 68 58 6", "The light end of red gradients. Never for text."],
+  ["Ink", "#17110F", "23 17 15", "0 26 35 91", "Text and the one-colour logo."],
+  ["Paper", "#FAF7F6", "250 247 246", "0 1 2 2", "Page background, warmer than white."],
+  ["Graphite", "#3A3F4A", "58 63 74", "22 15 0 71", "Secondary text and dark sections."],
+  ["Gold", "#F4B740", "244 183 64", "0 25 74 4", "Small highlights only, never large areas."],
+];
+const COPY = [
+  ["Main tagline", "Every table. Every round. Every referral."],
+  ["One line", "Structured 1-2-1 networking for BNI conclaves: your table, referrals, contacts."],
+  ["Short description", "1-2-1 Connect runs your BNI 1-2-1 conclave from your phone: where to sit, who is speaking, when to pass business, and everyone you met, saved when the day is done."],
+  ["Boilerplate", "1-2-1 Connect is a networking app for BNI 1-2-1 conclaves, built by Manuen Infotech in Guntur, Andhra Pradesh. It handles seating, live rounds, referrals and follow-ups for members, guests and organisers, on iPhone and Android. Learn more at manuen.com/conclave."],
+];
+const LINKS = [
+  ["Website", "https://www.manuen.com/conclave"],
+  ["App Store", "https://apps.apple.com/in/app/bni-1-2-1-conclave/id6809010007"],
+  ["Google Play", "https://play.google.com/store/apps/details?id=com.manuen.conclave_1_2_1"],
+  ["Support", "https://www.manuen.com/conclave/support"],
+  ["Email", "connect@manuen.com"],
+];
+
+function copyButton(text, label) {
+  const b = document.createElement("button");
+  b.className = "copy"; b.type = "button"; b.textContent = label || "Copy";
+  b.addEventListener("click", () => {
+    const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = label || "Copy"), 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => select(b));
+    } else select(b);
+  });
+  return b;
+}
+function select(btn) {
+  const t = btn.closest(".quote, .swatch").querySelector("[data-text]");
+  const r = document.createRange(); r.selectNodeContents(t);
+  const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  btn.textContent = "Selected";
+}
+const sw = document.getElementById("swatches");
+for (const [name, hex, rgb, cmyk, use] of COLOURS) {
+  const el = document.createElement("div"); el.className = "swatch";
+  el.innerHTML = `<div class="chipc" style="background:${hex};${name === "Paper" ? "border-bottom:1px solid var(--hair)" : ""}"></div>
+    <div class="info"><div class="row"><h3>${name}</h3></div>
+    <div class="mono" data-text>${hex}</div>
+    <div class="mono muted">RGB ${rgb} · CMYK ${cmyk}</div>
+    <p class="muted" style="font-size:14px">${use}</p></div>`;
+  el.querySelector(".row").appendChild(copyButton(hex, "Copy HEX"));
+  sw.appendChild(el);
+}
+const cb = document.getElementById("copyblocks");
+for (const [label, text] of COPY) {
+  const el = document.createElement("div"); el.className = "quote";
+  el.innerHTML = `<div class="row"><span class="label">${label}</span></div><p data-text>${text}</p>`;
+  el.querySelector(".row").appendChild(copyButton(text));
+  cb.appendChild(el);
+}
+const lb = document.getElementById("linkblocks");
+for (const [label, url] of LINKS) {
+  const el = document.createElement("div"); el.className = "quote";
+  const isUrl = url.startsWith("http");
+  el.innerHTML = `<div class="row"><span class="label">${label}</span></div>` +
+    (isUrl ? `<a class="mono" data-text href="${url}" target="_blank" rel="noopener" style="color:var(--accent);word-break:break-all">${url}</a>` : `<span class="mono" data-text>${url}</span>`);
+  el.querySelector(".row").appendChild(copyButton(url));
+  lb.appendChild(el);
+}
+</script>

@@ -61,3 +61,6 @@ BNIG CATEGORIES - Sheet1.csv
 # Widget Preview related
 .widget_preview/
 assets/icons
+# Generated brand kit (rebuild with tool/brand/build_kit.py)
+store/brand-kit/
+store/1-2-1-Connect-Brand-Kit.zip
