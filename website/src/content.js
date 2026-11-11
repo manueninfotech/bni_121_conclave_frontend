@@ -3,7 +3,7 @@
 export const app = {
   name: '1-2-1 Connect',
   lede: 'Your conclave, run from your phone: where to sit, who is speaking, when to pass business, and everyone you met, saved when the day is done.',
-  appStore: 'https://apps.apple.com/app/id6809010007',
+  appStore: 'https://apps.apple.com/in/app/bni-1-2-1-conclave/id6809010007',
   playStore: 'https://play.google.com/store/apps/details?id=com.manuen.conclave_1_2_1',
   email: 'connect@manuen.com',
 }
