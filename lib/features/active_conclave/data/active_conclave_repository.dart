@@ -185,7 +185,8 @@ class ActiveConclaveRepository {
       return const ActiveRoundState.unavailable(ActiveRoundUnavailable.completed);
     }
     final timing = RoundTiming.forRound(
-      personsPerTable: clock.personsPerTable,
+      // This round's own size (larger when walk-ins enlarged its tables).
+      personsPerTable: clock.peopleFor(currentRound),
       extension: live.extension,
       move: clock.move,
       automatic: clock.automatic,

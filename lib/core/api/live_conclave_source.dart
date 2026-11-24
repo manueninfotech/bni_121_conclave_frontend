@@ -61,6 +61,7 @@ Stream<Map<String, dynamic>> watchConclaveDoc(String conclaveId) {
       // Round clock inputs (see round_clock.dart).
       'roundCount',
       'personsPerTable',
+      'roundPeople',
       'roundProgressionMode',
       'roundExtensionSeconds',
       'moveSeconds',
