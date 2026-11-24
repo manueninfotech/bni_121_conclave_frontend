@@ -153,6 +153,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           // straight back to it until the conclave ends and the lock releases.
           final locked = lockNotifier.value;
           if (locked != null) {
+            // During a live round the round screen is the only place to be;
+            // a queued link or notification would surface later, out of
+            // context, so it is dropped.
+            SharedLinks.take();
             final activePath = '/conclaves/$locked/active';
             return path == activePath ? null : activePath;
           }
