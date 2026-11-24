@@ -1,3 +1,4 @@
+import '../conclave_images.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -125,6 +126,11 @@ class UpcomingConclaveCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // The organiser's cover, so a conclave is easy to spot.
+              if (c.coverImage != null) ...[
+                ConclaveCover(image: c.coverImage!, radius: 14, aspectRatio: 2.4),
+                const SizedBox(height: Gap.md),
+              ],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

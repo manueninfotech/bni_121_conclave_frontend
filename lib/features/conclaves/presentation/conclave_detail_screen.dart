@@ -17,6 +17,7 @@ import '../../active_conclave/presentation/round/deck_footer.dart' show roundPan
 import '../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'conclave_images.dart';
 import 'specific_ask_card.dart';
 import 'walk_in_action.dart';
 
@@ -108,13 +109,18 @@ class _Shell extends StatelessWidget {
 void _back(BuildContext context) =>
     context.canPop() ? context.pop() : context.go('/conclaves');
 
-class _Detail extends StatelessWidget {
+class _Detail extends ConsumerWidget {
   final Conclave conclave;
   const _Detail({required this.conclave});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = conclave;
+    // Once the conclave's live stream is connected it has the newest cover
+    // and flyers; until then, what the list loaded.
+    final media = ref.watch(conclaveMediaProvider(c.id)).asData?.value;
+    final cover = media != null ? media.cover : c.coverImage;
+    final flyers = media != null ? media.flyers : c.flyers;
     final action = _actionFor(context, c);
     final status = c.effectiveStatus;
     final upcoming = status != ConclaveStatus.running &&
@@ -143,6 +149,13 @@ class _Detail extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (cover != null) ...[
+                          AnimatedSwitcher(
+                            duration: Motion.normal,
+                            child: ConclaveCover(key: ValueKey(cover.id), image: cover),
+                          ),
+                          const SizedBox(height: Gap.md),
+                        ],
                         _Numbers(conclave: c, upcoming: upcoming),
                         if (c.isRegistered) ...[
                           const SizedBox(height: Gap.xl),
@@ -150,6 +163,15 @@ class _Detail extends StatelessWidget {
                           _YourPlace(conclave: c),
                           const SizedBox(height: Gap.md),
                           SpecificAskCard(conclave: c),
+                        ],
+                        if (flyers.isNotEmpty) ...[
+                          const SizedBox(height: Gap.xl),
+                          _Label(flyers.length == 1 ? 'Flyer' : 'Flyers'),
+                          FlyerStrip(
+                            flyers: flyers,
+                            conclaveId: c.id,
+                            conclaveName: c.name,
+                          ),
                         ],
                         const SizedBox(height: Gap.xl),
                         const _Label('Details'),

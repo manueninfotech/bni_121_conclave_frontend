@@ -62,6 +62,9 @@ Stream<Map<String, dynamic>> watchConclaveDoc(String conclaveId) {
       'roundCount',
       'personsPerTable',
       'roundPeople',
+      // Cover and flyers from the admin panel, shown as they change.
+      'coverImage',
+      'flyers',
       'roundProgressionMode',
       'roundExtensionSeconds',
       'moveSeconds',

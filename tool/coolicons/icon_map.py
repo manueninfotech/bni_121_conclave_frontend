@@ -29,6 +29,7 @@ MAP = {
     "close": ("line", "close"),
     "close_rounded": ("line", "close"),
     "share_rounded": ("line", "share"),
+    "image_outlined": ("line", "image"),
     "cloud_done_rounded": ("line", "cloud-check"),
     "cloud_off_rounded": ("line", "cloud-off"),
     "cloud_upload_outlined": ("line", "cloud-upload"),

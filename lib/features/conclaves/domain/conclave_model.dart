@@ -1,3 +1,5 @@
+import 'conclave_image.dart';
+
 enum ConclaveStatus {
   draft,
 
@@ -124,6 +126,10 @@ class Conclave {
 
   final List<String> chiefGuests;
 
+  /// Feature image and flyers from the admin panel (none when not set).
+  final ConclaveImage? coverImage;
+  final List<ConclaveImage> flyers;
+
   // Additional details
   final int personsPerTable;
   final int roundCount;
@@ -169,6 +175,8 @@ class Conclave {
     this.startTime,
     this.endTime,
     this.chiefGuests = const [],
+    this.coverImage,
+    this.flyers = const [],
     this.personsPerTable = 7,
     this.roundCount = 6,
     this.currentRound = 0,
@@ -313,6 +321,8 @@ class Conclave {
       chiefGuests: ((data['chiefGuests'] as List?) ?? const [])
           .map((e) => e.toString())
           .toList(),
+      coverImage: ConclaveImage.fromJson(data['coverImage']),
+      flyers: ConclaveImage.listFrom(data['flyers']),
       status: ConclaveStatus.fromString(data['status'] ?? 'draft'),
       isRegistrationOpen: data['isRegistrationOpen'] ?? false,
       regStartDate: _toDate(data['regStartDate']),
@@ -356,6 +366,8 @@ class Conclave {
       startTime: startTime,
       endTime: endTime,
       chiefGuests: chiefGuests,
+      coverImage: coverImage,
+      flyers: flyers,
       status: status,
       isRegistrationOpen: isRegistrationOpen,
       regStartDate: regStartDate,
