@@ -50,6 +50,13 @@ class UserProfile {
   final String email;
   final String phone;
 
+  /// A reachable email: set, and not a phone account's synthetic sign-in
+  /// address. Members without one are asked to add it.
+  bool get hasRealEmail {
+    final e = email.trim().toLowerCase();
+    return e.contains('@') && !e.endsWith('@bni121.conclave');
+  }
+
   final String businessName;
   final String businessCategory;
   final String location;
@@ -128,9 +135,11 @@ class ProfileRepository {
   Future<void> uploadAvatar(XFile file) async {
     if (_auth.currentUser == null) throw Exception('You are not signed in.');
     final bytes = await file.readAsBytes();
-    await _call(() => ApiClient.instance.send('PUT', '/me/photo', {
-          'dataUrl': 'data:image/jpeg;base64,${base64Encode(bytes)}',
-        }));
+    await _call(
+      () => ApiClient.instance.send('PUT', '/me/photo', {
+        'dataUrl': 'data:image/jpeg;base64,${base64Encode(bytes)}',
+      }),
+    );
     _changed.add(null);
   }
 
@@ -167,12 +176,16 @@ class ProfileRepository {
             // screen and looked exactly like being logged out.
             final known = await JsonCache.read('me-profile:$uid');
             if (known is Map) {
-              throw Exception('Profile lookup failed (404); keeping the saved profile.');
+              throw Exception(
+                'Profile lookup failed (404); keeping the saved profile.',
+              );
             }
             return null;
           }
         },
-        parse: (json) => json is Map ? UserProfile.fromMap(uid, Map<String, dynamic>.from(json)) : null,
+        parse: (json) => json is Map
+            ? UserProfile.fromMap(uid, Map<String, dynamic>.from(json))
+            : null,
         refresh: const Duration(minutes: 1),
       ).listen(out.add, onError: out.addError);
     }
@@ -212,6 +225,7 @@ class ProfileRepository {
     required String businessName,
     required String businessCategory,
     required String location,
+
     /// Contact details. Editable because they change — people move numbers and
     /// mailboxes — and because the admin's ability to reach someone depends on
     /// them being current.
@@ -227,27 +241,31 @@ class ProfileRepository {
 
     if (name.trim().isEmpty) throw Exception('Name cannot be empty.');
     if (businessCategory.trim().isEmpty) {
-      throw Exception('Business category is required — it decides who you sit with.');
+      throw Exception(
+        'Business category is required — it decides who you sit with.',
+      );
     }
     if (membership.trim().isEmpty) {
       throw Exception('Choose BNI or Non-BNI.');
     }
 
-    await _call(() => ApiClient.instance.send('PUT', '/me', {
-          'name': name.trim(),
-          'email': email.trim().toLowerCase(),
-          'phone': phone.trim(),
-          'businessName': businessName.trim(),
-          'businessCategory': businessCategory,
-          // Same normalisation as registration: "Guntur", "guntur" and
-          // "  GUNTUR  " must group as one place.
-          'location': location.trim().toLowerCase(),
-          'chapter': chapter?.trim().isEmpty ?? true ? null : chapter!.trim(),
-          'region': region?.trim().isEmpty ?? true ? null : region!.trim(),
-          'membership': membership,
-          'lookingFor': lookingFor.trim(),
-          'canOffer': canOffer.trim(),
-        }));
+    await _call(
+      () => ApiClient.instance.send('PUT', '/me', {
+        'name': name.trim(),
+        'email': email.trim().toLowerCase(),
+        'phone': phone.trim(),
+        'businessName': businessName.trim(),
+        'businessCategory': businessCategory,
+        // Same normalisation as registration: "Guntur", "guntur" and
+        // "  GUNTUR  " must group as one place.
+        'location': location.trim().toLowerCase(),
+        'chapter': chapter?.trim().isEmpty ?? true ? null : chapter!.trim(),
+        'region': region?.trim().isEmpty ?? true ? null : region!.trim(),
+        'membership': membership,
+        'lookingFor': lookingFor.trim(),
+        'canOffer': canOffer.trim(),
+      }),
+    );
     _changed.add(null);
   }
 }
