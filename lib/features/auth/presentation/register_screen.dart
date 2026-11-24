@@ -1,3 +1,5 @@
+import 'package:conclave_1_2_1/core/config/app_config_provider.dart';
+import 'package:conclave_1_2_1/core/widgets/chapter_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -827,13 +829,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SectionLabel('BNI'),
           SectionCard(
             children: [
-              TextFormField(
+              ChapterField(
                 controller: _chapter,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Chapter (optional)',
-                  prefixIcon: Icon(CoolIcons.usersGroup),
-                ),
+                chapters: ref.watch(chaptersProvider),
               ),
               const SizedBox(height: Gap.md),
               TextFormField(

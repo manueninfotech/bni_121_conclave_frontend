@@ -9,20 +9,37 @@ import '../../features/auth/data/auth_repository.dart';
 /// every few minutes, so an admin change reaches phones without a release.
 class AppConfig {
   final List<String> categories;
+
+  /// Organiser-managed BNI chapters. Empty = no list yet (the app shows a text
+  /// field instead of a picker).
+  final List<String> chapters;
   final Map<String, dynamic> roundTiming;
   final int? autoLogoutHours;
 
-  const AppConfig({required this.categories, required this.roundTiming, this.autoLogoutHours});
+  const AppConfig({
+    required this.categories,
+    required this.roundTiming,
+    this.autoLogoutHours,
+    this.chapters = const [],
+  });
 
   factory AppConfig.fromJson(Object? json) {
     final m = json is Map ? json : const {};
     return AppConfig(
       categories: [
-        for (final c in (m['categories'] is List ? m['categories'] as List : const []))
+        for (final c
+            in (m['categories'] is List ? m['categories'] as List : const []))
           if ((c?.toString().trim() ?? '').isNotEmpty) c.toString().trim(),
       ],
-      roundTiming: m['roundTiming'] is Map ? Map<String, dynamic>.from(m['roundTiming'] as Map) : const {},
+      roundTiming: m['roundTiming'] is Map
+          ? Map<String, dynamic>.from(m['roundTiming'] as Map)
+          : const {},
       autoLogoutHours: (m['autoLogoutHours'] as num?)?.toInt(),
+      chapters: [
+        for (final c
+            in (m['chapters'] is List ? m['chapters'] as List : const []))
+          if ((c?.toString().trim() ?? '').isNotEmpty) c.toString().trim(),
+      ],
     );
   }
 }
@@ -38,3 +55,8 @@ final appConfigProvider = StreamProvider<AppConfig>((ref) {
     refresh: const Duration(minutes: 5),
   );
 });
+
+/// The chapter pick list; empty until an organiser adds chapters in the panel.
+final chaptersProvider = Provider<List<String>>(
+  (ref) => ref.watch(appConfigProvider).asData?.value.chapters ?? const [],
+);
