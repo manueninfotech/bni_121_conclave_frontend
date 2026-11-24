@@ -458,7 +458,7 @@ class _Details extends StatelessWidget {
         icon: CoolIcons.mapPin,
         label: 'Venue',
         value: c.venueLocation,
-        action: (
+        endAction: (
           'Directions',
           () => launchUrl(
                 Uri.parse(
@@ -495,16 +495,23 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      clipBehavior: Clip.antiAlias,
       decoration: roundPanel(context),
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              Divider(height: 1, indent: Gap.lg, endIndent: Gap.lg, color: context.colors.hairline),
-            children[i],
-          ],
-        ],
+      // Tap highlights paint here, inside the rounded clip, not on the page.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+          child: Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  Divider(height: 1, indent: Gap.lg, endIndent: Gap.lg, color: context.colors.hairline),
+                children[i],
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -518,7 +525,16 @@ class _Row extends StatelessWidget {
   /// Optional link under the value (e.g. Directions), so a long value keeps
   /// the full width instead of being squeezed beside a button.
   final (String, VoidCallback)? action;
-  const _Row({required this.icon, required this.label, required this.value, this.action});
+
+  /// A compact button at the end of the row (Directions on the venue).
+  final (String, VoidCallback)? endAction;
+  const _Row({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.action,
+    this.endAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -561,6 +577,31 @@ class _Row extends StatelessWidget {
               ],
             ),
           ),
+          if (endAction != null) ...[
+            const SizedBox(width: Gap.sm),
+            Material(
+              color: AppColors.brandRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: endAction!.$2,
+                borderRadius: BorderRadius.circular(999),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(CoolIcons.route, size: 16, color: AppColors.brandRed),
+                    const SizedBox(width: 4),
+                    Text(
+                      endAction!.$1,
+                      style: context.text.labelLarge?.copyWith(
+                        color: AppColors.brandRed,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

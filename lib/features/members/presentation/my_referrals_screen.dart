@@ -216,8 +216,35 @@ class _ReferralsBody extends StatefulWidget {
   State<_ReferralsBody> createState() => _ReferralsBodyState();
 }
 
-class _ReferralsBodyState extends State<_ReferralsBody> {
+class _ReferralsBodyState extends State<_ReferralsBody>
+    with SingleTickerProviderStateMixin {
+  // One controller drives the pill switch and the swipeable pages, like the
+  // Conclaves tabs: tap a pill or swipe the list, and the other follows.
+  late final TabController _tabs = TabController(length: 2, vsync: this)
+    ..addListener(_onTab);
   var _dir = _Direction.given;
+
+  void _onTab() {
+    final d = _tabs.index == 0 ? _Direction.given : _Direction.received;
+    if (d != _dir) setState(() => _dir = d);
+  }
+
+  @override
+  void dispose() {
+    _tabs
+      ..removeListener(_onTab)
+      ..dispose();
+    super.dispose();
+  }
+
+  Widget _list(_Direction d) => _ReferralList(
+    key: ValueKey(d),
+    entries: d == _Direction.given ? widget.given : widget.received,
+    direction: d,
+    onRefresh: widget.onRefresh,
+    rupees: widget.rupees,
+    onUpdate: d == _Direction.received ? widget.onUpdate : null,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +261,8 @@ class _ReferralsBodyState extends State<_ReferralsBody> {
             max: 520,
             child: PillSwitch<_Direction>(
               value: _dir,
-              onChanged: (d) => setState(() => _dir = d),
+              onChanged: (d) =>
+                  _tabs.animateTo(d == _Direction.given ? 0 : 1),
               options: [
                 PillOption(
                   _Direction.given,
@@ -251,18 +279,9 @@ class _ReferralsBodyState extends State<_ReferralsBody> {
           ),
         ),
         Expanded(
-          child: AnimatedSwitcher(
-            duration: Motion.fast,
-            child: _ReferralList(
-              key: ValueKey(_dir),
-              entries: _dir == _Direction.given
-                  ? widget.given
-                  : widget.received,
-              direction: _dir,
-              onRefresh: widget.onRefresh,
-              rupees: widget.rupees,
-              onUpdate: _dir == _Direction.received ? widget.onUpdate : null,
-            ),
+          child: TabBarView(
+            controller: _tabs,
+            children: [_list(_Direction.given), _list(_Direction.received)],
           ),
         ),
       ],

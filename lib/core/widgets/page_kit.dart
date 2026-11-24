@@ -211,11 +211,19 @@ class SectionCard extends StatelessWidget {
     }
     return Container(
       clipBehavior: Clip.antiAlias,
-      padding: padding,
       decoration: pagePanel(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: spaced,
+      // Rows' tap highlights paint on this Material, inside the rounded clip.
+      // Without it they painted on the page behind the card and showed as dark
+      // squares at its corners.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Padding(
+          padding: padding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: spaced,
+          ),
+        ),
       ),
     );
   }
