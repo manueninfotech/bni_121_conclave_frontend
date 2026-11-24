@@ -239,6 +239,9 @@ class _ConclaveList extends StatelessWidget {
     if (conclaves.isEmpty && filtered) {
       return ListView(
         physics: const ClampingScrollPhysics(),
+        // Explicit, or ListView adds the status-bar inset and the chips sit
+        // lower here than on tabs that have conclaves.
+        padding: EdgeInsets.only(bottom: context.floatingNavClearance),
         children: [
           bar,
           SizedBox(height: MediaQuery.sizeOf(context).height * 0.1),
@@ -257,6 +260,9 @@ class _ConclaveList extends StatelessWidget {
     if (conclaves.isEmpty) {
       return ListView(
         physics: const ClampingScrollPhysics(),
+        // Explicit, or ListView adds the status-bar inset and the chips sit
+        // lower here than on tabs that have conclaves.
+        padding: EdgeInsets.only(bottom: context.floatingNavClearance),
         children: [
           bar,
           SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),

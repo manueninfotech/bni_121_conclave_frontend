@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/cool_icons.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../active_conclave/presentation/round/card_backdrop.dart';
-import '../../../active_conclave/presentation/round/deck_footer.dart' show roundPanel;
-import '../../../active_conclave/presentation/round/person_card.dart' show PulseDot;
-import '../../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
+import '../../../active_conclave/presentation/round/deck_footer.dart'
+    show roundPanel;
+import '../../../active_conclave/presentation/round/person_card.dart'
+    show PulseDot;
+import '../../../active_conclave/presentation/round/round_timer.dart'
+    show kDeckBottom;
 import '../../domain/conclave_model.dart';
 import 'date_tile.dart';
 
@@ -20,18 +23,22 @@ class LiveConclaveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = conclave;
-    final round = c.currentRound > 0 ? 'Round ${c.currentRound} of ${c.roundCount}' : 'Starting';
+    final round = c.currentRound > 0
+        ? 'Round ${c.currentRound} of ${c.roundCount}'
+        : 'Starting';
     final (label, route) = c.isRegistered
         ? ('Join round', '/conclaves/${c.id}/active')
         : (c.walkInOpen || c.walkInStatus == 'pending')
-            ? ('Join as walk-in', '/conclaves/${c.id}')
-            : ('View conclave', '/conclaves/${c.id}');
+        ? ('Join as walk-in', '/conclaves/${c.id}')
+        : ('View conclave', '/conclaves/${c.id}');
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: Stack(
         children: [
-          const Positioned.fill(child: CardBackdrop(mood: CardMood.bio, seed: 2.2)),
+          const Positioned.fill(
+            child: CardBackdrop(mood: CardMood.bio, seed: 2.2),
+          ),
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -41,31 +48,51 @@ class LiveConclaveCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const PulseDot(),
-                          const SizedBox(width: 6),
-                          Text('LIVE',
-                              style: context.text.labelSmall?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                              )),
-                        ]),
+                    if (c.coverImage != null) ...[
+                      ConclaveCover(
+                        image: c.coverImage!,
+                        radius: 16,
+                        aspectRatio: 2.4,
                       ),
-                      const SizedBox(width: Gap.sm),
-                      Text(round,
+                      const SizedBox(height: Gap.md),
+                    ],
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const PulseDot(),
+                              const SizedBox(width: 6),
+                              Text(
+                                'LIVE',
+                                style: context.text.labelSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: Gap.sm),
+                        Text(
+                          round,
                           style: context.text.labelLarge?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
-                          )),
-                    ]),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: Gap.md),
                     Text(
                       c.name,
@@ -78,7 +105,11 @@ class LiveConclaveCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: Gap.xs),
-                    _MetaLine(icon: CoolIcons.mapPin, text: c.venueLocation, onDark: true),
+                    _MetaLine(
+                      icon: CoolIcons.mapPin,
+                      text: c.venueLocation,
+                      onDark: true,
+                    ),
                     const SizedBox(height: Gap.lg),
                     SizedBox(
                       width: double.infinity,
@@ -88,8 +119,14 @@ class LiveConclaveCard extends StatelessWidget {
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: kDeckBottom,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          textStyle: const TextStyle(fontFamily: 'PlusJakartaSans', fontWeight: FontWeight.w800, fontSize: 15),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'PlusJakartaSans',
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
                         ),
                         child: Text(label),
                       ),
@@ -128,7 +165,11 @@ class UpcomingConclaveCard extends StatelessWidget {
             children: [
               // The organiser's cover, so a conclave is easy to spot.
               if (c.coverImage != null) ...[
-                ConclaveCover(image: c.coverImage!, radius: 14, aspectRatio: 2.4),
+                ConclaveCover(
+                  image: c.coverImage!,
+                  radius: 14,
+                  aspectRatio: 2.4,
+                ),
                 const SizedBox(height: Gap.md),
               ],
               Row(
@@ -150,8 +191,14 @@ class UpcomingConclaveCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        _MetaLine(icon: CoolIcons.clock, text: conclaveWhen(c.date, c.startTime)),
-                        _MetaLine(icon: CoolIcons.mapPin, text: c.venueLocation),
+                        _MetaLine(
+                          icon: CoolIcons.clock,
+                          text: conclaveWhen(c.date, c.startTime),
+                        ),
+                        _MetaLine(
+                          icon: CoolIcons.mapPin,
+                          text: c.venueLocation,
+                        ),
                       ],
                     ),
                   ),
@@ -163,19 +210,28 @@ class UpcomingConclaveCard extends StatelessWidget {
                   Expanded(child: _UpcomingStatus(conclave: c)),
                   if (canRegister)
                     FilledButton(
-                      onPressed: () => context.push('/conclaves/${c.id}/register'),
+                      onPressed: () =>
+                          context.push('/conclaves/${c.id}/register'),
                       style: FilledButton.styleFrom(
                         backgroundColor: kDeckBottom,
                         foregroundColor: Colors.white,
                         visualDensity: VisualDensity.compact,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        textStyle: const TextStyle(fontFamily: 'PlusJakartaSans', fontWeight: FontWeight.w800),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontFamily: 'PlusJakartaSans',
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       child: const Text('Register'),
                     )
                   else
-                    Icon(CoolIcons.chevronRight, color: context.scheme.onSurfaceVariant),
+                    Icon(
+                      CoolIcons.chevronRight,
+                      color: context.scheme.onSurfaceVariant,
+                    ),
                 ],
               ),
             ],
@@ -196,26 +252,45 @@ class _UpcomingStatus extends StatelessWidget {
     final (IconData icon, String text, Color color) = c.isRegistered
         ? (
             CoolIcons.circleCheckFill,
-            c.userTableNumber != null ? 'Registered  ·  Table ${c.userTableNumber}' : 'Registered',
+            c.userTableNumber != null
+                ? 'Registered  ·  Table ${c.userTableNumber}'
+                : 'Registered',
             context.colors.success,
           )
         : c.canRegister
-            ? (CoolIcons.userCheckCorner, 'Registration open', context.scheme.onSurface)
-            : c.effectiveStatus == ConclaveStatus.registrationNotOpen
-                ? (CoolIcons.clock, 'Registration opens soon', context.scheme.onSurfaceVariant)
-                : (CoolIcons.lock, 'Registration closed', context.scheme.onSurfaceVariant);
-    return Row(children: [
-      Icon(icon, size: 16, color: color),
-      const SizedBox(width: 6),
-      Flexible(
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.text.labelLarge?.copyWith(color: color, fontWeight: FontWeight.w700),
+        ? (
+            CoolIcons.userCheckCorner,
+            'Registration open',
+            context.scheme.onSurface,
+          )
+        : c.effectiveStatus == ConclaveStatus.registrationNotOpen
+        ? (
+            CoolIcons.clock,
+            'Registration opens soon',
+            context.scheme.onSurfaceVariant,
+          )
+        : (
+            CoolIcons.lock,
+            'Registration closed',
+            context.scheme.onSurfaceVariant,
+          );
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 }
 
@@ -235,41 +310,62 @@ class PastConclaveRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => context.push(attended ? '/conclaves/${c.id}/summary' : '/conclaves/${c.id}'),
+        onTap: () => context.push(
+          attended ? '/conclaves/${c.id}/summary' : '/conclaves/${c.id}',
+        ),
         child: Ink(
           padding: const EdgeInsets.all(Gap.md),
           decoration: roundPanel(context),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DateTile(date: c.date, muted: true),
-              const SizedBox(width: Gap.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      c.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              if (c.coverImage != null) ...[
+                ConclaveCover(
+                  image: c.coverImage!,
+                  radius: 14,
+                  aspectRatio: 2.4,
+                ),
+                const SizedBox(height: Gap.md),
+              ],
+              Row(
+                children: [
+                  DateTile(date: c.date, muted: true),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$status  ·  ${c.venueLocation}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.bodySmall?.copyWith(
+                            color: attended ? context.colors.success : muted,
+                            fontWeight: attended
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$status  ·  ${c.venueLocation}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.bodySmall?.copyWith(
-                        color: attended ? context.colors.success : muted,
-                        fontWeight: attended ? FontWeight.w700 : FontWeight.w500,
-                      ),
+                  ),
+                  if (attended) ...[
+                    const SizedBox(width: Gap.sm),
+                    _SummaryPill(
+                      onTap: () => context.push('/conclaves/${c.id}/summary'),
                     ),
                   ],
-                ),
+                ],
               ),
-              if (attended) ...[
-                const SizedBox(width: Gap.sm),
-                _SummaryPill(onTap: () => context.push('/conclaves/${c.id}/summary')),
-              ],
             ],
           ),
         ),
@@ -293,17 +389,24 @@ class _SummaryPill extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(CoolIcons.receipt, size: 16, color: AppColors.brandRed),
-            const SizedBox(width: 6),
-            Text(
-              'Summary',
-              style: context.text.labelLarge?.copyWith(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                CoolIcons.receipt,
+                size: 16,
                 color: AppColors.brandRed,
-                fontWeight: FontWeight.w800,
               ),
-            ),
-          ]),
+              const SizedBox(width: 6),
+              Text(
+                'Summary',
+                style: context.text.labelLarge?.copyWith(
+                  color: AppColors.brandRed,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -314,25 +417,33 @@ class _MetaLine extends StatelessWidget {
   final IconData icon;
   final String text;
   final bool onDark;
-  const _MetaLine({required this.icon, required this.text, this.onDark = false});
+  const _MetaLine({
+    required this.icon,
+    required this.text,
+    this.onDark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final color = onDark ? Colors.white.withValues(alpha: 0.9) : context.scheme.onSurfaceVariant;
+    final color = onDark
+        ? Colors.white.withValues(alpha: 0.9)
+        : context.scheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.only(top: 2),
-      child: Row(children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.bodySmall?.copyWith(color: color),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.bodySmall?.copyWith(color: color),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

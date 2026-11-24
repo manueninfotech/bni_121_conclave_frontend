@@ -1,3 +1,4 @@
+import '../../conclaves/presentation/list/conclave_segments.dart';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/app_refresh.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +9,6 @@ import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/page_kit.dart';
-import '../../../core/widgets/pill_switch.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/my_referrals_repository.dart';
 import 'package:conclave_1_2_1/core/theme/cool_icons.dart';
@@ -220,30 +220,25 @@ class _ReferralsBodyState extends State<_ReferralsBody>
     with SingleTickerProviderStateMixin {
   // One controller drives the pill switch and the swipeable pages, like the
   // Conclaves tabs: tap a pill or swipe the list, and the other follows.
-  late final TabController _tabs = TabController(length: 2, vsync: this)
-    ..addListener(_onTab);
-  var _dir = _Direction.given;
-
-  void _onTab() {
-    final d = _tabs.index == 0 ? _Direction.given : _Direction.received;
-    if (d != _dir) setState(() => _dir = d);
-  }
+  // The segment control listens to the controller itself, so a swipe or tap
+  // never rebuilds this page (or the lists) mid-animation.
+  late final TabController _tabs = TabController(length: 2, vsync: this);
 
   @override
   void dispose() {
-    _tabs
-      ..removeListener(_onTab)
-      ..dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
-  Widget _list(_Direction d) => _ReferralList(
-    key: ValueKey(d),
-    entries: d == _Direction.given ? widget.given : widget.received,
-    direction: d,
-    onRefresh: widget.onRefresh,
-    rupees: widget.rupees,
-    onUpdate: d == _Direction.received ? widget.onUpdate : null,
+  Widget _list(_Direction d) => _KeepAlive(
+    child: _ReferralList(
+      key: ValueKey(d),
+      entries: d == _Direction.given ? widget.given : widget.received,
+      direction: d,
+      onRefresh: widget.onRefresh,
+      rupees: widget.rupees,
+      onUpdate: d == _Direction.received ? widget.onUpdate : null,
+    ),
   );
 
   @override
@@ -259,21 +254,11 @@ class _ReferralsBodyState extends State<_ReferralsBody>
           ),
           child: ContentWidth(
             max: 520,
-            child: PillSwitch<_Direction>(
-              value: _dir,
-              onChanged: (d) =>
-                  _tabs.animateTo(d == _Direction.given ? 0 : 1),
-              options: [
-                PillOption(
-                  _Direction.given,
-                  'Given  ${widget.given.length}',
-                  CoolIcons.arrowUpRight,
-                ),
-                PillOption(
-                  _Direction.received,
-                  'Received  ${widget.received.length}',
-                  CoolIcons.arrowDownLeft,
-                ),
+            child: ConclaveSegments(
+              controller: _tabs,
+              segments: [
+                (label: 'Given', count: widget.given.length),
+                (label: 'Received', count: widget.received.length),
               ],
             ),
           ),
@@ -290,6 +275,28 @@ class _ReferralsBodyState extends State<_ReferralsBody>
 }
 
 enum _Direction { given, received }
+
+/// Keeps a tab's list (and its scroll position) alive while the other tab is
+/// shown, so swiping back doesn't rebuild it or replay its entry animation.
+class _KeepAlive extends StatefulWidget {
+  final Widget child;
+  const _KeepAlive({required this.child});
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
 
 class _ReferralList extends StatelessWidget {
   final List<ReferralEntry> entries;
