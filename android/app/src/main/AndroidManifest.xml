@@ -80,6 +80,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Shared conclave links (www.manuen.com/conclave/c/<id>) open here,
+                 verified by manuen.com/.well-known/assetlinks.json. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="www.manuen.com" android:pathPrefix="/conclave/c/"/>
+            </intent-filter>
+            <!-- Links are handled by SharedLinks (app_links), not Flutter's router. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity>
         <!-- Round alerts: status-bar icon and tint.
              The status bar can only draw a single-colour silhouette — it masks by

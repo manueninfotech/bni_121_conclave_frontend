@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/links/shared_links.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/conclave_calendar.dart';
 import '../../../core/theme/cool_icons.dart';
 import '../../../core/theme/tokens.dart';
@@ -60,6 +63,30 @@ class ConclaveDetailScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The message a member sends: what, when, where, and the link that opens the
+/// conclave in the app (or the store page for someone without it).
+String conclaveShareText(Conclave c) {
+  final day = DateFormat('EEE d MMM').format(c.date.toLocal());
+  final where = c.venueLocation.trim();
+  return 'Join me at ${c.name}, $day${where.isEmpty ? '' : ', $where'}. '
+      'See the details and register on 1-2-1 Connect: '
+      '${SharedLinks.conclave(c.id)}';
+}
+
+Future<void> shareConclave(BuildContext context, Conclave c) {
+  Analytics.conclaveShared(c.id);
+  final box = context.findRenderObject() as RenderBox?;
+  return SharePlus.instance.share(
+    ShareParams(
+      text: conclaveShareText(c),
+      subject: c.name,
+      // iPad needs an anchor for the share sheet.
+      sharePositionOrigin:
+          box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+    ),
+  );
 }
 
 /// A plain bar for the states where there is no conclave to show.
@@ -280,6 +307,11 @@ class _Hero extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                    ),
+                    IconButton(
+                      tooltip: 'Share',
+                      onPressed: () => shareConclave(context, c),
+                      icon: Icon(CoolIcons.share, color: ink),
                     ),
                     IconButton(
                       tooltip: 'Directions',

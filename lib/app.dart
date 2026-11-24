@@ -1,3 +1,4 @@
+import 'core/links/shared_links.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -97,7 +98,11 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
-    refreshListenable: Listenable.merge([navNotifier, lockNotifier]),
+    refreshListenable: Listenable.merge([
+      navNotifier,
+      lockNotifier,
+      SharedLinks.arrived,
+    ]),
     // Logs a screen_view to Analytics on every navigation.
     observers: [Analytics.observer],
     redirect: (context, state) {
@@ -151,6 +156,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             final activePath = '/conclaves/$locked/active';
             return path == activePath ? null : activePath;
           }
+          // A shared link that arrived (possibly before sign-in) opens now.
+          final link = SharedLinks.take();
+          if (link != null && link != path) return link;
           return preAuth.contains(path) ? '/home' : null;
       }
     },
@@ -163,7 +171,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
-        pageBuilder: (context, state) => slidePage(state, const RegisterScreen()),
+        pageBuilder: (context, state) =>
+            slidePage(state, const RegisterScreen()),
       ),
       GoRoute(
         path: '/forgot-password',
@@ -333,6 +342,7 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    SharedLinks.listen();
 
     // Presence instead of auto-logout: members stay signed in, and the app
     // tells the server when it is open so the admin sees who is online.
@@ -535,7 +545,8 @@ class _ConclaveAppState extends ConsumerState<ConclaveApp>
 /// roots keep the instant hand-off they had.
 Page<void> slidePage(GoRouterState state, Widget child) => MaterialPage<void>(
   key: state.pageKey,
-  name: state.name ?? state.path,
+  // Full pattern (/conclaves/:id/register) so Analytics screen names read clearly.
+  name: state.name ?? state.fullPath ?? state.path,
   arguments: <String, String>{
     ...state.pathParameters,
     ...state.uri.queryParameters,

@@ -17,8 +17,9 @@ class Analytics {
   static final FirebaseAnalytics instance = FirebaseAnalytics.instance;
 
   /// Attach to the router so screen_view is logged on every navigation.
-  static final FirebaseAnalyticsObserver observer =
-      FirebaseAnalyticsObserver(analytics: instance);
+  static final FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(
+    analytics: instance,
+  );
 
   static Future<void> _log(String name, [Map<String, Object>? params]) async {
     try {
@@ -45,6 +46,22 @@ class Analytics {
     } catch (_) {}
   }
 
+  /// One step of creating an account, so the funnel shows where people stop:
+  /// otp_sent, otp_verified, profile_saved.
+  static Future<void> signUpStep(String step, String method) =>
+      _log('sign_up_step', {'step': step, 'method': method});
+
+  /// Creating an account failed. [reason] is the message the member saw,
+  /// trimmed to Analytics' 100-character limit.
+  static Future<void> signUpFailed(String step, String method, Object reason) {
+    final r = reason.toString().replaceFirst('Exception: ', '');
+    return _log('sign_up_failed', {
+      'step': step,
+      'method': method,
+      'reason': r.length > 100 ? r.substring(0, 100) : r,
+    });
+  }
+
   static Future<void> login(String method) async {
     try {
       await instance.logLogin(loginMethod: method);
@@ -52,8 +69,13 @@ class Analytics {
   }
 
   // ---- Conclave -----------------------------------------------------------
-  static Future<void> conclaveRegister(String conclaveId, {required bool paid}) =>
-      _log('conclave_register', {'conclave_id': conclaveId, 'paid': paid});
+  static Future<void> conclaveRegister(
+    String conclaveId, {
+    required bool paid,
+  }) => _log('conclave_register', {
+    'conclave_id': conclaveId,
+    'paid': paid ? 1 : 0,
+  });
 
   static Future<void> paymentCompleted(String conclaveId, num amount) =>
       _log('payment_completed', {'conclave_id': conclaveId, 'value': amount});
@@ -62,17 +84,36 @@ class Analytics {
   static Future<void> qrScan(String conclaveId) =>
       _log('qr_scan', {'conclave_id': conclaveId});
 
-  static Future<void> attendanceMarked(String conclaveId, {required bool present}) =>
-      _log('attendance_marked', {'conclave_id': conclaveId, 'present': present});
+  static Future<void> attendanceMarked(
+    String conclaveId, {
+    required bool present,
+  }) => _log('attendance_marked', {
+    'conclave_id': conclaveId,
+    'present': present ? 1 : 0,
+  });
 
   // ---- Referrals ----------------------------------------------------------
   static Future<void> referralPassed() => _log('referral_passed');
+
+  // ---- Sharing and links --------------------------------------------------
+  static Future<void> conclaveShared(String conclaveId) async {
+    try {
+      await instance.logShare(
+        contentType: 'conclave',
+        itemId: conclaveId,
+        method: 'share_sheet',
+      );
+    } catch (_) {}
+  }
+
+  /// A shared link opened the app.
+  static Future<void> linkOpened(String route) =>
+      _log('link_opened', {'route': route});
 
   static Future<void> referralOutcome(String outcome, {num amount = 0}) =>
       _log('referral_outcome', {'outcome': outcome, 'value': amount});
 
   // ---- One-to-ones --------------------------------------------------------
   /// [action] is one of: requested, accepted, declined, cancelled.
-  static Future<void> oneToOne(String action) =>
-      _log('one_to_one_$action');
+  static Future<void> oneToOne(String action) => _log('one_to_one_$action');
 }

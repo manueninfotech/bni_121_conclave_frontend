@@ -223,6 +223,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           .verifyPhone(
             phone: _e164,
             onCodeSent: (verId) {
+              Analytics.signUpStep('otp_sent', 'phone');
               if (!mounted) return;
               setState(() {
                 _verificationId = verId;
@@ -231,6 +232,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               _goTo(1);
             },
             onError: (err) {
+              Analytics.signUpFailed('otp_send', 'phone', err);
               if (!mounted) return;
               setState(() => _isLoading = false);
               _error(err);
@@ -251,10 +253,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           .read(authRepositoryProvider)
           .submitOtp(_verificationId!, _otp.text.trim());
       _otpUser = cred.user;
+      Analytics.signUpStep('otp_verified', 'phone');
       if (!mounted) return;
       setState(() => _isLoading = false);
       _goTo(2);
     } catch (e) {
+      Analytics.signUpFailed('otp_verify', 'phone', e);
       if (mounted) setState(() => _isLoading = false);
       _error(e.toString());
     }
@@ -314,6 +318,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _isLoading = false;
             _resuming = false;
           });
+          Analytics.signUpFailed('profile', 'phone', 'signed-in account missing');
           _error(
             'Please confirm your number again to finish creating your account.',
           );
@@ -349,6 +354,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
 
       Analytics.signUp(_isPhoneFlow ? 'phone' : 'email');
+      Analytics.signUpStep('profile_saved', _isPhoneFlow ? 'phone' : 'email');
       if (!mounted) return;
       if (!_isPhoneFlow) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -362,6 +368,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       // Keep the stack for diagnosis — a bare message like "Null check operator
       // used on a null value" is useless without the line it came from.
       debugPrint('Registration failed: $e\n$st');
+      Analytics.signUpFailed('profile', _isPhoneFlow ? 'phone' : 'email', e);
       _error(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
