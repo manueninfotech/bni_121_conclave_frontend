@@ -167,7 +167,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _region.text = p.region ?? '';
     _lookingFor.text = p.lookingFor;
     _canOffer.text = p.canOffer;
-    _email.text = p.email;
+    _email.text = p.hasRealEmail ? p.email : '';
     _category = bniBusinessCategories.contains(p.businessCategory)
         ? p.businessCategory
         : null;

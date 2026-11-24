@@ -46,7 +46,9 @@ class HomeScreen extends ConsumerWidget {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(bottom: context.floatingNavClearance + Gap.lg),
+          padding: EdgeInsets.only(
+            bottom: context.floatingNavClearance + Gap.lg,
+          ),
           children: [
             _HomeHeader(
               greeting: _greeting(),
@@ -60,6 +62,10 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (profile != null && !profile.hasRealEmail) ...[
+                      const _AddEmailCard(),
+                      const SizedBox(height: Gap.lg),
+                    ],
                     const _NextConclave(),
                     const SizedBox(height: Gap.lg),
                     const _HomeSectionLabel('Your impact'),
@@ -76,6 +82,67 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown until the member has a real email. Phone sign-ups made before the
+/// email field existed have none, and without one nobody can reach them or
+/// help them reset a password.
+class _AddEmailCard extends StatelessWidget {
+  const _AddEmailCard();
+
+  @override
+  Widget build(BuildContext context) {
+    const red = Color(0xFFB00E29);
+    return Material(
+      color: context.scheme.surfaceContainerLowest,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => context.push('/profile/edit'),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: red.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(CoolIcons.mention, size: 20, color: red),
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Add your email',
+                      style: context.text.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'So organisers can reach you and you can reset your password.',
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                CoolIcons.chevronRight,
+                color: context.scheme.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );
