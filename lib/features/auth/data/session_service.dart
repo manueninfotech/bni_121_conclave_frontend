@@ -65,6 +65,7 @@ class SessionService {
   }
 
   Future<void> signOut() async {
+    ApiClient.signedInHint = null;
     await clearSession();
     await _auth.signOut();
   }

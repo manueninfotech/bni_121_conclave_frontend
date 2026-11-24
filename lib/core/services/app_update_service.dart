@@ -37,7 +37,7 @@ class AppUpdateService {
   /// Numeric App Store id for `com.manuen.bniconclave` ("BNI 1-2-1 Conclave").
   static const String _appStoreId = '6809010007';
   static const String _appStoreUrl =
-      'https://apps.apple.com/app/id$_appStoreId';
+      'https://apps.apple.com/in/app/id$_appStoreId';
   static const String _playStoreUrl =
       'https://play.google.com/store/apps/details?id=com.manuen.conclave_1_2_1';
 

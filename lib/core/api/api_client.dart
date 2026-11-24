@@ -21,36 +21,46 @@ class ApiClient {
 
   String? _clientTag;
 
-  late final Dio dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 30),
-      responseType: ResponseType.json,
-    ),
-  )..interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          options.baseUrl = ApiConfig.baseUrl;
-          final user = FirebaseAuth.instance.currentUser;
-          if (user != null) {
-            try {
-              options.headers['Authorization'] = 'Bearer ${await user.getIdToken()}';
-            } catch (e) {
-              debugPrint('Could not get ID token: $e');
-            }
-          }
-          options.headers['X-Client'] = await _tag();
-          handler.next(options);
-        },
-      ),
-    );
+  late final Dio dio =
+      Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 30),
+            sendTimeout: const Duration(seconds: 30),
+            responseType: ResponseType.json,
+          ),
+        )
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) async {
+              options.baseUrl = ApiConfig.baseUrl;
+              // Fall back to the account a sign-in just returned: the cached
+              // currentUser can read null for a moment right after sign-in.
+              final user = FirebaseAuth.instance.currentUser ?? signedInHint;
+              if (user != null) {
+                try {
+                  options.headers['Authorization'] =
+                      'Bearer ${await user.getIdToken()}';
+                } catch (e) {
+                  debugPrint('Could not get ID token: $e');
+                }
+              }
+              options.headers['X-Client'] = await _tag();
+              handler.next(options);
+            },
+          ),
+        );
+
+  /// The account a sign-in just returned, used only while
+  /// `FirebaseAuth.instance.currentUser` has not caught up. Cleared on sign-out.
+  static User? signedInHint;
 
   Future<String> _tag() async {
     if (_clientTag != null) return _clientTag!;
     try {
       final info = await PackageInfo.fromPlatform();
-      _clientTag = 'mobile-app/${info.version}+${info.buildNumber} (${defaultTargetPlatform.name})';
+      _clientTag =
+          'mobile-app/${info.version}+${info.buildNumber} (${defaultTargetPlatform.name})';
     } catch (_) {
       _clientTag = 'mobile-app (${defaultTargetPlatform.name})';
     }
@@ -67,13 +77,25 @@ class ApiClient {
     return List<dynamic>.from(res.data as List);
   }
 
-  Future<Map<String, dynamic>> send(String method, String path, [Object? body]) async {
-    final res = await _guard(() => dio.request(path, data: body, options: Options(method: method)));
+  Future<Map<String, dynamic>> send(
+    String method,
+    String path, [
+    Object? body,
+  ]) async {
+    final res = await _guard(
+      () => dio.request(
+        path,
+        data: body,
+        options: Options(method: method),
+      ),
+    );
     final data = res.data;
     return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }
 
-  static Future<Response<dynamic>> _guard(Future<Response<dynamic>> Function() call) async {
+  static Future<Response<dynamic>> _guard(
+    Future<Response<dynamic>> Function() call,
+  ) async {
     try {
       return await call();
     } on DioException catch (e) {
@@ -90,7 +112,12 @@ class ApiException implements Exception {
   final String? requestId;
   final Map<String, dynamic> details;
 
-  ApiException(this.message, {this.status, this.requestId, this.details = const {}});
+  ApiException(
+    this.message, {
+    this.status,
+    this.requestId,
+    this.details = const {},
+  });
 
   factory ApiException.fromDio(DioException e) {
     final data = e.response?.data;
@@ -102,11 +129,14 @@ class ApiException implements Exception {
         details: Map<String, dynamic>.from(data),
       );
     }
-    final offline = e.type == DioExceptionType.connectionError ||
+    final offline =
+        e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout;
     return ApiException(
-      offline ? "Can't reach the server — check your connection." : 'Something went wrong. Please try again.',
+      offline
+          ? "Can't reach the server — check your connection."
+          : 'Something went wrong. Please try again.',
       status: e.response?.statusCode,
     );
   }

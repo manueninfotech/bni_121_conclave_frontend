@@ -1,3 +1,4 @@
+import 'package:conclave_1_2_1/core/domain/profile_text.dart';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/app_spinner.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -335,9 +336,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           labelText: 'Full name',
                           prefixIcon: Icon(CoolIcons.user),
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Enter your name'
-                            : null,
+                        validator: validateFullName,
                       ),
                       PhoneField(
                         controller: _phone,
@@ -390,9 +389,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           prefixIcon: Icon(CoolIcons.mapPin),
                           helperText: 'e.g. Guntur',
                         ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Enter your location'
-                            : null,
+                        validator: (v) =>
+                            validatePlace(v, empty: 'Enter your location'),
                       ),
                     ],
                   ),

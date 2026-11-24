@@ -37,6 +37,10 @@ class RoundTimer {
   // destination ("Go to Table 3" / "Stay at Table 1 · next group arriving").
   final String? headline;
 
+  /// The table is waiting on the shared clock. The headline then carries a live
+  /// countdown, so it changes every second.
+  final bool waiting;
+
   const RoundTimer({
     required this.phase,
     required this.fg,
@@ -51,6 +55,7 @@ class RoundTimer {
     required this.urgent,
     this.isReferral = false,
     this.headline,
+    this.waiting = false,
   });
 
   double get progress => total.inMilliseconds == 0
@@ -87,29 +92,50 @@ class RoundTimer {
       );
     }
 
-    // In session but nobody's turn: a table one short of full waiting for the
-    // referral slot, or the extra time the organiser added for one-to-ones.
-    if (phase == RoundPhase.active) {
-      final beforeReferrals = now.isBefore(round.referralOpensAt);
-      final ends = beforeReferrals ? round.referralOpensAt : round.activeEndsAt;
+    // A smaller table finishes each pass early: say so, with the time left, so
+    // nobody takes the quiet minute for a stuck app.
+    final wait = phase == RoundPhase.active ? round.waitAt(now) : null;
+    if (wait != null) {
+      final remaining = wait.remainingAt(now);
+      final forReferrals = wait.kind == TableWaitKind.forReferrals;
       return RoundTimer(
         phase: phase,
         fg: c.onSuccessContainer,
         bg: c.successContainer,
-        icon: beforeReferrals
-            ? CoolIcons.hourglass
-            : CoolIcons.chatConversation,
-        kicker: beforeReferrals ? 'Referrals start soon' : 'Extra time',
-        remaining: ends.difference(now).isNegative
-            ? Duration.zero
-            : ends.difference(now),
-        total: beforeReferrals
-            ? round.timing.referralOpensAfter
-            : round.activeEndsAt.difference(round.referralClosesAt),
-        nowName: beforeReferrals ? null : 'One-to-ones',
+        icon: CoolIcons.hourglass,
+        kicker: forReferrals ? 'Short wait' : 'Waiting for other tables',
+        remaining: remaining,
+        total: wait.length,
+        nowName: null,
         selfNow: false,
         nextName: null,
         urgent: false,
+        waiting: true,
+        headline: forReferrals
+            ? 'Your table has fewer members, so you have a short wait. '
+                  'Referrals start in ${roundMmss(remaining)}.'
+            : 'Your table finished first. Other tables finish in '
+                  '${roundMmss(remaining)}. You can still pass a referral.',
+      );
+    }
+
+    // In session with nobody's turn and no wait: the extra time the organiser
+    // added for one-to-ones.
+    if (phase == RoundPhase.active) {
+      final left = round.activeEndsAt.difference(now);
+      return RoundTimer(
+        phase: phase,
+        fg: c.onSuccessContainer,
+        bg: c.successContainer,
+        icon: CoolIcons.chatConversation,
+        kicker: 'Extra time',
+        remaining: left.isNegative ? Duration.zero : left,
+        total: round.activeEndsAt.difference(round.referralClosesAt),
+        nowName: null,
+        selfNow: false,
+        nextName: null,
+        urgent: false,
+        headline: 'Extra time. Talk one-to-one with your table.',
       );
     }
 

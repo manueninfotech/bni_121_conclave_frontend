@@ -73,10 +73,12 @@ class NowBand extends StatelessWidget {
               ),
               child: Text(
                 message,
-                key: ValueKey(message),
+                // A wait's countdown ticks in place instead of cross-fading.
+                key: ValueKey(vm.waiting ? vm.kicker : message),
                 style: context.text.bodyMedium?.copyWith(
                   color: context.scheme.onSurface,
                   fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),

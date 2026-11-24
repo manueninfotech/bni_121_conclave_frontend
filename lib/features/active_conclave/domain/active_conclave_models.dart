@@ -99,7 +99,9 @@ class ScheduleRound {
     return ScheduleRound(
       roundNumber: (m['roundNumber'] as num).toInt(),
       tables: ((m['tables'] as List?) ?? const [])
-          .map((e) => ScheduleTable.fromMap(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) => ScheduleTable.fromMap(Map<String, dynamic>.from(e as Map)),
+          )
           .toList(),
     );
   }
@@ -142,7 +144,9 @@ class ConclaveSchedule {
     final byParticipantId = <int, ScheduleParticipant>{};
     final participantIdByUid = <String, int>{};
     for (final p in rawParticipants) {
-      final parsed = ScheduleParticipant.fromMap(Map<String, dynamic>.from(p as Map));
+      final parsed = ScheduleParticipant.fromMap(
+        Map<String, dynamic>.from(p as Map),
+      );
       byParticipantId[parsed.participantId] = parsed;
       if (parsed.uid.isNotEmpty) {
         participantIdByUid[parsed.uid] = parsed.participantId;
@@ -247,6 +251,37 @@ class SpeakingTurn {
       !now.isBefore(startsAt) && now.isBefore(endsAt);
 
   /// Time left in this turn; zero once it has elapsed.
+  Duration remainingAt(DateTime now) {
+    final r = endsAt.difference(now);
+    return r.isNegative ? Duration.zero : r;
+  }
+}
+
+/// Why a table has nobody speaking while the round is still running.
+enum TableWaitKind {
+  /// Its bios are done, and the shared referral slot has not opened yet.
+  forReferrals,
+
+  /// Its referrals are done, and larger tables are still on theirs.
+  forOtherTables,
+}
+
+/// The pause a table smaller than the largest one gets. Every table shares one
+/// clock sized by the largest table, so a smaller table finishes each pass early.
+class TableWait {
+  final TableWaitKind kind;
+  final DateTime startsAt;
+  final DateTime endsAt;
+
+  const TableWait({
+    required this.kind,
+    required this.startsAt,
+    required this.endsAt,
+  });
+
+  Duration get length => endsAt.difference(startsAt);
+
+  /// Time left in this wait; zero once it has elapsed.
   Duration remainingAt(DateTime now) {
     final r = endsAt.difference(now);
     return r.isNegative ? Duration.zero : r;
@@ -444,24 +479,28 @@ class ActiveRound {
     final turns = <SpeakingTurn>[];
     var cursor = startTime;
     for (var i = 0; i < order.length; i++) {
-      turns.add(SpeakingTurn(
-        speaker: order[i],
-        order: i + 1,
-        kind: TurnKind.bio,
-        startsAt: cursor,
-        length: timing.bio,
-      ));
+      turns.add(
+        SpeakingTurn(
+          speaker: order[i],
+          order: i + 1,
+          kind: TurnKind.bio,
+          startsAt: cursor,
+          length: timing.bio,
+        ),
+      );
       cursor = cursor.add(timing.bio);
     }
     cursor = referralOpensAt;
     for (var i = 0; i < order.length; i++) {
-      turns.add(SpeakingTurn(
-        speaker: order[i],
-        order: i + 1,
-        kind: TurnKind.referral,
-        startsAt: cursor,
-        length: timing.referral,
-      ));
+      turns.add(
+        SpeakingTurn(
+          speaker: order[i],
+          order: i + 1,
+          kind: TurnKind.referral,
+          startsAt: cursor,
+          length: timing.referral,
+        ),
+      );
       cursor = cursor.add(timing.referral);
     }
     return turns;
@@ -472,6 +511,31 @@ class ActiveRound {
     if (phaseAt(now) != RoundPhase.active) return null;
     for (final t in speakingTurns) {
       if (t.containsAt(now)) return t;
+    }
+    return null;
+  }
+
+  /// The wait this table is in at [now], or null when someone is speaking, the
+  /// round is in its extra time, or talking time is over.
+  TableWait? waitAt(DateTime now) {
+    if (phaseAt(now) != RoundPhase.active || now.isBefore(startTime)) {
+      return null;
+    }
+    final order = speakingOrder;
+    if (order.isEmpty || currentTurnAt(now) != null) return null;
+    if (now.isBefore(referralOpensAt)) {
+      return TableWait(
+        kind: TableWaitKind.forReferrals,
+        startsAt: startTime.add(timing.bio * order.length),
+        endsAt: referralOpensAt,
+      );
+    }
+    if (now.isBefore(referralClosesAt)) {
+      return TableWait(
+        kind: TableWaitKind.forOtherTables,
+        startsAt: referralOpensAt.add(timing.referral * order.length),
+        endsAt: referralClosesAt,
+      );
     }
     return null;
   }
@@ -487,8 +551,7 @@ class ActiveRound {
   /// 1-based speaking position of a seat (the captain is last).
   int orderNumberOf(TableSeat seat) {
     final order = speakingOrder;
-    final idx =
-        order.indexWhere((s) => s.participantId == seat.participantId);
+    final idx = order.indexWhere((s) => s.participantId == seat.participantId);
     return idx < 0 ? order.length : idx + 1;
   }
 }

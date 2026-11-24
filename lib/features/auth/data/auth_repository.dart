@@ -34,6 +34,7 @@ class AuthRepository {
     required String businessName,
     required String businessCategory,
     required String location,
+
     /// The number we ask for even though they signed up by email — the admin
     /// needs to be able to call people on the day.
     required String phone,
@@ -56,7 +57,13 @@ class AuthRepository {
 
       // 2. Save the profile on the backend
       await _saveProfile(
-        user.uid, email, name, businessName, businessCategory, location, chapter,
+        user.uid,
+        email,
+        name,
+        businessName,
+        businessCategory,
+        location,
+        chapter,
         email: email,
         phone: phone,
         region: region,
@@ -80,6 +87,7 @@ class AuthRepository {
     required String businessName,
     required String businessCategory,
     required String location,
+
     /// The address we ask for even though they signed up by phone — without it
     /// there is no way to reach them, and no way to ever reset their password.
     required String email,
@@ -94,7 +102,10 @@ class AuthRepository {
       // separately is exactly how "9515409973" and "+919515409973" became two
       // different accounts.
       final pseudoEmail = Phone.toAuthEmail(phone);
-      final credential = EmailAuthProvider.credential(email: pseudoEmail, password: password);
+      final credential = EmailAuthProvider.credential(
+        email: pseudoEmail,
+        password: password,
+      );
       try {
         await user.linkWithCredential(credential);
       } on FirebaseAuthException catch (e) {
@@ -112,7 +123,13 @@ class AuthRepository {
       // Save profile. `identifier` stays the synthetic address (that IS how they
       // sign in); the real email is stored separately.
       await _saveProfile(
-        user.uid, pseudoEmail, name, businessName, businessCategory, location, chapter,
+        user.uid,
+        pseudoEmail,
+        name,
+        businessName,
+        businessCategory,
+        location,
+        chapter,
         email: email,
         phone: phone,
         region: region,
@@ -174,17 +191,22 @@ class AuthRepository {
   /// ten digits is ambiguous and this app is going international.
   Future<void> login(String identifier, String password) async {
     try {
-      final isPhone = identifier.startsWith('+') || Phone.looksLikePhone(identifier);
-      final loginEmail =
-          isPhone ? Phone.toAuthEmail(identifier) : identifier;
+      final isPhone =
+          identifier.startsWith('+') || Phone.looksLikePhone(identifier);
+      final loginEmail = isPhone ? Phone.toAuthEmail(identifier) : identifier;
 
-      final userCred = await _auth.signInWithEmailAndPassword(email: loginEmail, password: password);
+      final userCred = await _auth.signInWithEmailAndPassword(
+        email: loginEmail,
+        password: password,
+      );
       final user = userCred.user;
 
       // If it was a real email login, enforce email verification
       if (!isPhone && user != null && !user.emailVerified) {
         await _auth.signOut();
-        throw Exception("Please verify your email before logging in. Check your inbox.");
+        throw Exception(
+          "Please verify your email before logging in. Check your inbox.",
+        );
       }
 
       // Starts the auto-logout clock, and marks the user active for the admin's
@@ -215,13 +237,17 @@ class AuthRepository {
     );
   }
 
-  Future<UserCredential> submitOtp(String verificationId, String smsCode) async {
+  Future<UserCredential> submitOtp(
+    String verificationId,
+    String smsCode,
+  ) async {
     try {
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: verificationId,
         smsCode: smsCode,
       );
       final cred = await _auth.signInWithCredential(credential);
+      ApiClient.signedInHint = cred.user;
 
       // OTP has just signed them in — but they are only PARTWAY through
       // registration (the profile and password come next). Record the login
@@ -250,17 +276,24 @@ class AuthRepository {
     final UserCredential cred;
     try {
       cred = await _auth.signInWithCredential(
-        PhoneAuthProvider.credential(verificationId: verificationId, smsCode: smsCode),
+        PhoneAuthProvider.credential(
+          verificationId: verificationId,
+          smsCode: smsCode,
+        ),
       );
     } on FirebaseAuthException catch (e) {
-      throw Exception(e.code == 'invalid-verification-code'
-          ? 'That code is not right. Check the SMS and try again.'
-          : (e.message ?? 'Could not verify the code.'));
+      throw Exception(
+        e.code == 'invalid-verification-code'
+            ? 'That code is not right. Check the SMS and try again.'
+            : (e.message ?? 'Could not verify the code.'),
+      );
     }
     final user = cred.user;
     if (user == null) throw Exception('Could not verify the code.');
 
-    final hasPassword = user.providerData.any((p) => p.providerId == 'password');
+    final hasPassword = user.providerData.any(
+      (p) => p.providerId == 'password',
+    );
     if (!hasPassword) {
       // A brand-new, empty sign-in: there was no account for this number.
       try {
@@ -274,9 +307,11 @@ class AuthRepository {
       await user.updatePassword(newPassword);
     } on FirebaseAuthException catch (e) {
       await _session.signOut();
-      throw Exception(e.code == 'weak-password'
-          ? 'Choose a stronger password (at least 6 characters).'
-          : (e.message ?? 'Could not set the new password.'));
+      throw Exception(
+        e.code == 'weak-password'
+            ? 'Choose a stronger password (at least 6 characters).'
+            : (e.message ?? 'Could not set the new password.'),
+      );
     }
     await _session.recordLogin();
   }

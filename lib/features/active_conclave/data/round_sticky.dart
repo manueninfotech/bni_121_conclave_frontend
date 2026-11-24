@@ -92,12 +92,17 @@ String stickyLineFor(ActiveRound round, DateTime now) {
     if (turn != null) {
       final who = turn.speaker.isSelf
           ? (turn.kind == TurnKind.bio
-              ? 'Your turn to speak'
-              : 'Your turn to give a referral')
+                ? 'Your turn to speak'
+                : 'Your turn to give a referral')
           : 'Now: ${turn.speaker.name}';
       return '$who · ${turn.kind == TurnKind.bio ? 'Bio' : 'Referrals'}';
     }
-    if (now.isBefore(round.referralOpensAt)) return 'Referrals start soon';
+    final wait = round.waitAt(now);
+    if (wait != null) {
+      return wait.kind == TableWaitKind.forReferrals
+          ? 'Short wait · referrals start soon'
+          : 'Waiting for other tables';
+    }
     return 'Extra time · one-to-ones';
   }
 

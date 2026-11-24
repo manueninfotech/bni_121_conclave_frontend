@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/domain/phone.dart';
+import '../../../core/domain/profile_text.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/category_picker.dart';
@@ -69,6 +70,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Country _altCountry = defaultCountry;
 
   String? _verificationId;
+
+  /// The account the OTP signed in. Kept here because
+  /// `FirebaseAuth.instance.currentUser` can briefly read null right after a
+  /// sign-in, which used to end the registration with "session ended".
+  User? _otpUser;
   String? _category;
   bool _isLoading = false;
   bool _obscure = true;
@@ -239,15 +245,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ref
+      final cred = await ref
           .read(authRepositoryProvider)
           .submitOtp(_verificationId!, _otp.text.trim());
+      _otpUser = cred.user;
       if (!mounted) return;
       setState(() => _isLoading = false);
       _goTo(2);
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
       _error(e.toString());
+    }
+  }
+
+  /// The signed-in account for the phone flow. Firebase's cached user can read
+  /// null for a moment after sign-in (seen at the 20 Nov conclave), so fall back
+  /// to the account the OTP returned, then wait briefly for the auth state.
+  Future<User?> _signedInUser() async {
+    final auth = FirebaseAuth.instance;
+    final now = auth.currentUser ?? _otpUser;
+    if (now != null) return now;
+    try {
+      return await auth
+          .authStateChanges()
+          .firstWhere((u) => u != null)
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {
+      return auth.currentUser;
     }
   }
 
@@ -280,14 +304,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         // profile was saved (a long pause on this form, or a cold reopen after
         // the session expired). Recover with a clear message instead of crashing
         // on a null `currentUser`.
-        final user = FirebaseAuth.instance.currentUser;
+        final user = await _signedInUser();
         if (user == null) {
-          setState(() => _isLoading = false);
+          // Genuinely signed out. Leave them where they are (no sign-out, which
+          // threw away everything they typed) and send them back to the OTP.
+          setState(() {
+            _isLoading = false;
+            _resuming = false;
+          });
           _error(
-            'Your verification session ended before we could finish. '
-            'Please register again with the same number.',
+            'Please confirm your number again to finish creating your account.',
           );
-          await ref.read(authRepositoryProvider).logout();
+          _goTo(0);
           return;
         }
         await repo.registerProfileForPhoneUser(
@@ -757,8 +785,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   labelText: 'Full name',
                   prefixIcon: Icon(CoolIcons.user),
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                validator: validateFullName,
               ),
               const SizedBox(height: Gap.md),
               TextFormField(
@@ -791,8 +818,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   hintText: 'e.g. Guntur',
                   prefixIcon: Icon(CoolIcons.mapPin),
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Enter your city' : null,
+                validator: validatePlace,
               ),
             ],
           ),
