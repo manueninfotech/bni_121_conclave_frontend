@@ -45,9 +45,10 @@ class AppConfig {
 }
 
 final appConfigProvider = StreamProvider<AppConfig>((ref) {
-  // Signed-in only (the endpoint needs a token); re-subscribe on account change.
-  final uid = ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
-  if (uid == null) return const Stream.empty();
+  // Public endpoint: loads signed out too, so email sign-up (which creates the
+  // account only after the form) still gets the chapter list. Re-subscribes
+  // on account change, since the device cache is kept per account.
+  ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
   return cachedStream<AppConfig>(
     cacheKey: 'app-config',
     fetch: () => ApiClient.instance.getJson('/app-config'),
