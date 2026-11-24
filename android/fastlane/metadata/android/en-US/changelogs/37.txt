@@ -1,0 +1,6 @@
+What's new in 1.5.1
+
+- Fixed: creating an account could stop with "session ended" right after you verified your number
+- Smaller tables now see a short-wait countdown during a round, so a quiet minute no longer looks like the app is stuck
+- Your name and city must be real details
+- Fixes and polish
