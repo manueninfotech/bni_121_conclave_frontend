@@ -17,6 +17,7 @@ import 'package:conclave_1_2_1/features/auth/data/auth_repository.dart';
 import 'package:conclave_1_2_1/features/conclaves/data/conclave_repository.dart';
 import 'package:conclave_1_2_1/features/conclaves/domain/conclave_model.dart';
 import 'package:conclave_1_2_1/features/conclaves/presentation/conclave_detail_screen.dart';
+import 'package:conclave_1_2_1/features/conclaves/presentation/conclave_images.dart';
 import 'package:conclave_1_2_1/features/conclaves/presentation/conclaves_list_screen.dart';
 import 'package:conclave_1_2_1/features/home/presentation/home_screen.dart';
 import 'package:conclave_1_2_1/features/members/data/my_referrals_repository.dart';
@@ -262,6 +263,8 @@ final _overrides = [
                 rounds: [s.participantId % 6 + 1],
               ),
           ]),
+      // The conclave page's live cover/flyer stream: no network in tests.
+      conclaveMediaProvider.overrideWith((ref, id) => const Stream.empty()),
     ];
 
 /// A tab root with the floating tab bar over it, as in the app.

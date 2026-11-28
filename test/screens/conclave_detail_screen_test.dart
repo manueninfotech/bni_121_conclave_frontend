@@ -1,6 +1,7 @@
 // Renders the conclave page to PNGs for design review (no device needed):
 //   flutter test test/screens/conclave_detail_screen_test.dart --update-goldens
 // Images land in test/screens/goldens/.
+import 'package:conclave_1_2_1/features/conclaves/presentation/conclave_images.dart';
 import 'dart:io';
 
 import 'package:conclave_1_2_1/core/theme/app_theme.dart';
@@ -61,6 +62,8 @@ void main() {
 
       await tester.pumpWidget(ProviderScope(
         overrides: [
+          // The page's live cover/flyer stream: no network in tests.
+          conclaveMediaProvider.overrideWith((ref, id) => const Stream.empty()),
           conclavesStreamProvider.overrideWith(
             (ref) => Stream.value([_conclave(status, registered: registered)]),
           ),

@@ -1,3 +1,4 @@
+import '../../profile/data/profile_repository.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -71,6 +72,13 @@ final membersRepositoryProvider = Provider<MembersRepository>((ref) {
 /// The whole directory. Re-fetches when the signed-in user changes.
 final membersProvider = FutureProvider<List<Member>>((ref) {
   ref.watch(authStateProvider.select((a) => a.asData?.value?.uid));
+  // Your own row reflects your profile at once: a new photo, name, business
+  // or category reloads the directory (it used to wait up to 2 minutes, or a
+  // restart).
+  ref.watch(myProfileProvider.select((p) {
+    final me = p.asData?.value;
+    return (me?.photoUrl, me?.name, me?.businessName, me?.businessCategory);
+  }));
   // No pull-to-refresh in the app: refresh quietly in the background. Screens
   // keep showing the last data while it reloads (no spinner, no flash).
   final timer = Timer(const Duration(seconds: 120), ref.invalidateSelf);

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/domain/profile_text.dart';
 import '../../../core/services/analytics_service.dart';
@@ -369,6 +370,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       Future.delayed(const Duration(seconds: 8), () {
         if (mounted) setState(() => _isLoading = false);
       });
+    } on ApiException catch (e) {
+      // The number or email already belongs to another live account (the
+      // server allows one profile per person). The code check just made an
+      // empty login for this number: remove it, so it can't become a second
+      // account, and send the member to sign in to the one they have.
+      Analytics.signUpFailed('profile', _isPhoneFlow ? 'phone' : 'email', e.message);
+      if (e.status == 409) {
+        // Both flows just created this login (OTP, or email + password).
+        try {
+          await FirebaseAuth.instance.currentUser?.delete();
+        } catch (_) {}
+        await ref.read(authRepositoryProvider).logout();
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        await showAppNotice(
+          context,
+          icon: CoolIcons.userCheckCorner,
+          title: 'You already have an account',
+          message: e.message,
+          okLabel: 'Go to sign in',
+        );
+        if (mounted) context.go('/login');
+        return;
+      }
+      _error(e.message);
+      if (mounted) setState(() => _isLoading = false);
     } catch (e, st) {
       // Keep the stack for diagnosis — a bare message like "Null check operator
       // used on a null value" is useless without the line it came from.

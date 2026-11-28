@@ -75,6 +75,8 @@ class AuthRepository {
       await _session.recordLogin();
     } on FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Authentication failed');
+    } on ApiException {
+      rethrow; // the server's own message (e.g. one profile per person)
     } catch (e) {
       throw Exception('Failed to register: $e');
     }

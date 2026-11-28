@@ -1,3 +1,4 @@
+import 'core/app_redirect.dart';
 import 'core/links/shared_links.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -59,26 +60,24 @@ import 'core/widgets/scaffold_with_nav.dart';
 /// profile value. Riverpod rebuilds a dependent only after its inputs are up to
 /// date, so when auth flips to a user, [myProfileProvider] is already showing
 /// this user's loading state here, not the last one's null.
-enum _NavState { authLoading, signedOut, profileLoading, needsProfile, ready }
-
-final _navStateProvider = Provider<_NavState>((ref) {
+final _navStateProvider = Provider<NavState>((ref) {
   final auth = ref.watch(authStateProvider);
-  if (auth.isLoading) return _NavState.authLoading;
-  if (auth.value == null) return _NavState.signedOut;
+  if (auth.isLoading) return NavState.authLoading;
+  if (auth.value == null) return NavState.signedOut;
 
   final profile = ref.watch(myProfileProvider);
   return profile.when(
     // Auth is known — don't keep the user on the splash just because their
     // profile is still loading. Send them to the app; it fills in when ready.
-    loading: () => _NavState.profileLoading,
-    error: (_, _) => _NavState.profileLoading,
-    data: (p) => p == null ? _NavState.needsProfile : _NavState.ready,
+    loading: () => NavState.profileLoading,
+    error: (_, _) => NavState.profileLoading,
+    data: (p) => p == null ? NavState.needsProfile : NavState.ready,
   );
 });
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final navNotifier = ValueNotifier<_NavState>(_NavState.authLoading);
-  ref.listen<_NavState>(
+  final navNotifier = ValueNotifier<NavState>(NavState.authLoading);
+  ref.listen<NavState>(
     _navStateProvider,
     (_, next) => navNotifier.value = next,
     fireImmediately: true,
@@ -105,69 +104,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     ]),
     // Logs a screen_view to Analytics on every navigation.
     observers: [Analytics.observer],
-    redirect: (context, state) {
-      final navState = navNotifier.value;
-      final path = state.uri.path;
-      final seenOnboarding = ref.read(onboardingSeenProvider);
-
-      const preAuth = {'/', '/login', '/onboarding'};
-
-      switch (navState) {
-        case _NavState.authLoading:
-          // The ONLY time we hold on the splash — the brief check of whether
-          // anyone is signed in. Everything else routes into the app.
-          return path == '/' ? null : '/';
-
-        case _NavState.signedOut:
-          if (!seenOnboarding) {
-            return path == '/onboarding' ? null : '/onboarding';
-          }
-          const authScreens = {
-            '/login',
-            '/register',
-            '/onboarding',
-            '/forgot-password',
-          };
-          return authScreens.contains(path) ? null : '/login';
-
-        case _NavState.profileLoading:
-          // Signed in; profile still loading. Head to home optimistically —
-          // if it turns out there's no profile, needsProfile routes on to
-          // /register next. Leaving them on /register mid-registration stands.
-          if (path == '/register') return null;
-          return preAuth.contains(path) ? '/home' : null;
-
-        case _NavState.needsProfile:
-          // Authenticated but no profile doc — an interrupted registration.
-          // Send them back to finish it (the register screen resumes at the
-          // profile step). Never move them off /register while they do.
-          // A forgot-password check signs in briefly to find "no account" and
-          // signs straight out again — don't bounce it to /register meanwhile.
-          if (path == '/forgot-password') return null;
-          return path == '/register' ? null : '/register';
-
-        case _NavState.ready:
-          // A member with a profile never belongs on sign-up: the moment the
-          // profile is known (right after Create account), move on to home.
-          // Rapido-style lock: while a round the member is seated in is live,
-          // the active-round screen is the ONLY reachable place. Any other route
-          // — a tab, a deep link, a back-pop landing elsewhere — is redirected
-          // straight back to it until the conclave ends and the lock releases.
-          final locked = lockNotifier.value;
-          if (locked != null) {
-            // During a live round the round screen is the only place to be;
-            // a queued link or notification would surface later, out of
-            // context, so it is dropped.
-            SharedLinks.take();
-            final activePath = '/conclaves/$locked/active';
-            return path == activePath ? null : activePath;
-          }
-          // A shared link that arrived (possibly before sign-in) opens now.
-          final link = SharedLinks.take();
-          if (link != null && link != path) return link;
-          return preAuth.contains(path) || path == '/register' ? '/home' : null;
-      }
-    },
+    redirect: (context, state) => appRedirect(
+      nav: navNotifier.value,
+      path: state.uri.path,
+      seenOnboarding: ref.read(onboardingSeenProvider),
+      lockedConclaveId: lockNotifier.value,
+      takeLink: SharedLinks.take,
+    ),
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(
