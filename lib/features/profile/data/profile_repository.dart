@@ -130,6 +130,11 @@ class ProfileRepository {
   /// so an edit shows up immediately (not on the next periodic refresh).
   static final _changed = StreamController<void>.broadcast();
 
+  /// Refetch the profile now. Called right after sign-up saves it: until the
+  /// app knows the profile exists, the router keeps the member on /register
+  /// (that was the "Create account does nothing" loop).
+  static void refresh() => _changed.add(null);
+
   /// Uploads a new profile photo (JPEG). The server stores it, records the
   /// link on the profile, deletes the previous photo, and audits the change.
   Future<void> uploadAvatar(XFile file) async {

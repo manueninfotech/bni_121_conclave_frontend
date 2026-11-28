@@ -147,6 +147,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return path == '/register' ? null : '/register';
 
         case _NavState.ready:
+          // A member with a profile never belongs on sign-up: the moment the
+          // profile is known (right after Create account), move on to home.
           // Rapido-style lock: while a round the member is seated in is live,
           // the active-round screen is the ONLY reachable place. Any other route
           // — a tab, a deep link, a back-pop landing elsewhere — is redirected
@@ -163,7 +165,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // A shared link that arrived (possibly before sign-in) opens now.
           final link = SharedLinks.take();
           if (link != null && link != path) return link;
-          return preAuth.contains(path) ? '/home' : null;
+          return preAuth.contains(path) || path == '/register' ? '/home' : null;
       }
     },
     routes: [

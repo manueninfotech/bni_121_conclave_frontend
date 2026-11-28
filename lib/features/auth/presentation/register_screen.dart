@@ -364,13 +364,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
       context.go('/conclaves');
+      // Safety net: if the profile reload can't get through (weak signal),
+      // don't leave the button spinning forever.
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted) setState(() => _isLoading = false);
+      });
     } catch (e, st) {
       // Keep the stack for diagnosis — a bare message like "Null check operator
       // used on a null value" is useless without the line it came from.
       debugPrint('Registration failed: $e\n$st');
       Analytics.signUpFailed('profile', _isPhoneFlow ? 'phone' : 'email', e);
       _error(e.toString());
-    } finally {
+      // Only on failure: after a save the spinner stays until the app moves
+      // on to Home, so the button can't be tapped twice in that second.
       if (mounted) setState(() => _isLoading = false);
     }
   }

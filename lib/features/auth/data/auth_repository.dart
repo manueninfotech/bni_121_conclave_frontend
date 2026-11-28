@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/domain/phone.dart';
+import '../../profile/data/profile_repository.dart';
 import 'session_service.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -169,7 +170,7 @@ class AuthRepository {
   }) async {
     // PUT /me creates the profile on first save. The sign-in identifier is
     // taken by the server from the verified login, not from this request.
-    await ApiClient.instance.send('PUT', '/me', {
+    final saved = ApiClient.instance.send('PUT', '/me', {
       'email': email.trim().toLowerCase(),
       'phone': phone.trim(),
       'name': name,
@@ -182,6 +183,9 @@ class AuthRepository {
       'membership': membership,
       'country': 'India',
     });
+    await saved;
+    // Tell the app the profile now exists, so it leaves the sign-up screen.
+    ProfileRepository.refresh();
   }
 
   /// Signs in.
