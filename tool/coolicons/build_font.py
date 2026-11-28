@@ -61,7 +61,17 @@ fb = FontBuilder(UPM, isTTF=True)
 fb.setupGlyphOrder(order)
 fb.setupCharacterMap(cmap)
 fb.setupGlyf(outlines)
-fb.setupHorizontalMetrics({g: (UPM, 0) for g in order})
+# The left side bearing MUST equal each glyph's xMin. With 0, renderers shift
+# the outline left to line up with the bearing, which put every icon 2-3 px
+# left of centre (seen on the round and notification screens).
+def _lsb(g):
+    glyph = outlines[g]
+    if not hasattr(glyph, "coordinates") or len(glyph.coordinates) == 0:
+        return 0
+    return min(x for x, _ in glyph.coordinates)
+
+
+fb.setupHorizontalMetrics({g: (UPM, _lsb(g)) for g in order})
 fb.setupHorizontalHeader(ascent=UPM, descent=0)
 # A complete name table: App Store Connect rejects a font missing the full,
 # PostScript, version or unique-ID names (ITMS-90853 "'name' table usability").

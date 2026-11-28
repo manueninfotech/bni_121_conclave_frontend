@@ -1,5 +1,6 @@
 // Renders the create-account steps for design review:
 //   flutter test test/screens/register_screen_test.dart --update-goldens
+import 'package:conclave_1_2_1/core/config/app_config_provider.dart';
 import 'dart:io';
 
 import 'package:conclave_1_2_1/core/theme/app_theme.dart';
@@ -28,6 +29,8 @@ void main() {
       tester.view.padding = const FakeViewPadding(top: 59 * 3, bottom: 34 * 3);
       addTearDown(tester.view.reset);
       await tester.pumpWidget(ProviderScope(
+        // App settings load before sign-in now; no network in tests.
+        overrides: [appConfigProvider.overrideWith((ref) => const Stream.empty())],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
@@ -50,6 +53,7 @@ void main() {
     tester.view.padding = const FakeViewPadding(top: 59 * 3, bottom: 34 * 3);
     addTearDown(tester.view.reset);
     await tester.pumpWidget(ProviderScope(
+      overrides: [appConfigProvider.overrideWith((ref) => const Stream.empty())],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),

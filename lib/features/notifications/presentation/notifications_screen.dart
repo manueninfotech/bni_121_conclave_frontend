@@ -125,7 +125,7 @@ class _NotificationRow extends StatelessWidget {
     final when = n.createdAt == null ? '' : _ago(n.createdAt!);
 
     return InkWell(
-      onTap: () => openFromNotification(n.data),
+      onTap: () => openFromNotification(n.data, fromList: true),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 14),
         child: Row(

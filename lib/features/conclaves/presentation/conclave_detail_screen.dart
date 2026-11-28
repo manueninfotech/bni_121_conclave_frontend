@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/links/shared_links.dart';
+import '../../../core/services/analytics_service.dart';
 import '../../../core/services/conclave_calendar.dart';
 import '../../../core/theme/cool_icons.dart';
 import '../../../core/theme/tokens.dart';
@@ -14,6 +17,7 @@ import '../../active_conclave/presentation/round/deck_footer.dart' show roundPan
 import '../../active_conclave/presentation/round/round_timer.dart' show kDeckBottom;
 import '../data/conclave_repository.dart';
 import '../domain/conclave_model.dart';
+import 'conclave_images.dart';
 import 'specific_ask_card.dart';
 import 'walk_in_action.dart';
 
@@ -62,6 +66,30 @@ class ConclaveDetailScreen extends ConsumerWidget {
   }
 }
 
+/// The message a member sends: what, when, where, and the link that opens the
+/// conclave in the app (or the store page for someone without it).
+String conclaveShareText(Conclave c) {
+  final day = DateFormat('EEE d MMM').format(c.date.toLocal());
+  final where = c.venueLocation.trim();
+  return 'Join me at ${c.name}, $day${where.isEmpty ? '' : ', $where'}. '
+      'See the details and register on 1-2-1 Connect: '
+      '${SharedLinks.conclave(c.id)}';
+}
+
+Future<void> shareConclave(BuildContext context, Conclave c) {
+  Analytics.conclaveShared(c.id);
+  final box = context.findRenderObject() as RenderBox?;
+  return SharePlus.instance.share(
+    ShareParams(
+      text: conclaveShareText(c),
+      subject: c.name,
+      // iPad needs an anchor for the share sheet.
+      sharePositionOrigin:
+          box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+    ),
+  );
+}
+
 /// A plain bar for the states where there is no conclave to show.
 class _Shell extends StatelessWidget {
   final Widget child;
@@ -81,13 +109,18 @@ class _Shell extends StatelessWidget {
 void _back(BuildContext context) =>
     context.canPop() ? context.pop() : context.go('/conclaves');
 
-class _Detail extends StatelessWidget {
+class _Detail extends ConsumerWidget {
   final Conclave conclave;
   const _Detail({required this.conclave});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = conclave;
+    // Once the conclave's live stream is connected it has the newest cover
+    // and flyers; until then, what the list loaded.
+    final media = ref.watch(conclaveMediaProvider(c.id)).asData?.value;
+    final cover = media != null ? media.cover : c.coverImage;
+    final flyers = media != null ? media.flyers : c.flyers;
     final action = _actionFor(context, c);
     final status = c.effectiveStatus;
     final upcoming = status != ConclaveStatus.running &&
@@ -116,6 +149,13 @@ class _Detail extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (cover != null) ...[
+                          AnimatedSwitcher(
+                            duration: Motion.normal,
+                            child: ConclaveCover(key: ValueKey(cover.id), image: cover),
+                          ),
+                          const SizedBox(height: Gap.md),
+                        ],
                         _Numbers(conclave: c, upcoming: upcoming),
                         if (c.isRegistered) ...[
                           const SizedBox(height: Gap.xl),
@@ -123,6 +163,15 @@ class _Detail extends StatelessWidget {
                           _YourPlace(conclave: c),
                           const SizedBox(height: Gap.md),
                           SpecificAskCard(conclave: c),
+                        ],
+                        if (flyers.isNotEmpty) ...[
+                          const SizedBox(height: Gap.xl),
+                          _Label(flyers.length == 1 ? 'Flyer' : 'Flyers'),
+                          FlyerStrip(
+                            flyers: flyers,
+                            conclaveId: c.id,
+                            conclaveName: c.name,
+                          ),
                         ],
                         const SizedBox(height: Gap.xl),
                         const _Label('Details'),
@@ -282,6 +331,11 @@ class _Hero extends StatelessWidget {
                       ),
                     ),
                     IconButton(
+                      tooltip: 'Share',
+                      onPressed: () => shareConclave(context, c),
+                      icon: Icon(CoolIcons.share, color: ink),
+                    ),
+                    IconButton(
                       tooltip: 'Directions',
                       onPressed: () => launchUrl(
                         Uri.parse(
@@ -426,7 +480,7 @@ class _Details extends StatelessWidget {
         icon: CoolIcons.mapPin,
         label: 'Venue',
         value: c.venueLocation,
-        action: (
+        endAction: (
           'Directions',
           () => launchUrl(
                 Uri.parse(
@@ -463,16 +517,23 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+      clipBehavior: Clip.antiAlias,
       decoration: roundPanel(context),
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              Divider(height: 1, indent: Gap.lg, endIndent: Gap.lg, color: context.colors.hairline),
-            children[i],
-          ],
-        ],
+      // Tap highlights paint here, inside the rounded clip, not on the page.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+          child: Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  Divider(height: 1, indent: Gap.lg, endIndent: Gap.lg, color: context.colors.hairline),
+                children[i],
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -486,7 +547,16 @@ class _Row extends StatelessWidget {
   /// Optional link under the value (e.g. Directions), so a long value keeps
   /// the full width instead of being squeezed beside a button.
   final (String, VoidCallback)? action;
-  const _Row({required this.icon, required this.label, required this.value, this.action});
+
+  /// A compact button at the end of the row (Directions on the venue).
+  final (String, VoidCallback)? endAction;
+  const _Row({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.action,
+    this.endAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -529,6 +599,31 @@ class _Row extends StatelessWidget {
               ],
             ),
           ),
+          if (endAction != null) ...[
+            const SizedBox(width: Gap.sm),
+            Material(
+              color: AppColors.brandRed.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: endAction!.$2,
+                borderRadius: BorderRadius.circular(999),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(CoolIcons.route, size: 16, color: AppColors.brandRed),
+                    const SizedBox(width: 4),
+                    Text(
+                      endAction!.$1,
+                      style: context.text.labelLarge?.copyWith(
+                        color: AppColors.brandRed,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

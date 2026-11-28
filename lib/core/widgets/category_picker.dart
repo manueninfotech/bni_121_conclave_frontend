@@ -80,10 +80,50 @@ Future<String?> showCategoryPicker(
   );
 }
 
+/// The same sheet for any searchable list (chapters). With [allowCustom], a
+/// search that matches nothing exactly offers to use exactly what they typed, so a
+/// value missing from the list never blocks anyone.
+Future<String?> showListPicker(
+  BuildContext context, {
+  required String title,
+  required String subtitle,
+  required String searchHint,
+  required List<String> items,
+  String? selected,
+  bool allowCustom = false,
+}) {
+  return showModalBottomSheet<String>(
+    useRootNavigator: true,
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    builder: (ctx) => _CategoryPickerSheet(
+      selected: selected,
+      categories: items,
+      title: title,
+      subtitle: subtitle,
+      searchHint: searchHint,
+      allowCustom: allowCustom,
+    ),
+  );
+}
+
 class _CategoryPickerSheet extends StatefulWidget {
   final String? selected;
   final List<String> categories;
-  const _CategoryPickerSheet({this.selected, required this.categories});
+  final String title;
+  final String subtitle;
+  final String searchHint;
+  final bool allowCustom;
+  const _CategoryPickerSheet({
+    this.selected,
+    required this.categories,
+    this.title = 'Business category',
+    this.subtitle = 'No two people of the same category share a table.',
+    this.searchHint = 'Search categories',
+    this.allowCustom = false,
+  });
 
   @override
   State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
@@ -112,6 +152,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
   Widget build(BuildContext context) {
     final results = _results;
     final searching = _query.trim().isNotEmpty;
+    final typed = _query.trim();
+    final offerCustom =
+        widget.allowCustom &&
+        typed.isNotEmpty &&
+        !widget.categories.any((c) => c.toLowerCase() == typed.toLowerCase());
 
     // A-Z groups (one group when searching), each drawn as one white card.
     final groups = <(String, List<String>)>[];
@@ -138,7 +183,7 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Business category',
+                    widget.title,
                     style: context.text.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3,
@@ -146,13 +191,14 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                   ),
                   const SizedBox(height: Gap.xs),
                   Text(
-                    'No two people of the same category share a table.',
+                    widget.subtitle,
                     style: context.text.bodyMedium?.copyWith(
                       color: context.scheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: Gap.lg),
                   _SearchPill(
+                    hint: widget.searchHint,
                     controller: _search,
                     query: _query,
                     onChanged: (v) => setState(() => _query = v),
@@ -164,8 +210,26 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                 ],
               ),
             ),
+            if (offerCustom)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.md),
+                child: Container(
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: context.scheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: _CategoryRow(
+                    label: 'Use "$typed"',
+                    selected: false,
+                    onTap: () => Navigator.pop(context, typed),
+                  ),
+                ),
+              ),
             Expanded(
-              child: results.isEmpty
+              child: results.isEmpty && offerCustom
+                  ? const SizedBox.shrink()
+                  : results.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(Gap.xl),
@@ -179,7 +243,7 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                             ),
                             const SizedBox(height: Gap.sm),
                             Text(
-                              'No category matches "$_query".',
+                              'Nothing matches "$_query".',
                               textAlign: TextAlign.center,
                               style: context.text.bodyMedium?.copyWith(
                                 color: context.scheme.onSurfaceVariant,
@@ -269,11 +333,13 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
 
 /// A soft, borderless search pill (as on the Conclaves filters).
 class _SearchPill extends StatelessWidget {
+  final String hint;
   final TextEditingController controller;
   final String query;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
   const _SearchPill({
+    required this.hint,
     required this.controller,
     required this.query,
     required this.onChanged,
@@ -291,7 +357,7 @@ class _SearchPill extends StatelessWidget {
       textInputAction: TextInputAction.search,
       onChanged: onChanged,
       decoration: InputDecoration(
-        hintText: 'Search categories',
+        hintText: hint,
         prefixIcon: const Icon(CoolIcons.search, size: 20),
         filled: true,
         fillColor: context.scheme.surfaceContainerHighest.withValues(

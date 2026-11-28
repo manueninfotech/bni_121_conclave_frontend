@@ -116,23 +116,6 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
               ],
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              context.pagePadding,
-              Gap.md,
-              context.pagePadding,
-              0,
-            ),
-            child: ContentWidth(
-              child: AnimatedBuilder(
-                animation: _tabController,
-                builder: (context, _) => ConclaveFilterBar(
-                  tab: _tabController.index,
-                  regions: regions,
-                ),
-              ),
-            ),
-          ),
           Expanded(
             child: conclaves.when(
               // A skeleton, not a spinner: it says what is coming and how much
@@ -148,6 +131,9 @@ class _ConclavesListScreenState extends ConsumerState<ConclavesListScreen>
                 children: List.generate(
                   3,
                   (tab) => _ConclaveList(
+                    // The filters ride at the top of each list and scroll away
+                    // with it, instead of holding a fixed band above the list.
+                    filterBar: ConclaveFilterBar(tab: tab, regions: regions),
                     conclaves: _filtered(all, tab, filters),
                     tab: tab,
                     filtered: filters.isActive,
@@ -225,12 +211,14 @@ class _ConclavesHeader extends StatelessWidget {
 }
 
 class _ConclaveList extends StatelessWidget {
+  final Widget filterBar;
   final List<Conclave> conclaves;
   final int tab;
   final bool filtered;
   final VoidCallback onClear;
 
   const _ConclaveList({
+    required this.filterBar,
     required this.conclaves,
     required this.tab,
     required this.filtered,
@@ -239,10 +227,23 @@ class _ConclaveList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bar = Padding(
+      padding: EdgeInsets.fromLTRB(
+        context.pagePadding,
+        context.pagePadding,
+        context.pagePadding,
+        0,
+      ),
+      child: ContentWidth(child: filterBar),
+    );
     if (conclaves.isEmpty && filtered) {
       return ListView(
         physics: const ClampingScrollPhysics(),
+        // Explicit, or ListView adds the status-bar inset and the chips sit
+        // lower here than on tabs that have conclaves.
+        padding: EdgeInsets.only(bottom: context.floatingNavClearance),
         children: [
+          bar,
           SizedBox(height: MediaQuery.sizeOf(context).height * 0.1),
           EmptyView(
             icon: CoolIcons.searchClose,
@@ -259,7 +260,11 @@ class _ConclaveList extends StatelessWidget {
     if (conclaves.isEmpty) {
       return ListView(
         physics: const ClampingScrollPhysics(),
+        // Explicit, or ListView adds the status-bar inset and the chips sit
+        // lower here than on tabs that have conclaves.
+        padding: EdgeInsets.only(bottom: context.floatingNavClearance),
         children: [
+          bar,
           SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
           EmptyView(
             art: switch (tab) {
@@ -288,10 +293,12 @@ class _ConclaveList extends StatelessWidget {
         // A tab root: content scrolls BEHIND the floating nav bar, so the
         // bottom is grown to keep the last card clear of it.
         padding: context.tabScrollInsets,
-        itemCount: conclaves.length,
-        separatorBuilder: (_, _) =>
-            SizedBox(height: tab == 2 ? Gap.sm : Gap.md),
-        itemBuilder: (context, i) {
+        itemCount: conclaves.length + 1,
+        separatorBuilder: (_, i) =>
+            SizedBox(height: i == 0 ? Gap.md : (tab == 2 ? Gap.sm : Gap.md)),
+        itemBuilder: (context, index) {
+          if (index == 0) return filterBar;
+          final i = index - 1;
           final c = conclaves[i];
           final card = switch (tab) {
             0 => LiveConclaveCard(conclave: c),

@@ -5,7 +5,9 @@
 /// Rules (organisers, 2026-10-28):
 ///  - A round: 1-min bio per person, then ONE referral slot of 30 s per
 ///    person, after all bios. Max 8 per table; every table follows one clock
-///    sized by the conclave's people-per-table (8 → 8 + 4 = 12 min).
+///    per round, sized by that round's people: `roundPeople[k-1]` from the
+///    server (bigger when a walk-in re-plan enlarges that round's tables),
+///    else the conclave's people-per-table (8 → 8 + 4 = 12 min).
 ///  - Referrals only in the referral slot.
 ///  - Admin "extend" (+1/+2/+5 min) adds time after the referral slot.
 ///  - Manual (default): the admin starts each round; a finished round waits.
@@ -43,6 +45,10 @@ class RoundClock {
   final DateTime? currentRoundStartedAt;
   final int roundCount;
   final int personsPerTable;
+
+  /// Per-round sizes from the server (index = round - 1); empty = use
+  /// [personsPerTable] for every round.
+  final List<int> roundPeople;
   final bool automatic;
   final Duration extension;
   final Duration move;
@@ -54,6 +60,7 @@ class RoundClock {
     required this.currentRoundStartedAt,
     required this.roundCount,
     required this.personsPerTable,
+    this.roundPeople = const [],
     required this.automatic,
     required this.extension,
     required this.move,
@@ -71,6 +78,10 @@ class RoundClock {
       currentRoundStartedAt: started is String ? DateTime.tryParse(started) : null,
       roundCount: i(d['roundCount'], fallbackRoundCount ?? 0),
       personsPerTable: i(d['personsPerTable'], 7),
+      roundPeople: [
+        for (final v in (d['roundPeople'] is List ? d['roundPeople'] as List : const []))
+          (v as num?)?.toInt() ?? 0,
+      ],
       automatic: d['roundProgressionMode'] == 'automatic',
       extension: Duration(seconds: i(d['roundExtensionSeconds'], 0).clamp(0, 3600)),
       move: Duration(seconds: i(d['moveSeconds'], defaultMoveSeconds).clamp(0, 3600)),
@@ -79,9 +90,21 @@ class RoundClock {
     );
   }
 
-  int get people => personsPerTable.clamp(1, maxPersonsPerTable);
-  Duration get bio => Duration(seconds: people * bioSecondsPerPerson);
-  Duration get referral => Duration(seconds: people * referralSecondsPerPerson);
+  /// People round [k] is timed for.
+  int peopleFor(int k) {
+    final stored = k >= 1 && k <= roundPeople.length ? roundPeople[k - 1] : 0;
+    return (stored > 0 ? stored : personsPerTable).clamp(1, maxPersonsPerTable);
+  }
+
+  Duration bioFor(int k) => Duration(seconds: peopleFor(k) * bioSecondsPerPerson);
+  Duration referralFor(int k) =>
+      Duration(seconds: peopleFor(k) * referralSecondsPerPerson);
+  Duration talkFor(int k) => bioFor(k) + referralFor(k);
+
+  /// The stored current round's sizes.
+  int get people => peopleFor(currentRound < 1 ? 1 : currentRound);
+  Duration get bio => bioFor(currentRound < 1 ? 1 : currentRound);
+  Duration get referral => referralFor(currentRound < 1 ? 1 : currentRound);
   Duration get talk => bio + referral;
 
   /// "Now" for the clock: frozen at the pause point while paused.
@@ -96,7 +119,13 @@ class RoundClock {
     if (a == null || currentRound < 1 || k < currentRound) return null;
     if (k == currentRound) return a;
     if (!automatic) return null;
-    return a.add(talk + extension + move).add((talk + move) * (k - currentRound - 1));
+    // The current round (+ extension) and move, then each round in between at
+    // its own length.
+    var t = a.add(talkFor(currentRound) + extension + move);
+    for (var j = currentRound + 1; j < k; j++) {
+      t = t.add(talkFor(j) + move);
+    }
+    return t;
   }
 
   LiveClock live(DateTime now) {
@@ -114,6 +143,8 @@ class RoundClock {
       }
     }
     final start = roundStart(k)!;
+    final bio = bioFor(k);
+    final talk = talkFor(k);
     final ext = k == currentRound ? extension : Duration.zero;
     final into = t.difference(start);
     ClockPhase phase;

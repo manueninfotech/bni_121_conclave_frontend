@@ -9,6 +9,7 @@ import Faq from './components/Faq.jsx'
 import Download from './components/Download.jsx'
 import Footer from './components/Footer.jsx'
 import DocPage from './components/DocPage.jsx'
+import ConclaveLink from './components/ConclaveLink.jsx'
 
 export default function App({ page }) {
   const root = useRef(null)
@@ -30,6 +31,8 @@ export default function App({ page }) {
             <Faq />
             <Download />
           </>
+        ) : page === 'conclave' ? (
+          <ConclaveLink />
         ) : (
           <DocPage page={page} />
         )}

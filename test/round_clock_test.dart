@@ -56,4 +56,39 @@ void main() {
   test('tables never exceed 8', () {
     expect(RoundTiming.forRound(personsPerTable: 10).referralClosesAfter, const Duration(minutes: 12));
   });
+
+  // Same cases as the backend and the panel: per-round sizes.
+  RoundClock sized() => RoundClock(
+        currentRound: 1,
+        currentRoundStartedAt: t0,
+        roundCount: 4,
+        personsPerTable: 5,
+        roundPeople: const [5, 5, 6, 5],
+        automatic: true,
+        extension: Duration.zero,
+        move: const Duration(seconds: 120),
+        paused: false,
+        elapsedBeforePause: null,
+      );
+
+  test('each round is timed for its own size', () {
+    expect(sized().talkFor(1), const Duration(seconds: 450));
+    expect(sized().talkFor(3), const Duration(minutes: 9));
+    expect(sized().peopleFor(3), 6);
+  });
+
+  test('automatic: later rounds start after each earlier round at its own length', () {
+    expect(sized().roundStart(2), at(9.5));
+    expect(sized().roundStart(3), at(19));
+    expect(sized().roundStart(4), at(30));
+    expect(sized().live(at(24.5)).round, 3);
+    expect(sized().live(at(24.5)).phase, ClockPhase.bio);
+    expect(sized().live(at(25.5)).phase, ClockPhase.referral);
+  });
+
+  test('falls back to people-per-table', () {
+    expect(clock().talkFor(3), const Duration(minutes: 12));
+    expect(sized().talkFor(9), const Duration(seconds: 450));
+    expect(RoundClock.fromDoc({'personsPerTable': 5, 'roundPeople': [12]}).talkFor(1), const Duration(minutes: 12));
+  });
 }

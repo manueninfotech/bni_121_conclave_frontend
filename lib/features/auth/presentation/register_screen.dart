@@ -1,9 +1,12 @@
+import 'package:conclave_1_2_1/core/config/app_config_provider.dart';
+import 'package:conclave_1_2_1/core/widgets/chapter_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/domain/phone.dart';
 import '../../../core/domain/profile_text.dart';
 import '../../../core/services/analytics_service.dart';
@@ -221,6 +224,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           .verifyPhone(
             phone: _e164,
             onCodeSent: (verId) {
+              Analytics.signUpStep('otp_sent', 'phone');
               if (!mounted) return;
               setState(() {
                 _verificationId = verId;
@@ -229,6 +233,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               _goTo(1);
             },
             onError: (err) {
+              Analytics.signUpFailed('otp_send', 'phone', err);
               if (!mounted) return;
               setState(() => _isLoading = false);
               _error(err);
@@ -249,10 +254,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           .read(authRepositoryProvider)
           .submitOtp(_verificationId!, _otp.text.trim());
       _otpUser = cred.user;
+      Analytics.signUpStep('otp_verified', 'phone');
       if (!mounted) return;
       setState(() => _isLoading = false);
       _goTo(2);
     } catch (e) {
+      Analytics.signUpFailed('otp_verify', 'phone', e);
       if (mounted) setState(() => _isLoading = false);
       _error(e.toString());
     }
@@ -312,6 +319,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _isLoading = false;
             _resuming = false;
           });
+          Analytics.signUpFailed('profile', 'phone', 'signed-in account missing');
           _error(
             'Please confirm your number again to finish creating your account.',
           );
@@ -347,6 +355,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
 
       Analytics.signUp(_isPhoneFlow ? 'phone' : 'email');
+      Analytics.signUpStep('profile_saved', _isPhoneFlow ? 'phone' : 'email');
       if (!mounted) return;
       if (!_isPhoneFlow) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -356,12 +365,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
       context.go('/conclaves');
+      // Safety net: if the profile reload can't get through (weak signal),
+      // don't leave the button spinning forever.
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted) setState(() => _isLoading = false);
+      });
+    } on ApiException catch (e) {
+      // The number or email already belongs to another live account (the
+      // server allows one profile per person). The code check just made an
+      // empty login for this number: remove it, so it can't become a second
+      // account, and send the member to sign in to the one they have.
+      Analytics.signUpFailed('profile', _isPhoneFlow ? 'phone' : 'email', e.message);
+      if (e.status == 409) {
+        // Both flows just created this login (OTP, or email + password).
+        try {
+          await FirebaseAuth.instance.currentUser?.delete();
+        } catch (_) {}
+        await ref.read(authRepositoryProvider).logout();
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        await showAppNotice(
+          context,
+          icon: CoolIcons.userCheckCorner,
+          title: 'You already have an account',
+          message: e.message,
+          okLabel: 'Go to sign in',
+        );
+        if (mounted) context.go('/login');
+        return;
+      }
+      _error(e.message);
+      if (mounted) setState(() => _isLoading = false);
     } catch (e, st) {
       // Keep the stack for diagnosis — a bare message like "Null check operator
       // used on a null value" is useless without the line it came from.
       debugPrint('Registration failed: $e\n$st');
+      Analytics.signUpFailed('profile', _isPhoneFlow ? 'phone' : 'email', e);
       _error(e.toString());
-    } finally {
+      // Only on failure: after a save the spinner stays until the app moves
+      // on to Home, so the button can't be tapped twice in that second.
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -827,13 +869,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           const SectionLabel('BNI'),
           SectionCard(
             children: [
-              TextFormField(
+              ChapterField(
                 controller: _chapter,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Chapter (optional)',
-                  prefixIcon: Icon(CoolIcons.usersGroup),
-                ),
+                chapters: ref.watch(chaptersProvider),
               ),
               const SizedBox(height: Gap.md),
               TextFormField(

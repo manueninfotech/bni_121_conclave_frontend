@@ -1,5 +1,6 @@
 // Renders the inner (pushed) pages with sample data for design review:
 //   flutter test test/screens/inner_pages_test.dart --update-goldens
+import 'package:conclave_1_2_1/core/config/app_config_provider.dart';
 import 'dart:io';
 
 import 'package:conclave_1_2_1/core/theme/app_theme.dart';
@@ -82,6 +83,7 @@ final _conclave = Conclave(
 );
 
 final _overrides = [
+  appConfigProvider.overrideWith((ref) => const Stream.empty()),
   authStateProvider.overrideWith((ref) => Stream.value(null)),
   myProfileProvider.overrideWith((ref) => Stream.value(_profile)),
   conclavesStreamProvider.overrideWith((ref) => Stream.value([_conclave])),

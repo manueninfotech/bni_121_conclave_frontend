@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
-/// Closes the keyboard when the user taps anywhere outside the focused field.
+/// Closes the keyboard when the user taps anywhere outside the focused field,
+/// or drags any scrollable (lists, sheets such as the country picker, pages).
+/// Sits above the Navigator, so it covers every screen and bottom sheet.
 ///
 /// A passive [Listener], not a GestureDetector: it never joins the gesture
 /// arena, so it can't steal taps, scrolls, or the iOS edge swipe-back.
@@ -29,12 +31,37 @@ class _KeyboardDismissOnTapState extends State<KeyboardDismissOnTap> {
     focus.unfocus();
   }
 
+  /// A finger drag on any scrollable closes the keyboard. Scrolls the app
+  /// makes itself (bringing a field into view) carry no drag details, so they
+  /// leave the keyboard alone.
+  bool _onScroll(ScrollUpdateNotification n) {
+    if (n.dragDetails == null) return false;
+    final focus = FocusManager.instance.primaryFocus;
+    final field = focus?.context;
+    if (focus == null || field == null) return false;
+    // Scrolling inside the focused field itself (a long note) keeps it open.
+    var inside = false;
+    n.context?.visitAncestorElements((e) {
+      if (e == field) {
+        inside = true;
+        return false;
+      }
+      return true;
+    });
+    if (!inside) focus.unfocus();
+    return false; // let others see it too
+  }
+
   @override
-  Widget build(BuildContext context) => Listener(
-    behavior: HitTestBehavior.translucent,
-    onPointerDown: (e) => _down = e.position,
-    onPointerUp: _onUp,
-    onPointerCancel: (_) => _down = null,
-    child: widget.child,
-  );
+  Widget build(BuildContext context) =>
+      NotificationListener<ScrollUpdateNotification>(
+        onNotification: _onScroll,
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (e) => _down = e.position,
+          onPointerUp: _onUp,
+          onPointerCancel: (_) => _down = null,
+          child: widget.child,
+        ),
+      );
 }
