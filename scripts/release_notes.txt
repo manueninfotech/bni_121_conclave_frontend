@@ -1,6 +1,9 @@
-What's new in 1.5.1
+What's new in 1.6.0
 
-- Fixed: creating an account could stop with "session ended" right after you verified your number
-- Smaller tables now see a short-wait countdown during a round, so a quiet minute no longer looks like the app is stuck
-- Your name and city must be real details
-- Fixes and polish
+- Fixed: creating an account no longer loops back to the sign-up screen
+- Share a conclave with one tap; the link opens it straight in the app
+- See each conclave's cover image and flyers
+- Pick your BNI chapter from a list
+- Notifications open the exact screen they are about
+- Your new profile photo shows everywhere at once
+- Smoother tabs, tidier screens, and other fixes
